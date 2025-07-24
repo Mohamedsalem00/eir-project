@@ -1,0 +1,101 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\geometry{margin=2.5cm}
+
+\title{Cahier des Charges du Projet EIR (Enregistrement des IMEI et RIB)}
+\author{Mohamed Salem Khyarhoum}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduction}
+Ce projet consiste à développer une plateforme web sécurisée permettant de vérifier l’état d’un appareil mobile (volé ou non) à partir de son numéro IMEI. La plateforme vise à assister les utilisateurs, opérateurs et autorités dans la lutte contre la contrefaçon et le trafic des téléphones portables.
+
+\section{Objectifs du Projet}
+\begin{itemize}
+    \item Développement d’un site web responsive.
+    \item Vérification de l’IMEI via une base de données centralisée.
+    \item Authentification des utilisateurs avec JWT.
+    \item Implémentation d’une API REST sécurisée.
+    \item Gestion de l’historique de requêtes.
+    \item Infrastructure conteneurisée (Docker).
+\end{itemize}
+
+\section{Technologies Utilisées}
+\begin{itemize}
+    \item \textbf{Backend} : FastAPI (Python)
+    \item \textbf{Base de Données} : PostgreSQL
+    \item \textbf{Frontend} : HTML, CSS (ou simple template Bootstrap si nécessaire)
+    \item \textbf{Sécurité} : JWT, HTTPS, validation des entrées
+    \item \textbf{Test} : Postman pour tester l’API
+    \item \textbf{Déploiement} : Docker
+\end{itemize}
+
+\section{Architecture Générale}
+\begin{itemize}
+    \item Un serveur Linux (hébergé ou local via Docker)
+    \item API REST exposée (FastAPI)
+    \item Base de données PostgreSQL sécurisée
+    \item Interface utilisateur simple pour soumettre un IMEI
+    \item Logs d’accès pour audit
+\end{itemize}
+
+\section{Fonctionnalités Attendues}
+\begin{itemize}
+    \item Soumission d’un IMEI et vérification dans la base
+    \item Authentification par jeton (JWT)
+    \item Gestion des rôles (admin, utilisateur)
+    \item Historique des consultations
+    \item API REST pour intégration éventuelle avec d’autres systèmes
+\end{itemize}
+
+\section{Utilisateurs}
+\subsection{Types d’utilisateurs}
+\begin{itemize}
+    \item \textbf{Administrateur} :
+        \begin{itemize}
+            \item Accès complet à la base IMEI
+            \item Possibilité d’ajouter/supprimer/modifier des entrées
+            \item Gestion des comptes utilisateurs
+        \end{itemize}
+    \item \textbf{Utilisateur Authentifié} :
+        \begin{itemize}
+            \item Peut vérifier un IMEI
+            \item Accès illimité (selon quota défini) à la recherche IMEI.
+            \item Accède à son historique de recherche
+            \item Les actions sont journalisées à des fins d’audit.
+        \end{itemize}
+    \item \textbf{Visiteur Anonyme} :
+        \begin{itemize}
+            \item Accès limité à un seul formulaire de recherche IMEI par jour.
+            \item N’a pas accès à l’historique ni aux détails étendus.
+        \end{itemize}
+\end{itemize}
+
+\section{Sécurité}
+\begin{itemize}
+    \item Authentification par JWT
+    \item Sécurisation des communications via HTTPS
+    \item Protection contre les injections SQL et autres attaques courantes
+\end{itemize}
+
+\section{Livrables}
+\begin{itemize}
+    \item Code source (API + interface)
+    \item Fichier Dockerfile + docker-compose
+    \item Documentation d’utilisation
+    \item Script SQL de création de la base
+\end{itemize}
+
+
+\end{document}
