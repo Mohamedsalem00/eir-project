@@ -1,0 +1,90 @@
+@startuml
+title Schéma Conceptuel Simplifié - IMEI Project
+
+entity Utilisateur {
+  *id : UUID
+  --
+  nom : String
+  email : String
+  mot_de_passe : String
+  numero_telephone : String
+  role : String
+}
+
+entity Telephone {
+  *id : UUID
+  --
+  imei : String
+  marque : String
+  modele : String
+  statut : String
+  date_ajout : Date
+  pays_origine : String
+}
+
+entity SIM {
+  *id : UUID
+  --
+  iccid : String
+  operateur : String
+  date_activation : Date
+}
+
+entity Utilisateur_Telephone {
+  *id : UUID
+  --
+  utilisateur_id : UUID
+  telephone_id : UUID
+  date_liaison : Date
+}
+
+entity Utilisateur_SIM {
+  *id : UUID
+  --
+  utilisateur_id : UUID
+  sim_id : UUID
+  date_liaison : Date
+}
+
+entity Historique_Recherche {
+  *id : UUID
+  --
+  utilisateur_id : UUID
+  imei_recherche : String
+  date_recherche : DateTime
+}
+
+entity Audit_Log {
+  *id : UUID
+  --
+  user_id : UUID
+  action : String
+  table_name : String
+  record_id : UUID
+  timestamp : DateTime
+  details : Text
+}
+
+entity Notification {
+  *id : UUID
+  --
+  utilisateur_id : UUID
+  type : String      
+  message : Text
+  statut : String     
+  date_envoi : DateTime
+}
+
+' Relations
+Utilisateur ||--o{ Utilisateur_Telephone : "possède"
+Telephone ||--o{ Utilisateur_Telephone : "lié à"
+
+Utilisateur ||--o{ Utilisateur_SIM : "utilise"
+SIM ||--o{ Utilisateur_SIM : "lié à"
+
+Utilisateur ||--o{ Historique_Recherche : "effectue"
+Utilisateur ||--o{ Audit_Log : "génère"
+
+Utilisateur ||--o{ Notification : "reçoit"
+
+@enduml

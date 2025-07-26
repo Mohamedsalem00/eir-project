@@ -1,101 +1,161 @@
-\documentclass[12pt,a4paper]{article}
+\documentclass[a4paper,12pt]{article}
 \usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
 \usepackage[french]{babel}
 \usepackage{geometry}
-\usepackage{graphicx}
 \usepackage{hyperref}
-\usepackage{enumitem}
+\usepackage{graphicx}
 \geometry{margin=2.5cm}
-
-\title{Cahier des Charges du Projet EIR (Enregistrement des IMEI et RIB)}
-\author{Mohamed Salem Khyarhoum}
-\date{\today}
+\title{Cahier des Charges}
+\author{Projet de vérification IMEI}
+\date{}
 
 \begin{document}
 
 \maketitle
+
 \tableofcontents
 \newpage
 
 \section{Introduction}
-Ce projet consiste à développer une plateforme web sécurisée permettant de vérifier l’état d’un appareil mobile (volé ou non) à partir de son numéro IMEI. La plateforme vise à assister les utilisateurs, opérateurs et autorités dans la lutte contre la contrefaçon et le trafic des téléphones portables.
+Ce projet vise à développer une API et une interface web permettant la vérification de l'authenticité des numéros IMEI des téléphones mobiles. Il a pour objectif principal de lutter contre l'importation et l'utilisation de téléphones non conformes ou volés.
 
 \section{Objectifs du Projet}
 \begin{itemize}
-    \item Développement d’un site web responsive.
-    \item Vérification de l’IMEI via une base de données centralisée.
-    \item Authentification des utilisateurs avec JWT.
-    \item Implémentation d’une API REST sécurisée.
-    \item Gestion de l’historique de requêtes.
-    \item Infrastructure conteneurisée (Docker).
+    \item Vérifier si un IMEI est valide et connu.
+    \item Identifier la provenance d'un appareil.
+    \item Associer plusieurs téléphones et cartes SIM à un utilisateur.
+    \item Tracer les recherches effectuées.
+\end{itemize}
+
+\section{Architecture Générale}
+L'architecture suit le modèle client-serveur :
+\begin{itemize}
+    \item Le client interroge l’API en fournissant un numéro IMEI (et éventuellement un ICCID).
+    \item L’API traite la requête, interroge la base de données locale, puis retourne le statut de l'appareil.
+    \item Si l’IMEI est inconnu, une requête est faite à une API externe (ex : GSMA), et les données sont mises en cache localement.
+\end{itemize}
+
+\section{Fonctionnalités Attendues}
+\begin{itemize}
+    \item Recherche d’un numéro IMEI pour vérifier sa validité et son statut.
+    \item Affichage des détails d’un appareil associé à un IMEI.
+    \item Recherche secondaire vers une API externe si IMEI non trouvé localement.
+    \item Mise en cache locale des résultats externes.
+    \item Enregistrement d’un nouvel appareil.
+    \item Liaison d’un appareil (IMEI) ou d’une carte SIM (ICCID) à un utilisateur.
+    \item Authentification sécurisée via JWT.
+    \item Historique des recherches et actions utilisateurs.
+    \item Notifications par email ou SMS lors d’actions critiques.
+    \item Journalisation pour audit.
+\end{itemize}
+
+\section{Architecture de la Base de Données}
+
+\subsection{Choix de la structure}
+Une base relationnelle PostgreSQL a été choisie pour sa robustesse, sa normalisation, et sa gestion des relations.
+
+\subsection{Schéma simplifié}
+
+\begin{itemize}
+    \item \textbf{utilisateurs} : (id, nom, email, mot de passe, numéro téléphone, rôle)
+    \item \textbf{telephones} : (id, imei, marque, modèle, statut, date ajout, pays origine)
+    \item \textbf{sims} : (id, iccid, opérateur, date activation)
+    \item \textbf{utilisateur\_telephone} : (id, utilisateur\_id, telephone\_id, date liaison)
+    \item \textbf{utilisateur\_sim} : (id, utilisateur\_id, sim\_id, date liaison)
+    \item \textbf{historique\_recherches} : (id, utilisateur\_id, imei recherché, date recherche)
+    \item \textbf{audit\_logs} : (id, user\_id, action, table\_name, record\_id, timestamp, details)
+    \item \textbf{notifications} : (id, utilisateur\_id, type, message, statut, date\_envoi)
+\end{itemize}
+
+
+\subsection{Champ important : ICCID}
+Chaque carte SIM est identifiée de façon unique par un ICCID (Integrated Circuit Card Identifier). Il permet de suivre l’usage et les changements de téléphone d’un utilisateur.
+
+\subsection{Évolution}
+\begin{itemize}
+    \item Intégration d’une API externe (ex : GSMA) pour recherche étendue.
+    \item Réattribution dynamique des appareils/SIM.
+    \item Alertes lors de changement d’équipement.
+\end{itemize}
+
+\subsection{Mise en cache des données externes}
+Pour réduire la charge et la latence, tout IMEI inconnu trouvé via API externe est enregistré localement pour les futures recherches.
+
+\subsection{Système de Notification}
+
+Le système de notification permet d’informer les utilisateurs par différents canaux selon le contexte. Chaque notification contient un type, un message, un statut, et une date d’envoi.
+
+\begin{itemize}
+    \item \textbf{Type} : 
+    \begin{itemize}
+        \item \textbf{email} : confirmations, alertes de sécurité.
+        \item \textbf{sms} : alertes urgentes, authentification à deux facteurs (2FA).
+    \end{itemize}
+
+    \item \textbf{Statut} :
+    \begin{itemize}
+        \item \textbf{envoyé} : notification transmise avec succès.
+        \item \textbf{échoué} : erreur lors de l’envoi.
+        \item \textbf{en attente} : notification en file d’attente.
+    \end{itemize}
+    
+    \item \textbf{Intégration possible} : SendGrid, Twilio, Firebase, etc.
+\end{itemize}
+
+\subsection{Alimentation de la Base de Données (Import / Export)}
+\begin{itemize}
+    \item \textbf{Importation} :
+    \begin{itemize}
+        \item Fichiers CSV ou JSON contenant des IMEI.
+        \item Validation des doublons.
+        \item Mise à jour automatique.
+    \end{itemize}
+    \item \textbf{Exportation} :
+    \begin{itemize}
+        \item Exports filtrables (statut, utilisateur, date...).
+        \item Formats : CSV / JSON.
+    \end{itemize}
+\end{itemize}
+
+\section{Utilisateurs}
+
+\subsection{Types d'utilisateurs}
+\begin{itemize}
+    \item \textbf{Administrateur} : contrôle complet du système.
+    \item \textbf{Utilisateur Authentifié} : accès complet à ses propres données.
+    \item \textbf{Visiteur Anonyme} : 
+    \begin{itemize}
+        \item Aucun compte requis - pas stocké en base de données.
+        \item Recherche IMEI limitée (rate limiting).
+        \item Informations limitées dans les résultats de recherche.
+        \item Pas d'historique ni de fonctionnalités avancées.
+    \end{itemize}
+\end{itemize}
+
+\section{Sécurité}
+\begin{itemize}
+    \item Authentification JWT.
+    \item Hachage des mots de passe (ex : bcrypt).
+    \item Limitation des requêtes (rate limiting).
+    \item Journalisation des accès.
 \end{itemize}
 
 \section{Technologies Utilisées}
 \begin{itemize}
     \item \textbf{Backend} : FastAPI (Python)
-    \item \textbf{Base de Données} : PostgreSQL
-    \item \textbf{Frontend} : HTML, CSS (ou simple template Bootstrap si nécessaire)
-    \item \textbf{Sécurité} : JWT, HTTPS, validation des entrées
-    \item \textbf{Test} : Postman pour tester l’API
-    \item \textbf{Déploiement} : Docker
-\end{itemize}
-
-\section{Architecture Générale}
-\begin{itemize}
-    \item Un serveur Linux (hébergé ou local via Docker)
-    \item API REST exposée (FastAPI)
-    \item Base de données PostgreSQL sécurisée
-    \item Interface utilisateur simple pour soumettre un IMEI
-    \item Logs d’accès pour audit
-\end{itemize}
-
-\section{Fonctionnalités Attendues}
-\begin{itemize}
-    \item Soumission d’un IMEI et vérification dans la base
-    \item Authentification par jeton (JWT)
-    \item Gestion des rôles (admin, utilisateur)
-    \item Historique des consultations
-    \item API REST pour intégration éventuelle avec d’autres systèmes
-\end{itemize}
-
-\section{Utilisateurs}
-\subsection{Types d’utilisateurs}
-\begin{itemize}
-    \item \textbf{Administrateur} :
-        \begin{itemize}
-            \item Accès complet à la base IMEI
-            \item Possibilité d’ajouter/supprimer/modifier des entrées
-            \item Gestion des comptes utilisateurs
-        \end{itemize}
-    \item \textbf{Utilisateur Authentifié} :
-        \begin{itemize}
-            \item Peut vérifier un IMEI
-            \item Accès illimité (selon quota défini) à la recherche IMEI.
-            \item Accède à son historique de recherche
-            \item Les actions sont journalisées à des fins d’audit.
-        \end{itemize}
-    \item \textbf{Visiteur Anonyme} :
-        \begin{itemize}
-            \item Accès limité à un seul formulaire de recherche IMEI par jour.
-            \item N’a pas accès à l’historique ni aux détails étendus.
-        \end{itemize}
-\end{itemize}
-
-\section{Sécurité}
-\begin{itemize}
-    \item Authentification par JWT
-    \item Sécurisation des communications via HTTPS
-    \item Protection contre les injections SQL et autres attaques courantes
+    \item \textbf{Base de données} : PostgreSQL
+    \item \textbf{Conteneurisation} : Docker / Docker Compose
+    \item \textbf{Authentification} : JWT
+    \item \textbf{Frontend} : HTML/CSS/JS ou équivalent
 \end{itemize}
 
 \section{Livrables}
 \begin{itemize}
     \item Code source (API + interface)
-    \item Fichier Dockerfile + docker-compose
-    \item Documentation d’utilisation
+    \item Fichier \texttt{docker-compose.yml}
     \item Script SQL de création de la base
+    \item Documentation technique et utilisateur
+    \item Présentation finale
 \end{itemize}
-
 
 \end{document}
