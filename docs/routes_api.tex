@@ -1,0 +1,100 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{Structure de l'API - Projet IMEI/ICCID}
+\author{Mohamed Khyarhoum}
+\date{Décembre 2024}
+
+\begin{document}
+
+\maketitle
+
+\section{Types d'Utilisateurs}
+\begin{itemize}
+    \item \textbf{Administrateur} : Accès complet au système
+    \item \textbf{Utilisateur Authentifié} : Accès à ses propres données
+    \item \textbf{Visiteur Anonyme} : Accès limité sans compte (rate limiting)
+\end{itemize}
+
+\section{Authentification (JWT)}
+\begin{itemize}
+    \item \texttt{POST /auth/register} : Inscription d'un utilisateur
+    \item \texttt{POST /auth/login} : Connexion (retourne un token JWT)
+    \item \texttt{GET /auth/profile} : Profil de l'utilisateur connecté (Auth requis)
+    \item \texttt{POST /auth/logout} : Déconnexion et audit (Auth requis)
+\end{itemize}
+
+\section{Recherche IMEI (Public)}
+\begin{itemize}
+    \item \texttt{GET /imei/\{imei\}} : Vérifier un IMEI (Public avec limitations pour visiteurs)
+    \item \texttt{POST /imei/\{imei\}/search} : Recherche IMEI avec logging (Public)
+    \item \texttt{GET /imei/\{imei\}/history} : Historique des recherches d'un IMEI
+\end{itemize}
+
+\section{Gestion des Appareils}
+\begin{itemize}
+    \item \texttt{GET /devices} : Lister les appareils (utilisateur : ses appareils, admin : tous)
+    \item \texttt{POST /devices} : Ajouter un nouvel appareil (Auth requis)
+    \item \texttt{PUT /devices/\{device\_id\}/assign} : Assigner un appareil à un utilisateur
+    \item \texttt{POST /devices/\{device\_id\}/imeis} : Ajouter un IMEI à un appareil
+    \item \texttt{DELETE /admin/devices/\{device\_id\}} : Supprimer un appareil (Admin uniquement)
+\end{itemize}
+
+\section{Gestion des Cartes SIM}
+\begin{itemize}
+    \item \texttt{GET /sims} : Lister les cartes SIM
+    \item \texttt{POST /sims} : Ajouter une nouvelle SIM
+    \item \texttt{GET /sims/\{iccid\}} : Vérifier un ICCID
+\end{itemize}
+
+\section{Historique et Recherches}
+\begin{itemize}
+    \item \texttt{GET /searches} : Historique des recherches (Auth requis)
+    \item \texttt{GET /users/\{user\_id\}/searches} : Recherches d'un utilisateur spécifique
+\end{itemize}
+
+\section{Gestion des Utilisateurs}
+\begin{itemize}
+    \item \texttt{GET /users} : Lister les utilisateurs
+    \item \texttt{POST /users} : Créer un utilisateur
+    \item \texttt{GET /users/\{user\_id\}} : Détails d'un utilisateur (Auth + propriété/admin)
+\end{itemize}
+
+\section{Notifications}
+\begin{itemize}
+    \item \texttt{GET /notifications} : Lister les notifications
+\end{itemize}
+
+\section{Analytics}
+\begin{itemize}
+    \item \texttt{GET /analytics/searches} : Statistiques des recherches (Auth requis)
+    \item \texttt{GET /analytics/devices} : Statistiques des appareils
+    \item \texttt{GET /public/stats} : Statistiques publiques (limitées pour visiteurs)
+\end{itemize}
+
+\section{Administration (Admin uniquement)}
+\begin{itemize}
+    \item \texttt{GET /admin/users} : Lister tous les utilisateurs
+    \item \texttt{GET /admin/audit-logs} : Logs d'audit
+    \item \texttt{POST /admin/bulk-import-devices} : Import en masse d'appareils
+    \item \texttt{PUT /imeis/\{imei\_id\}/status} : Changer le statut d'un IMEI
+\end{itemize}
+
+\section{Endpoints Système}
+\begin{itemize}
+    \item \texttt{GET /} : Message de bienvenue
+    \item \texttt{GET /health} : État de santé de l'API
+\end{itemize}
+
+\section{Sécurité}
+\begin{itemize}
+    \item \textbf{JWT Authentication} : Tokens sécurisés avec expiration (30 min)
+    \item \textbf{Role-based Access} : Admin/User/Visitor avec permissions appropriées
+    \item \textbf{Rate Limiting} : 10 requêtes/heure pour les visiteurs anonymes
+    \item \textbf{Audit Logging} : Toutes les actions critiques sont journalisées
+    \item \textbf{Password Security} : Hachage bcrypt des mots de passe
+\end{itemize}
+
+\end{document}
