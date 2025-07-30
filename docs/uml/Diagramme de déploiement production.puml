@@ -1,0 +1,94 @@
+@startuml
+!theme plain
+title Architecture de Déploiement Production
+
+node "Load Balancer Cluster" {
+    component "Nginx LB 1" as LB1
+    component "Nginx LB 2" as LB2
+    LB1 -[hidden]- LB2
+}
+
+node "Application Cluster" {
+    node "App Server 1" {
+        component "EIR API 1" as API1
+        component "Redis Cache 1" as Cache1
+    }
+    
+    node "App Server 2" {
+        component "EIR API 2" as API2  
+        component "Redis Cache 2" as Cache2
+    }
+    
+    API1 -[hidden]- API2
+}
+
+node "Database Cluster" {
+    database "PostgreSQL Master" as DBMaster {
+        [Primary Database]
+        [Real-time Operations]
+    }
+    
+    database "PostgreSQL Replica 1" as DBReplica1 {
+        [Read Replica]
+        [Analytics Queries]
+    }
+    
+    database "PostgreSQL Replica 2" as DBReplica2 {
+        [Read Replica]
+        [Backup Operations]
+    }
+}
+
+cloud "External Services" {
+    [GSMA API]
+    [Email Service]
+    [SMS Gateway]
+    [Monitoring Service]
+}
+
+storage "Backup Storage" {
+    [Database Backups]
+    [Application Logs]
+    [Audit Archives]
+}
+
+cloud "CDN" as cdn {
+    [Static Assets]
+    [API Documentation]
+    [Public Resources]
+}
+
+actor "End Users" as users
+
+users --> cdn : Static content
+users --> LB1 : API requests
+users --> LB2 : Failover
+
+LB1 --> API1
+LB1 --> API2
+LB2 --> API1
+LB2 --> API2
+
+API1 --> Cache1
+API2 --> Cache2
+
+API1 --> DBMaster : Write operations
+API2 --> DBMaster : Write operations
+
+API1 --> DBReplica1 : Read operations
+API2 --> DBReplica2 : Read operations
+
+API1 --> [External Services]
+API2 --> [External Services]
+
+DBMaster --> DBReplica1 : Replication
+DBMaster --> DBReplica2 : Replication
+
+DBMaster --> [Backup Storage] : Automated backups
+DBReplica2 --> [Backup Storage] : Archive operations
+
+note right of LB1 : Haute disponibilité\nFailover automatique
+note right of API1 : Scalabilité horizontale\nLoad balancing
+note right of DBMaster : Master-Slave replication\nRead scaling
+
+@enduml

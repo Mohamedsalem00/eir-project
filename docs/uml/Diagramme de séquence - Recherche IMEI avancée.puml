@@ -1,0 +1,64 @@
+@startuml
+!theme plain
+title Recherche IMEI Avancée avec Cache et API Externe
+
+actor Client
+participant "Rate Limiter" as RL
+participant "Auth Service" as Auth
+participant "IMEI Service" as IMEI
+participant "Cache Service" as Cache
+participant "Database" as DB
+participant "External API" as Ext
+participant "Audit Service" as Audit
+
+Client -> RL : GET /imei/{imei}
+
+alt Visiteur anonyme
+    RL -> RL : checkRateLimit(client_ip)
+    alt Limite dépassée
+        RL --> Client : 429 Too Many Requests
+    end
+else Utilisateur authentifié
+    RL -> Auth : validateToken()
+    Auth --> RL : user_context
+end
+
+RL -> IMEI : searchIMEI(imei, user_context)
+
+IMEI -> Cache : get(imei_key)
+alt Cache HIT
+    Cache --> IMEI : cached_result
+    IMEI -> Audit : logSearch(imei, user_id, "cache_hit")
+    IMEI --> Client : filtered_response
+else Cache MISS
+    IMEI -> DB : SELECT * FROM imei WHERE imei_number = ?
+    
+    alt Database HIT
+        DB --> IMEI : imei_record
+        IMEI -> Cache : set(imei_key, record)
+        IMEI -> Audit : logSearch(imei, user_id, "db_hit")
+        
+    else Database MISS
+        IMEI -> Ext : GET /imei-check/{imei}
+        
+        alt External API SUCCESS
+            Ext --> IMEI : external_result
+            IMEI -> DB : INSERT imei_record (if valid)
+            IMEI -> Cache : set(imei_key, result)
+            IMEI -> Audit : logSearch(imei, user_id, "external_hit")
+            
+        else External API FAILURE
+            IMEI -> Audit : logSearch(imei, user_id, "not_found")
+            IMEI --> Client : {found: false, message: "IMEI inconnu"}
+        end
+    end
+    
+    IMEI -> IMEI : filterByAccessLevel(result, user_level)
+    IMEI --> Client : filtered_response
+end
+
+note right of Cache : LRU Cache\n1000 entrées\nTTL: 1 heure
+
+note right of IMEI : Filtrage selon niveau:\n- Visiteur: info basique\n- User: info complète\n- Admin: + analytics
+
+@enduml

@@ -1,0 +1,151 @@
+@startuml
+!theme plain
+title Architecture de Monitoring et Observabilité
+
+package "Application Metrics" {
+    component "Performance Metrics" as Perf {
+        +Response time
+        +Throughput (req/sec)
+        +Error rate
+        +CPU/Memory usage
+    }
+    
+    component "Business Metrics" as Business {
+        +IMEI searches/hour
+        +New device registrations
+        +User authentications
+        +API endpoint usage
+    }
+    
+    component "Security Metrics" as Security {
+        +Failed login attempts
+        +Rate limit violations
+        +Suspicious IP activity
+        +Admin actions
+    }
+}
+
+package "Infrastructure Metrics" {
+    component "System Metrics" as System {
+        +CPU utilization
+        +Memory usage
+        +Disk I/O
+        +Network traffic
+    }
+    
+    component "Database Metrics" as DB {
+        +Connection pool usage
+        +Query execution time
+        +Lock wait time
+        +Storage usage
+    }
+    
+    component "Container Metrics" as Container {
+        +Container health
+        +Resource consumption
+        +Restart count
+        +Image vulnerabilities
+    }
+}
+
+package "Logging System" {
+    component "Application Logs" as AppLogs {
+        +Request/Response logs
+        +Error logs
+        +Audit logs
+        +Debug information
+    }
+    
+    component "System Logs" as SysLogs {
+        +Operating system logs
+        +Container logs
+        +Network logs
+        +Security events
+    }
+    
+    component "Audit Trail" as Audit {
+        +User actions
+        +Data modifications
+        +System changes
+        +Compliance events
+    }
+}
+
+package "Monitoring Stack" {
+    database "Time Series DB" as TSDB {
+        [Metrics Storage]
+        [Historical Data]
+        [Aggregations]
+    }
+    
+    database "Log Storage" as LogDB {
+        [Elasticsearch]
+        [Log Indexing]
+        [Full-text Search]
+    }
+    
+    component "Metrics Collector" as Collector {
+        +Prometheus
+        +Custom exporters
+        +JMX metrics
+        +Application metrics
+    }
+    
+    component "Log Aggregator" as LogAgg {
+        +Logstash/Fluentd
+        +Log parsing
+        +Enrichment
+        +Routing
+    }
+}
+
+package "Visualization & Alerting" {
+    component "Dashboards" as Dash {
+        +Grafana dashboards
+        +Real-time charts
+        +Historical trends
+        +Custom views
+    }
+    
+    component "Alert Manager" as Alert {
+        +Rule-based alerts
+        +Escalation policies
+        +Notification channels
+        +Alert correlation
+    }
+    
+    component "Reporting" as Report {
+        +Automated reports
+        +Compliance reports
+        +Performance summaries
+        +SLA monitoring
+    }
+}
+
+' Data flow
+Perf --> Collector
+Business --> Collector
+Security --> Collector
+System --> Collector
+DB --> Collector
+Container --> Collector
+
+AppLogs --> LogAgg
+SysLogs --> LogAgg
+Audit --> LogAgg
+
+Collector --> TSDB
+LogAgg --> LogDB
+
+TSDB --> Dash
+LogDB --> Dash
+
+TSDB --> Alert
+LogDB --> Alert
+
+Alert --> Report
+Dash --> Report
+
+note right of Alert : Alertes configurées:\n- API response time > 500ms\n- Error rate > 5%\n- Failed logins > 10/min\n- Database connections > 80%
+
+@enduml

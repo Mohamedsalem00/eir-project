@@ -1,0 +1,64 @@
+@startuml
+!theme plain
+title Flux des Données - Système EIR
+
+start
+
+:Requête client reçue;
+
+partition "Couche Sécurité" {
+    :Validation rate limiting;
+    if (Token JWT présent?) then (oui)
+        :Validation token;
+        :Extraction user context;
+    else (non)
+        :Mode visiteur anonyme;
+    endif
+}
+
+partition "Couche Métier" {
+    :Traitement logique métier;
+    
+    if (Type de requête?) then (Recherche IMEI)
+        :Service IMEI;
+        :Recherche cache local;
+        if (Trouvé en cache?) then (non)
+            :Recherche base de données;
+            if (Trouvé en DB?) then (non)
+                :Appel API externe;
+                :Mise en cache résultat;
+            endif
+        endif
+        :Log recherche + audit;
+        
+    elseif (Gestion appareil)
+        :Service Device;
+        :Validation propriété;
+        :CRUD opérations;
+        :Log audit;
+        
+    elseif (Gestion utilisateur)
+        :Service Auth;
+        :Validation permissions;
+        :Opérations utilisateur;
+        :Log audit;
+        
+    endif
+}
+
+partition "Couche Données" {
+    :Transaction base de données;
+    :Mise à jour entités;
+    :Commit/Rollback;
+}
+
+partition "Réponse" {
+    :Formatage réponse JSON;
+    :Application filtres sécurité;
+    :Internationalisation;
+    :Retour client;
+}
+
+stop
+
+@enduml

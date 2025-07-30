@@ -22,7 +22,6 @@ from datetime import datetime, timedelta
 import uuid
 from typing import Optional, List
 import platform
-import os
 
 # Enhanced FastAPI configuration
 app = FastAPI(
@@ -61,8 +60,20 @@ app = FastAPI(
             "description": "Device management operations"
         },
         {
+            "name": "SIM Cards",
+            "description": "SIM card management operations"
+        },
+        {
             "name": "Users",
             "description": "User management operations"
+        },
+        {
+            "name": "Search History",
+            "description": "Search history and tracking endpoints"
+        },
+        {
+            "name": "Notifications",
+            "description": "Notification management endpoints"
         },
         {
             "name": "Analytics",
@@ -454,38 +465,6 @@ def check_imei(
         "search_id": str(recherche.id)
     }
 
-@app.post(
-    "/imei/{imei}/search",
-    tags=["IMEI", "Public"],
-    summary="Log IMEI Search",
-    description="Log IMEI search with user tracking"
-)
-def log_imei_search(
-    imei: str,
-    request: Request,
-    db: Session = Depends(get_db),
-    user_info: tuple = Depends(allow_all_with_limits),
-    translator = Depends(get_current_translator)
-):
-    """Log IMEI search with user tracking"""
-    current_user, user_type = user_info
-    
-    # Log the search in Recherche table
-    recherche = Recherche(
-        id=uuid.uuid4(),
-        date_recherche=datetime.now(),
-        imei_recherche=imei,
-        utilisateur_id=current_user.id if current_user else None
-    )
-    
-    db.add(recherche)
-    db.commit()
-    
-    # Then perform the search
-    result = check_imei(imei, request, db, user_info, translator)
-    result["search_logged"] = translator.translate("search_logged")
-    return result
-
 # Device Management APIs with proper audit logging
 @app.post("/devices", tags=["Devices"])
 def register_device(
@@ -552,7 +531,7 @@ def register_device(
         ]
     }
 
-@app.get("/searches")
+@app.get("/searches", tags=["Search History"])
 def list_searches(
     skip: int = 0, 
     limit: int = 100, 
@@ -658,7 +637,7 @@ def get_user(
     }
 
 # SIM Card Management APIs
-@app.post("/sims")
+@app.post("/sims", tags=["SIM Cards"])
 def register_sim(
     sim_data: dict, 
     db: Session = Depends(get_db),
@@ -680,7 +659,7 @@ def register_sim(
     db.refresh(sim)
     return {"id": str(sim.id), "iccid": sim.iccid, "operateur": sim.operateur}
 
-@app.get("/sims")
+@app.get("/sims", tags=["SIM Cards"])
 def list_sims(
     skip: int = 0, 
     limit: int = 100, 
@@ -707,7 +686,7 @@ def list_sims(
         ]
     }
 
-@app.get("/sims/{iccid}")
+@app.get("/sims/{iccid}", tags=["SIM Cards"])
 def check_iccid(iccid: str, db: Session = Depends(get_db)):
     sim = db.query(SIM).filter(SIM.iccid == iccid).first()
     if sim:
@@ -722,64 +701,14 @@ def check_iccid(iccid: str, db: Session = Depends(get_db)):
         }
     return {"iccid": iccid, "found": False, "message": "ICCID not found"}
 
-# Device Management APIs
-@app.post("/devices")
-def register_device(
-    device_data: dict, 
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
-):
-    """Register device - authenticated users only"""
-    # Set device owner to current user if not admin
-    if current_user.type_utilisateur != "administrateur":
-        device_data["utilisateur_id"] = current_user.id
-    
-    device = Appareil(
-        id=uuid.uuid4(),
-        marque=device_data.get("marque"),
-        modele=device_data.get("modele"),
-        emmc=device_data.get("emmc"),
-        utilisateur_id=device_data.get("utilisateur_id")
-    )
-    db.add(device)
-    db.flush()  # Get the device ID
-    
-    # Add IMEIs
-    imeis_data = device_data.get("imeis", [])
-    for i, imei_data in enumerate(imeis_data):
-        imei = IMEI(
-            id=uuid.uuid4(),
-            imei_number=imei_data.get("imei_number"),
-            slot_number=imei_data.get("slot_number", i + 1),
-            status=imei_data.get("status", "active"),
-            appareil_id=device.id
-        )
-        db.add(imei)
-    
-    db.commit()
-    db.refresh(device)
-    
-    return {
-        "id": str(device.id),
-        "marque": device.marque,
-        "modele": device.modele,
-        "imeis": [
-            {
-                "imei_number": imei.imei_number,
-                "slot_number": imei.slot_number,
-                "status": imei.status
-            }
-            for imei in device.imeis
-        ]
-    }
-
 @app.put("/devices/{device_id}/assign", tags=["Devices", "Admin"])
 def assign_device_to_user(
     device_id: str, 
     assignment_data: dict,
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(require_auth("admin")),
-    audit_service: AuditService = Depends(get_audit_service)
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
 ):
     """Admin only - assign device to user with audit logging"""
     device = db.query(Appareil).filter(Appareil.id == device_id).first()
@@ -801,7 +730,7 @@ def assign_device_to_user(
         imeis=imei_numbers
     )
     
-    return {"message": "Device assigned successfully"}
+    return {"message": translator.translate("device_assigned")}
 
 # Analytics and Statistics APIs
 @app.get("/analytics/searches", tags=["Analytics"])
@@ -845,7 +774,7 @@ def search_analytics(
         "popular_imeis": [{"imei": imei.imei_recherche, "count": imei.count} for imei in popular_imeis]
     }
 
-@app.get("/analytics/devices")
+@app.get("/analytics/devices", tags=["Analytics"])
 def device_analytics(db: Session = Depends(get_db)):
     # Total devices
     total_devices = db.query(Appareil).count()
@@ -868,7 +797,7 @@ def device_analytics(db: Session = Depends(get_db)):
     }
 
 # Search History APIs
-@app.get("/users/{user_id}/searches")
+@app.get("/users/{user_id}/searches", tags=["Search History"])
 def user_search_history(
     user_id: str,
     skip: int = 0,
@@ -899,7 +828,7 @@ def user_search_history(
         ]
     }
 
-@app.get("/imei/{imei}/history")
+@app.get("/imei/{imei}/history", tags=["Search History"])
 def imei_search_history(imei: str, db: Session = Depends(get_db)):
     searches = db.query(Recherche).filter(
         Recherche.imei_recherche == imei
@@ -922,7 +851,7 @@ def imei_search_history(imei: str, db: Session = Depends(get_db)):
     }
 
 # Notification APIs
-@app.get("/notifications")
+@app.get("/notifications", tags=["Notifications"])
 def list_notifications(
     user_id: Optional[str] = None,
     status: Optional[str] = None,
@@ -1049,7 +978,8 @@ def delete_device(
     device_id: str, 
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(require_auth("admin")),
-    audit_service: AuditService = Depends(get_audit_service)
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
 ):
     """Admin only - delete device with audit logging"""
     device = db.query(Appareil).filter(Appareil.id == device_id).first()
@@ -1074,7 +1004,7 @@ def delete_device(
         device_data=device_data
     )
     
-    return {"message": "Device deleted successfully"}
+    return {"message":translator.translate('device_deleted')}
 
 # Bulk Operations
 @app.post("/admin/bulk-import-devices", tags=["Devices", "Admin"])
@@ -1141,7 +1071,7 @@ def bulk_import_devices(
         "errors": errors
     }
 
-@app.post("/devices/{device_id}/imeis")
+@app.post("/devices/{device_id}/imeis", tags=["Devices"])
 def add_imei_to_device(device_id: str, imei_data: dict, db: Session = Depends(get_db)):
     device = db.query(Appareil).filter(Appareil.id == device_id).first()
     if not device:
@@ -1178,12 +1108,13 @@ def update_imei_status(
     status_data: dict, 
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(require_auth("admin")),
-    audit_service: AuditService = Depends(get_audit_service)
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
 ):
     """Admin only - update IMEI status with audit logging"""
     imei = db.query(IMEI).filter(IMEI.id == imei_id).first()
     if not imei:
-        raise HTTPException(status_code=404, detail="IMEI not found")
+        raise HTTPException(status_code=404, detail=translator.translate("imei_not_found_error"))
     
     old_status = imei.status
     new_status = status_data.get("status")
@@ -1192,81 +1123,17 @@ def update_imei_status(
     
     # Log IMEI status change
     audit_service.log_imei_status_change(
-        imei_id=imei_id,
+        imei_id=str(imei.id),
         imei_number=imei.imei_number,
         old_status=old_status,
         new_status=new_status,
         user_id=str(current_user.id)
     )
     
-    return {"message": "IMEI status updated successfully"}
-
-# ANALYTICS - Different access levels
-@app.get("/analytics/searches", tags=["Analytics"])
-def search_analytics(
-    days: int = Query(7, description="Number of days to analyze"),
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
-):
-    """Search analytics - filtered by user access level"""
-    start_date = datetime.now() - timedelta(days=days)
-    
-    # Admin sees all searches, users see only their own
-    if current_user.type_utilisateur == "administrateur":
-        searches_query = db.query(Recherche).filter(
-            Recherche.date_recherche >= start_date
-        )
-    else:
-        searches_query = db.query(Recherche).filter(
-            Recherche.date_recherche >= start_date,
-            Recherche.utilisateur_id == current_user.id
-        )
-    
-    total_searches = searches_query.count()
-    
-    # Searches by day
-    daily_searches = searches_query.with_entities(
-        func.date(Recherche.date_recherche).label('date'),
-        func.count(Recherche.id).label('count')
-    ).group_by(func.date(Recherche.date_recherche)).all()
-    
-    # Most searched IMEIs
-    popular_imeis = searches_query.with_entities(
-        Recherche.imei_recherche,
-        func.count(Recherche.id).label('count')
-    ).group_by(Recherche.imei_recherche).order_by(desc('count')).limit(10).all()
-    
-    return {
-        "period_days": days,
-        "total_searches": total_searches,
-        "daily_searches": [{"date": str(day.date), "count": day.count} for day in daily_searches],
-        "popular_imeis": [{"imei": imei.imei_recherche, "count": imei.count} for imei in popular_imeis]
-    }
-
-@app.get("/analytics/devices")
-def device_analytics(db: Session = Depends(get_db)):
-    # Total devices
-    total_devices = db.query(Appareil).count()
-    
-    # Devices by brand
-    brand_stats = db.query(
-        Appareil.marque,
-        func.count(Appareil.id).label('count')
-    ).group_by(Appareil.marque).order_by(desc('count')).all()
-    
-    # Assigned vs unassigned devices
-    assigned = db.query(Appareil).filter(Appareil.utilisateur_id.isnot(None)).count()
-    unassigned = total_devices - assigned
-    
-    return {
-        "total_devices": total_devices,
-        "assigned_devices": assigned,
-        "unassigned_devices": unassigned,
-        "devices_by_brand": [{"brand": brand.marque, "count": brand.count} for brand in brand_stats]
-    }
+    return {"message": translator.translate("imei_status_updated")}
 
 # PUBLIC ANALYTICS (Limited for visitors)
-@app.get("/public/stats")
+@app.get("/public/stats", tags=["Public", "Analytics"])
 def public_statistics(
     request: Request,
     db: Session = Depends(get_db),

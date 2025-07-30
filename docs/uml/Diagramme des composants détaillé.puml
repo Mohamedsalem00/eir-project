@@ -1,0 +1,146 @@
+@startuml
+!theme plain
+title Diagramme des Composants Détaillé
+
+package "Authentication Module" {
+    component AuthController {
+        +register()
+        +login()
+        +logout()
+        +getProfile()
+    }
+    
+    component AuthService {
+        +validateCredentials()
+        +createToken()
+        +validateToken()
+        +hashPassword()
+    }
+    
+    component JWTManager {
+        +encode()
+        +decode()
+        +verify()
+        +refresh()
+    }
+}
+
+package "IMEI Management Module" {
+    component IMEIController {
+        +searchIMEI()
+        +validateIMEI()
+        +getHistory()
+        +logSearch()
+    }
+    
+    component IMEIService {
+        +localSearch()
+        +externalAPICall()
+        +cacheResult()
+        +validateFormat()
+    }
+    
+    component CacheManager {
+        +get()
+        +set()
+        +invalidate()
+        +cleanup()
+    }
+}
+
+package "Device Management Module" {
+    component DeviceController {
+        +listDevices()
+        +registerDevice()
+        +assignDevice()
+        +addIMEI()
+    }
+    
+    component DeviceService {
+        +createDevice()
+        +updateDevice()
+        +validateOwnership()
+        +manageIMEIs()
+    }
+}
+
+package "User Management Module" {
+    component UserController {
+        +listUsers()
+        +createUser()
+        +updateUser()
+        +deleteUser()
+    }
+    
+    component UserService {
+        +userCRUD()
+        +validatePermissions()
+        +manageRoles()
+    }
+}
+
+package "Audit Module" {
+    component AuditService {
+        +logAction()
+        +logIMEISearch()
+        +logUserAction()
+        +generateReports()
+    }
+    
+    component AuditRepository {
+        +saveAuditLog()
+        +queryAuditLogs()
+        +archiveOldLogs()
+    }
+}
+
+package "Internationalization Module" {
+    component I18nService {
+        +detectLanguage()
+        +translate()
+        +loadTranslations()
+    }
+    
+    component TranslationManager {
+        +getTranslation()
+        +formatMessage()
+        +handleFallback()
+    }
+}
+
+package "Data Access Layer" {
+    component UtilisateurRepository
+    component AppareilRepository
+    component IMEIRepository
+    component RechercheRepository
+    component AuditRepository
+}
+
+database "PostgreSQL Database" {
+    [Utilisateur]
+    [Appareil]
+    [IMEI]
+    [SIM]
+    [Recherche]
+    [JournalAudit]
+}
+
+' Relations
+AuthController --> AuthService
+AuthService --> JWTManager
+
+IMEIController --> IMEIService
+IMEIService --> CacheManager
+
+DeviceController --> DeviceService
+UserController --> UserService
+
+AuthService --> UtilisateurRepository
+DeviceService --> AppareilRepository
+IMEIService --> IMEIRepository
+
+UtilisateurRepository --> [Utilisateur]
+AppareilRepository --> [Appareil]
+IMEIRepository --> [IMEI]
+
+@enduml

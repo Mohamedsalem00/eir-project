@@ -1,0 +1,68 @@
+@startuml
+!theme plain
+title Diagramme d'États - Cycle de Vie IMEI
+
+[*] --> Nouveau : Enregistrement appareil
+
+state Nouveau {
+    Nouveau : Statut = "pending"
+    Nouveau : IMEI non validé
+    Nouveau : Aucune recherche
+}
+
+Nouveau --> Actif : Validation réussie
+Nouveau --> Invalide : Format incorrect
+
+state Actif {
+    Actif : Statut = "active"
+    Actif : Autorisé sur réseau
+    Actif : Recherches possibles
+}
+
+state Invalide {
+    Invalide : Statut = "invalid"
+    Invalide : Format IMEI incorrect
+    Invalide : Accès réseau refusé
+}
+
+Actif --> Bloqué : Signalement vol/fraude
+Actif --> Suspendu : Suspension temporaire
+Actif --> Inactif : Désactivation utilisateur
+
+state Bloqué {
+    Bloqué : Statut = "blocked"
+    Bloqué : Accès réseau interdit
+    Bloqué : Signalé comme volé/frauduleux
+}
+
+state Suspendu {
+    Suspendu : Statut = "suspended"
+    Suspendu : Suspension temporaire
+    Suspendu : Réactivation possible
+}
+
+state Inactif {
+    Inactif : Statut = "inactive"
+    Inactif : Non utilisé actuellement
+    Inactif : Réactivation possible
+}
+
+Bloqué --> Actif : Déblocage administrateur
+Suspendu --> Actif : Fin de suspension
+Inactif --> Actif : Réactivation
+
+Bloqué --> Archivé : Archivage définitif
+Invalide --> Archivé : Nettoyage base
+
+state Archivé {
+    Archivé : Statut = "archived"
+    Archivé : Données historiques
+    Archivé : Plus d'opérations
+}
+
+Archivé --> [*] : Suppression définitive
+
+note right of Actif : État principal\npour utilisation normale
+note right of Bloqué : Sécurité critique\nIntervention admin requise
+
+@enduml
