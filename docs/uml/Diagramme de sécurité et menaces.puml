@@ -1,0 +1,93 @@
+@startuml
+!theme plain
+title Modèle de Sécurité et Menaces
+
+package "Menaces Identifiées" {
+    component "Brute Force Attacks" as BF {
+        +Tentatives de connexion
+        +Cassage de mots de passe
+        +Énumération comptes
+    }
+    
+    component "API Abuse" as API {
+        +Rate limiting bypass
+        +Injection SQL
+        +Manipulation paramètres
+    }
+    
+    component "Data Breaches" as DB {
+        +Accès non autorisé
+        +Fuite de données IMEI
+        +Violation confidentialité
+    }
+    
+    component "Privilege Escalation" as PE {
+        +Élévation privilèges
+        +Accès admin non autorisé
+        +Manipulation rôles
+    }
+}
+
+package "Mesures de Protection" {
+    component "Authentication Security" as AuthSec {
+        +JWT avec expiration courte
+        +Hachage bcrypt
+        +Validation token stricte
+        +Audit connexions
+    }
+    
+    component "API Security" as APISec {
+        +Rate limiting par IP/user
+        +Validation entrées Pydantic
+        +CORS configuré
+        +Headers sécurité
+    }
+    
+    component "Data Protection" as DataProt {
+        +Chiffrement base données
+        +Logs d'audit complets
+        +Anonymisation données
+        +Backup chiffré
+    }
+    
+    component "Access Control" as AC {
+        +RBAC granulaire
+        +Principe moindre privilège
+        +Sessions sécurisées
+        +Monitoring accès
+    }
+}
+
+package "Monitoring et Détection" {
+    component "Security Monitoring" as SM {
+        +Détection anomalies
+        +Alertes temps réel
+        +Analyse comportementale
+        +Logs centralisés
+    }
+    
+    component "Incident Response" as IR {
+        +Plan de réponse
+        +Isolation automatique
+        +Notification équipe
+        +Documentation incidents
+    }
+}
+
+BF --> AuthSec : Protégé par
+API --> APISec : Protégé par
+DB --> DataProt : Protégé par
+PE --> AC : Protégé par
+
+AuthSec --> SM : Monitored by
+APISec --> SM : Monitored by
+DataProt --> SM : Monitored by
+AC --> SM : Monitored by
+
+SM --> IR : Triggers
+
+note right of AuthSec : JWT expiration: 15min\nRefresh token: 24h\nBcrypt rounds: 12
+
+note right of APISec : Rate limit:\n- Visiteur: 10/15min\n- User: 100/15min\n- Admin: 1000/15min
+
+@enduml

@@ -1,0 +1,54 @@
+@startuml
+!theme plain
+title Séquence d'Enregistrement d'un Appareil
+
+actor Utilisateur
+participant "API Gateway" as API
+participant "Auth Service" as Auth
+participant "Device Service" as Device
+participant "IMEI Service" as IMEI
+participant "Audit Service" as Audit
+participant "Database" as DB
+
+Utilisateur -> API : POST /devices\n{marque, modele, imeis[]}
+
+API -> Auth : validateToken(jwt)
+Auth --> API : user_context
+
+API -> Device : registerDevice(device_data, user)
+
+Device -> Device : validateDeviceData()
+
+loop Pour chaque IMEI
+    Device -> IMEI : validateIMEI(imei_number)
+    IMEI -> IMEI : checkFormat()
+    IMEI -> IMEI : checkLuhn()
+    IMEI --> Device : validation_result
+    
+    alt IMEI invalide
+        Device --> API : ValidationError
+        API --> Utilisateur : 400 Bad Request
+    end
+end
+
+Device -> DB : BEGIN TRANSACTION
+
+Device -> DB : INSERT Appareil
+DB --> Device : appareil_id
+
+loop Pour chaque IMEI validé
+    Device -> DB : INSERT IMEI
+    DB --> Device : imei_id
+end
+
+Device -> DB : COMMIT TRANSACTION
+
+Device -> Audit : logDeviceRegistration(appareil_id, user_id)
+Audit -> DB : INSERT JournalAudit
+
+Device --> API : {appareil_id, imeis[]}
+API --> Utilisateur : 201 Created\n{device_info}
+
+note right of Device : Support dual-SIM\nMax 2 IMEI par appareil
+
+@enduml

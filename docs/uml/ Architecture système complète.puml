@@ -1,0 +1,119 @@
+@startuml
+!theme plain
+title Architecture Complète du Système EIR
+
+!define RECTANGLE class
+
+package "Client Layer" {
+    RECTANGLE WebBrowser {
+        +Interface utilisateur web
+        +Dashboard administrateur
+        +Recherche IMEI
+    }
+    
+    RECTANGLE MobileApp {
+        +Application mobile
+        +Scanner IMEI
+        +Notifications push
+    }
+    
+    RECTANGLE APIConsumer {
+        +Intégrations tierces
+        +Scripts automatisés
+        +Services externes
+    }
+}
+
+package "API Gateway Layer" {
+    RECTANGLE LoadBalancer {
+        +Nginx/HAProxy
+        +SSL Termination
+        +Rate Limiting
+    }
+    
+    RECTANGLE APIGateway {
+        +Routage des requêtes
+        +Authentification JWT
+        +Validation des entrées
+        +CORS/Security Headers
+    }
+}
+
+package "Application Layer" {
+    RECTANGLE FastAPIApp {
+        +Endpoints REST
+        +Middleware sécurité
+        +Validation Pydantic
+        +Documentation automatique
+    }
+    
+    RECTANGLE ServiceLayer {
+        +AuthService
+        +IMEIService
+        +DeviceService
+        +AuditService
+        +I18nService
+    }
+}
+
+package "Data Layer" {
+    RECTANGLE ORM {
+        +SQLAlchemy Models
+        +Repository Pattern
+        +Transaction Management
+        +Connection Pooling
+    }
+    
+    database PostgreSQL {
+        +Tables relationnelles
+        +Index optimisés
+        +Contraintes d'intégrité
+        +Audit logs
+    }
+}
+
+package "External Services" {
+    RECTANGLE GSMAApi {
+        +Base mondiale IMEI
+        +Validation externe
+        +Statut équipements
+    }
+    
+    RECTANGLE NotificationServices {
+        +Email (SendGrid)
+        +SMS (Twilio)
+        +Push notifications
+    }
+}
+
+package "Infrastructure" {
+    RECTANGLE Docker {
+        +Containerisation
+        +Orchestration
+        +Scalabilité
+    }
+    
+    RECTANGLE Monitoring {
+        +Logs centralisés
+        +Métriques performance
+        +Alertes système
+    }
+}
+
+WebBrowser --> LoadBalancer
+MobileApp --> LoadBalancer
+APIConsumer --> LoadBalancer
+
+LoadBalancer --> APIGateway
+APIGateway --> FastAPIApp
+FastAPIApp --> ServiceLayer
+ServiceLayer --> ORM
+ORM --> PostgreSQL
+
+ServiceLayer --> GSMAApi
+ServiceLayer --> NotificationServices
+
+FastAPIApp ..> Docker : deployed in
+ServiceLayer ..> Monitoring : monitored by
+
+@enduml

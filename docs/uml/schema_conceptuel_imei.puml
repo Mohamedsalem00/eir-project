@@ -1,90 +1,78 @@
 @startuml
-title Schéma Conceptuel Simplifié - IMEI Project
+title Schéma Conceptuel EIR - Version Flexible
 
 entity Utilisateur {
   *id : UUID
   --
   nom : String
-  email : String
+  email : String <<unique>>
   mot_de_passe : String
-  numero_telephone : String
-  role : String
+  type_utilisateur : String
 }
 
-entity Telephone {
+entity Appareil {
   *id : UUID
   --
-  imei : String
   marque : String
   modele : String
-  statut : String
-  date_ajout : Date
-  pays_origine : String
+  emmc : String
+  proprietaire_id : UUID <<FK>>
+  date_creation : Timestamp
+}
+
+entity IMEI {
+  *id : UUID
+  --
+  imei_number : String <<unique>>
+  slot_number : Integer
+  status : String
+  appareil_id : UUID <<FK>>
+}
+
+' Table de liaison pour partage d'appareils
+entity AppareilUtilisateur {
+  *id : UUID
+  --
+  appareil_id : UUID <<FK>>
+  utilisateur_id : UUID <<FK>>
+  type_acces : String
+  date_debut : Timestamp
+  date_fin : Timestamp
 }
 
 entity SIM {
   *id : UUID
   --
-  iccid : String
+  iccid : String <<unique>>
   operateur : String
-  date_activation : Date
+  utilisateur_id : UUID <<FK>>
 }
 
-entity Utilisateur_Telephone {
+entity Recherche {
   *id : UUID
   --
-  utilisateur_id : UUID
-  telephone_id : UUID
-  date_liaison : Date
-}
-
-entity Utilisateur_SIM {
-  *id : UUID
-  --
-  utilisateur_id : UUID
-  sim_id : UUID
-  date_liaison : Date
-}
-
-entity Historique_Recherche {
-  *id : UUID
-  --
-  utilisateur_id : UUID
+  date_recherche : Timestamp
   imei_recherche : String
-  date_recherche : DateTime
+  utilisateur_id : UUID <<FK>>
 }
 
-entity Audit_Log {
+entity JournalAudit {
   *id : UUID
   --
-  user_id : UUID
-  action : String
-  table_name : String
-  record_id : UUID
-  timestamp : DateTime
-  details : Text
-}
-
-entity Notification {
-  *id : UUID
-  --
-  utilisateur_id : UUID
-  type : String      
-  message : Text
-  statut : String     
-  date_envoi : DateTime
+  action : Text
+  date : Timestamp
+  utilisateur_id : UUID <<FK>>
 }
 
 ' Relations
-Utilisateur ||--o{ Utilisateur_Telephone : "possède"
-Telephone ||--o{ Utilisateur_Telephone : "lié à"
+Utilisateur ||--o{ Appareil : "propriétaire"
+Appareil ||--o{ IMEI : "contient"
+Appareil ||--o{ AppareilUtilisateur : "partagé avec"
+Utilisateur ||--o{ AppareilUtilisateur : "accède à"
+Utilisateur ||--o{ SIM : "utilise"
+Utilisateur ||--o{ Recherche : "effectue"
+Utilisateur ||--o{ JournalAudit : "génère"
 
-Utilisateur ||--o{ Utilisateur_SIM : "utilise"
-SIM ||--o{ Utilisateur_SIM : "lié à"
-
-Utilisateur ||--o{ Historique_Recherche : "effectue"
-Utilisateur ||--o{ Audit_Log : "génère"
-
-Utilisateur ||--o{ Notification : "reçoit"
+note right of AppareilUtilisateur : type_acces:\n- proprietaire\n- utilisateur\n- temporaire
 
 @enduml
