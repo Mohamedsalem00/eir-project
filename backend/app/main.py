@@ -1,16 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from .core.dependencies import (
-    get_db, get_current_user, get_admin_user, 
-    allow_all_with_limits, require_auth
-)
+from sqlalchemy import func, desc, text
+from .core.dependencies import get_db, get_current_user, get_current_user_optional, get_admin_user
+from .core.permissions import PermissionManager, Operation, AccessLevel, require_permission, require_access_level
 from .core.i18n_deps import get_current_translator, get_language_from_request
 from .core.audit_deps import get_audit_service
 from .i18n import get_translator, SUPPORTED_LANGUAGES
 from .services.audit import AuditService
 from .routes.auth import router as auth_router
+from .routes.access_management import router as access_router
 from .models.appareil import Appareil
 from .models.utilisateur import Utilisateur
 from .models.recherche import Recherche
@@ -20,181 +20,188 @@ from .models.journal_audit import JournalAudit
 from .models.imei import IMEI
 from datetime import datetime, timedelta
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import platform
 
-# Enhanced FastAPI configuration
+# Configuration FastAPI améliorée
 app = FastAPI(
-    title="EIR Project API",
-    description="Equipment Identity Register (EIR) API for professional mobile device management",
+    title="API Projet EIR",
+    description="API du Registre d'Identité des Équipements (EIR) pour la gestion professionnelle d'appareils mobiles",
     version="1.0.0",
     terms_of_service="https://eir-project.com/terms",
     contact={
-        "name": "EIR Development Team",
+        "name": "Équipe de Développement EIR",
         "email": "contact@eir-project.com",
         "url": "https://eir-project.com"
     },
     license_info={
-        "name": "Proprietary License",
+        "name": "Licence Propriétaire",
         "url": "https://eir-project.com/license"
     },
     openapi_tags=[
         {
-            "name": "System",
-            "description": "System information and health checks"
+            "name": "Système",
+            "description": "Informations système et vérifications d'état"
         },
         {
             "name": "Public",
-            "description": "Public endpoints available to all users"
+            "description": "Points de terminaison publics disponibles pour tous les utilisateurs"
         },
         {
-            "name": "Authentication",
-            "description": "User authentication and authorization"
+            "name": "Authentification",
+            "description": "Authentification et autorisation des utilisateurs"
         },
         {
             "name": "IMEI",
-            "description": "IMEI validation and lookup services"
+            "description": "Services de validation et recherche d'IMEI"
         },
         {
-            "name": "Devices",
-            "description": "Device management operations"
+            "name": "Appareils",
+            "description": "Opérations de gestion des appareils"
         },
         {
-            "name": "SIM Cards",
-            "description": "SIM card management operations"
+            "name": "Cartes SIM",
+            "description": "Opérations de gestion des cartes SIM"
         },
         {
-            "name": "Users",
-            "description": "User management operations"
+            "name": "Utilisateurs",
+            "description": "Opérations de gestion des utilisateurs"
         },
         {
-            "name": "Search History",
-            "description": "Search history and tracking endpoints"
+            "name": "Historique de Recherche",
+            "description": "Points de terminaison d'historique et suivi des recherches"
         },
         {
             "name": "Notifications",
-            "description": "Notification management endpoints"
+            "description": "Points de terminaison de gestion des notifications"
         },
         {
-            "name": "Analytics",
-            "description": "Analytics and reporting endpoints"
+            "name": "Analyses",
+            "description": "Points de terminaison d'analyses et rapports"
         },
         {
             "name": "Admin",
-            "description": "Administrative operations"
+            "description": "Opérations administratives"
         }
     ]
 )
 
-# Include authentication routes
-app.include_router(auth_router, tags=["Authentication"])
+# Inclure les routeurs
+app.include_router(auth_router, tags=["Authentification"])
+app.include_router(access_router, tags=["Gestion d'Accès"])
 
-# Store app start time for uptime calculation
+# Stocker l'heure de démarrage de l'application pour le calcul du temps de fonctionnement
 app_start_time = datetime.now()
 
-# Helper function for date formatting
+# Fonction utilitaire pour le formatage des dates
 def format_datetime(dt):
-    """Format datetime to readable string"""
+    """Formate la datetime en chaîne lisible"""
     if dt is None:
         return None
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 def get_system_uptime():
-    """Calculate system uptime"""
+    """Calcule le temps de fonctionnement du système"""
     uptime = datetime.now() - app_start_time
-    return str(uptime).split('.')[0]  # Remove microseconds
+    return str(uptime).split('.')[0]  # Supprime les microsecondes
 
-# SYSTEM ENDPOINTS
+# POINTS DE TERMINAISON SYSTÈME
 @app.get(
     "/",
-    tags=["System"],
-    summary="API Welcome",
-    description="Get comprehensive API information, capabilities, and quick start guide"
+    tags=["Système"],
+    summary="Bienvenue API",
+    description="Obtenir des informations complètes sur l'API, les capacités et le guide de démarrage rapide"
 )
-async def welcome(
+async def bienvenue(
     request: Request,
-    user_info: tuple = Depends(allow_all_with_limits),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
-    ## Welcome to EIR Project API
+    ## Bienvenue à l'API Projet EIR
     
-    This endpoint provides comprehensive information about the API, including:
+    Ce point de terminaison fournit des informations complètes sur l'API, incluant :
     
-    - **Service capabilities** and features
-    - **Available endpoints** based on your access level
-    - **Technical specifications** and SLAs
-    - **Quick start guide** and documentation links
-    - **Security and compliance** information
-    - **Contact information** and support details
+    - **Capacités du service** et fonctionnalités
+    - **Points de terminaison disponibles** basés sur votre niveau d'accès
+    - **Spécifications techniques** et SLA
+    - **Guide de démarrage rapide** et liens de documentation
+    - **Informations de sécurité et conformité**
+    - **Informations de contact** et détails de support
     
-    ### Access Levels:
-    - **Visitors**: Basic API information and public endpoints
-    - **Authenticated Users**: Enhanced information and user endpoints
-    - **Administrators**: Complete API documentation and admin endpoints
+    ### Niveaux d'Accès :
+    - **Visiteurs** : Informations API de base et points de terminaison publics
+    - **Utilisateurs Authentifiés** : Informations améliorées et points de terminaison utilisateur
+    - **Administrateurs** : Documentation API complète et points de terminaison admin
     
-    ### Supported Languages:
-    Use the `X-Language` header or `?lang=` parameter with: `en`, `fr`, `ar`
+    ### Langues Supportées :
+    Utilisez l'en-tête `X-Language` ou le paramètre `?lang=` avec : `fr`, `en`, `ar`
     """
-    current_user, user_type = user_info
+    current_user = user
+    type_utilisateur = "visiteur"
+    if current_user:
+        if current_user.type_utilisateur == "administrateur" or current_user.access_level == "admin":
+            type_utilisateur = "admin"
+        else:
+            type_utilisateur = "utilisateur"
     
-    # Get base URL for the request
+    # Obtenir l'URL de base pour la requête
     base_url = f"{request.url.scheme}://{request.headers.get('host', 'localhost')}"
     
-    # Build capabilities based on user type
-    capabilities = {
-        "imei_validation": {
-            "real_time_lookup": True,
-            "batch_validation": user_type != "visitor",
-            "history_tracking": user_type != "visitor",
-            "status_monitoring": user_type == "admin",
-            "supported_formats": ["15-digit IMEI", "14-digit IMEI"]
+    # Construire les capacités basées sur le type d'utilisateur
+    capacites = {
+        "validation_imei": {
+            "recherche_temps_reel": True,
+            "validation_par_lot": type_utilisateur != "visiteur",
+            "suivi_historique": type_utilisateur != "visiteur",
+            "surveillance_statut": type_utilisateur == "admin",
+            "formats_supportes": ["IMEI 15 chiffres", "IMEI 14 chiffres"]
         },
-        "device_management": {
-            "device_registration": user_type != "visitor",
-            "multi_imei_support": True,
-            "device_assignment": user_type == "admin",
-            "bulk_import": user_type == "admin",
-            "brand_analytics": True
+        "gestion_appareils": {
+            "enregistrement_appareil": type_utilisateur != "visiteur",
+            "support_multi_imei": True,
+            "assignation_appareil": type_utilisateur == "admin",
+            "import_en_lot": type_utilisateur == "admin",
+            "analyses_marques": True
         },
-        "user_management": {
-            "role_based_access": True,
-            "multi_tenant": user_type != "visitor",
-            "audit_logging": user_type == "admin",
-            "user_analytics": user_type == "admin"
+        "gestion_utilisateurs": {
+            "acces_base_role": True,
+            "multi_locataire": type_utilisateur != "visiteur",
+            "journalisation_audit": type_utilisateur == "admin",
+            "analyses_utilisateurs": type_utilisateur == "admin"
         }
     }
     
-    # Build endpoints based on user type
-    public_endpoints = {
-        "imei_lookup": "/imei/{imei}",
-        "imei_search_log": "/imei/{imei}/search",
-        "public_statistics": "/public/stats",
-        "health_check": "/health",
-        "api_info": "/",
-        "supported_languages": "/languages"
+    # Construire les points de terminaison basés sur le type d'utilisateur
+    points_terminaison_publics = {
+        "recherche_imei": "/imei/{imei}",
+        "journal_recherche_imei": "/imei/{imei}/historique",
+        "statistiques_publiques": "/public/statistiques",
+        "verification_sante": "/verification-etat",
+        "info_api": "/",
+        "langues_supportees": "/languages"
     }
     
-    authenticated_endpoints = {}
-    admin_endpoints = {}
+    points_terminaison_authentifies = {}
+    points_terminaison_admin = {}
     
-    if user_type in ["user", "admin"]:
-        authenticated_endpoints = {
-            "user_devices": "/devices",
-            "user_sims": "/sims", 
-            "search_history": "/searches",
-            "user_profile": "/users/{user_id}",
+    if type_utilisateur in ["utilisateur", "admin"]:
+        points_terminaison_authentifies = {
+            "appareils_utilisateur": "/appareils",
+            "sims_utilisateur": "/cartes-sim", 
+            "historique_recherche": "/recherches",
+            "profil_utilisateur": "/utilisateurs/{user_id}",
             "notifications": "/notifications",
-            "analytics": "/analytics/searches"
+            "analyses": "/analyses/recherches"
         }
-    if user_type == "admin":
-        admin_endpoints = {
-            "user_management": "/users",
-            "admin_users": "/admin/users",
-            "device_management": "/admin/devices",
-            "bulk_operations": "/admin/bulk-import-devices",
-            "audit_logs": "/admin/audit-logs",
-            "system_analytics": "/analytics/devices"
+    if type_utilisateur == "admin":
+        points_terminaison_admin = {
+            "gestion_utilisateurs": "/utilisateurs",
+            "utilisateurs_admin": "/admin/utilisateurs",
+            "gestion_appareils": "/admin/appareils",
+            "operations_lot": "/admin/import-lot-appareils",
+            "journaux_audit": "/admin/journaux-audit",
+            "analyses_systeme": "/analyses/appareils"
         }
     
     return {
@@ -206,10 +213,10 @@ async def welcome(
         "language": translator.current_language,
         
         "api": {
-            "name": translator.translate("service_name"),
-            "version": translator.translate("api_version"),
-            "build": translator.translate("build_version"),
-            "environment": translator.translate("environment"),
+            "name": translator.translate("nom_service"),
+            "version": translator.translate("version_api"),
+            "build": translator.translate("version_construction"),
+            "environment": translator.translate("environnement"),
             "uptime": get_system_uptime()
         },
         
@@ -220,148 +227,162 @@ async def welcome(
             "documentation_url": translator.translate("documentation_url")
         },
         
-        "security": {
-            "authentication_methods": ["JWT Bearer Token", "API Key (Enterprise)"],
-            "rate_limiting": translator.translate("rate_limits"),
-            "compliance_standards": ["GDPR", "SOX", "ISO 27001", "GSMA Guidelines"],
-            "data_encryption": "TLS 1.3, AES-256"
+        "securite": {
+            "methodes_authentification": ["JWT Bearer Token", "Clé API (Entreprise)"],
+            "limitation_taux": translator.translate("rate_limits"),
+            "normes_conformite": ["RGPD", "SOX", "ISO 27001", "Directives GSMA"],
+            "chiffrement_donnees": "TLS 1.3, AES-256"
         },
         
-        "capabilities": capabilities,
+        "capacites": capacites,
         
-        "endpoints": {
-            "public": public_endpoints,
-            "authenticated": authenticated_endpoints,
-            "admin": admin_endpoints
+        "points_terminaison": {
+            "publics": points_terminaison_publics,
+            "authentifies": points_terminaison_authentifies,
+            "admin": points_terminaison_admin
         },
         
-        "technical_specs": {
-            "supported_formats": ["JSON", "XML (on request)"],
-            "max_request_size": "10MB",
-            "response_time_sla": "< 200ms (95th percentile)",
-            "availability_sla": "99.9% uptime",
-            "sdk_support": ["Python", "JavaScript", "Java", "cURL examples"]
+        "specifications_techniques": {
+            "formats_supportes": ["JSON", "XML (sur demande)"],
+            "taille_max_requete": "10MB",
+            "sla_temps_reponse": "< 200ms (95e percentile)",
+            "sla_disponibilite": "99,9% de disponibilité",
+            "support_sdk": ["Python", "JavaScript", "Java", "exemples cURL"]
         },
         
-        "quick_start": {
+        "demarrage_rapide": {
             "documentation": f"{base_url}/docs",
-            "interactive_docs": f"{base_url}/docs",
-            "health_check": f"{base_url}/health",
-            "imei_check_example": f"{base_url}/imei/123456789012345",
-            "supported_languages": f"{base_url}/languages"
+            "docs_interactives": f"{base_url}/docs",
+            "verification_sante": f"{base_url}/verification-etat",
+            "exemple_verification_imei": f"{base_url}/imei/123456789012345",
+            "langues_supportees": f"{base_url}/languages"
         },
         
         "legal": {
-            "terms_of_service": translator.translate("terms_of_service"),
-            "privacy_policy": translator.translate("privacy_policy"),
-            "license": translator.translate("license"),
-            "data_retention": "Data retained according to regional regulations"
+            "conditions_service": translator.translate("conditions_service"),
+            "politique_confidentialite": translator.translate("politique_confidentialite"),
+            "licence": translator.translate("license"),
+            "retention_donnees": "Données conservées selon les réglementations régionales"
         }
     }
 
 @app.get(
     "/health",
-    tags=["System"],
-    summary="Health Check",
-    description="Comprehensive system health and status information"
+    tags=["Système"],
+    summary="Vérification d'État",
+    description="Informations complètes sur l'état et le statut du système"
 )
 async def health_check(
     db: Session = Depends(get_db),
     translator = Depends(get_current_translator)
 ):
+    """Endpoint de compatibilité pour /health - redirige vers verification_etat"""
+    return await verification_etat(db, translator)
+
+@app.get(
+    "/verification-etat",
+    tags=["Système"],
+    summary="Vérification d'État (Francisé)",
+    description="Informations complètes sur l'état et le statut du système"
+)
+async def verification_etat(
+    db: Session = Depends(get_db),
+    translator = Depends(get_current_translator)
+):
     """
-    ## System Health Check
+    ## Vérification d'État du Système
     
-    Provides detailed system health information including:
-    - Service status and uptime
-    - Database connectivity
-    - System resources
-    - API endpoint status
-    - Security status
+    Fournit des informations détaillées sur l'état du système incluant :
+    - Statut du service et temps de fonctionnement
+    - Connectivité de la base de données
+    - Ressources système
+    - Statut des points de terminaison API
+    - Statut de sécurité
     """
     try:
-        # Test database connection
-        db_status = {"status": "connected", "message": "Database connection successful"}
+        # Tester la connexion à la base de données
+        db_status = {"statut": "connecte", "message": "Connexion base de données réussie"}
         db_latency = "< 10ms"
         try:
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
         except Exception as e:
-            db_status = {"status": "error", "message": str(e)}
+            db_status = {"statut": "erreur", "message": str(e)}
             db_latency = "N/A"
         
-        # System information
-        system_info = {
-            "uptime": get_system_uptime(),
-            "platform": platform.platform(),
-            "python_version": platform.python_version(),
-            "server_time": datetime.now().isoformat()
+        # Informations système
+        infos_systeme = {
+            "duree_fonctionnement": get_system_uptime(),
+            "plateforme": platform.platform(),
+            "version_python": platform.python_version(),
+            "heure_serveur": datetime.now().isoformat()
         }
         
-        # Endpoint status check
-        endpoints_status = {
-            "authentication": "operational",
-            "imei_validation": "operational", 
-            "device_management": "operational",
-            "analytics": "operational"
+        # Vérification du statut des points de terminaison
+        statut_points_terminaison = {
+            "authentification": "operationnel",
+            "validation_imei": "operationnel", 
+            "gestion_appareils": "operationnel",
+            "analyses": "operationnel"
         }
         
-        # Security status
-        security_status = {
-            "tls_encryption": "enabled",
-            "jwt_validation": "active",
-            "rate_limiting": "enabled",
-            "audit_logging": "active"
+        # Statut de sécurité
+        statut_securite = {
+            "chiffrement_tls": "active",
+            "validation_jwt": "active",
+            "limitation_taux": "active",
+            "journalisation_audit": "active"
         }
         
         return {
-            "status": translator.translate("service_healthy"),
-            "timestamp": datetime.now().isoformat(),
-            "service": translator.translate("service_name"),
-            "version": translator.translate("api_version"),
-            "uptime": system_info["uptime"],
-            "database": {
-                "status": db_status["status"],
+            "statut": translator.translate("service_sain"),
+            "horodatage": datetime.now().isoformat(),
+            "service": translator.translate("nom_service"),
+            "version": translator.translate("version_api"),
+            "duree_fonctionnement": infos_systeme["duree_fonctionnement"],
+            "base_donnees": {
+                "statut": db_status["statut"],
                 "message": db_status["message"],
-                "latency": db_latency
+                "latence": db_latency
             },
-            "system_info": system_info,
-            "endpoints_status": endpoints_status,
-            "security_status": security_status
+            "infos_systeme": infos_systeme,
+            "statut_points_terminaison": statut_points_terminaison,
+            "statut_securite": statut_securite
         }
         
     except Exception as e:
         return JSONResponse(
             status_code=503,
             content={
-                "status": "unhealthy",
-                "message": f"Health check failed: {str(e)}",
-                "timestamp": datetime.now().isoformat()
+                "statut": "malsain",
+                "message": f"Vérification d'état échouée: {str(e)}",
+                "horodatage": datetime.now().isoformat()
             }
         )
 
+
 @app.get(
     "/languages",
-    tags=["System"],
-    summary="Supported Languages",
-    description="Get list of supported languages and locale information"
+    tags=["Système"],
+    summary="Langues Supportées",
+    description="Obtenir la liste des langues supportées et informations de locale"
 )
-def get_supported_languages():
+def obtenir_langues_supportees():
     """
-    ## Supported Languages
+    ## Langues Supportées
     
-    Get information about all supported languages including:
-    - Language codes and names
-    - Native language names
-    - RTL (Right-to-Left) support
-    - Default language settings
+    Obtenir des informations sur toutes les langues supportées incluant :
+    - Codes et noms des langues
+    - Noms natifs des langues
+    - Support RTL (Droite-vers-Gauche)
+    - Paramètres de langue par défaut
     """
     return {
-        "supported_languages": SUPPORTED_LANGUAGES,
-        "default_language": "en",
-        "usage": {
-            "header": "Set X-Language header to desired language code",
-            "query_param": "Add ?lang=code to any request URL",
-            "accept_language": "Browser Accept-Language header is automatically detected"
+        "langues_supportees": SUPPORTED_LANGUAGES,
+        "langue_par_defaut": "fr",
+        "utilisation": {
+            "en_tete": "Définir l'en-tête X-Language avec le code de langue désiré",
+            "parametre_requete": "Ajouter ?lang=code à toute URL de requête",
+            "accept_language": "L'en-tête Accept-Language du navigateur est automatiquement détecté"
         }
     }
 
@@ -369,37 +390,67 @@ def get_supported_languages():
 @app.get(
     "/imei/{imei}",
     tags=["IMEI", "Public"],
-    summary="IMEI Lookup",
-    description="Look up IMEI information with different access levels and automatic search logging"
+    summary="Recherche IMEI Améliorée avec Contrôle d'Accès",
+    description="Rechercher les informations IMEI avec niveaux d'accès granulaires et journalisation automatique des recherches"
 )
-def check_imei(
+def verifier_imei(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
-    user_info: tuple = Depends(allow_all_with_limits),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
     """
-    ## IMEI Lookup Service with Automatic Search Logging
+    ## Service de Recherche IMEI Amélioré avec Contrôle d'Accès Granulaire
     
-    This endpoint automatically logs every search in both Recherche and JournalAudit tables.
+    Ce point de terminaison fournit des informations IMEI basées sur les niveaux d'accès utilisateur et journalise automatiquement les recherches.
     
-    ### Access Levels:
-    - **Visitors**: Basic device information (brand, model)
-    - **Authenticated Users**: Enhanced device details and user information
-    - **Administrators**: Complete device and ownership information
+    ### Niveaux d'Accès et Données Retournées :
+    - **Visiteurs** : Informations de base de l'appareil (marque, modèle, statut)
+    - **Utilisateurs de Base** : Détails d'appareil améliorés
+    - **Utilisateurs Limités (Parties Concernées)** : Accès spécifique aux marques/plages avec analyses
+    - **Utilisateurs Standard** : Accès complet aux appareils personnels
+    - **Utilisateurs Élevés** : Accès aux appareils organisationnels
+    - **Administrateurs** : Informations complètes d'appareil et de propriété
     
-    ### Parameters:
-    - **imei**: 15-digit IMEI number to lookup
+    ### Journalisation Automatique :
+    - Toutes les recherches sont journalisées dans la table Recherche pour le suivi d'historique
+    - Les tentatives d'accès sont auditées pour la surveillance de sécurité
+    - Les vérifications de permissions sont journalisées pour la conformité
     
-    ### Response includes:
-    - IMEI validation status
-    - Device information (based on access level)
-    - Slot number and status
-    - Search logging confirmation
+    ### Paramètres :
+    - **imei** : Numéro IMEI à 15 chiffres à rechercher
+    
+    ### Contrôle d'Accès :
+    - Les parties concernées voient seulement les appareils dans leurs marques/plages autorisées
+    - Les utilisateurs voient des données améliorées basées sur leur niveau d'accès
+    - Tous les accès sont journalisés à des fins d'audit
     """
-    current_user, user_type = user_info
+    # Obtenir le niveau d'accès utilisateur
+    niveau_acces_utilisateur = "visiteur"
+    if user:
+        niveau_acces_utilisateur = user.access_level or "basique"
+    
+    # Check if user can access this specific IMEI
+    can_access, access_details = PermissionManager.can_access_imei(user, imei, db)
+    
+    if not can_access:
+        # Log denied access attempt
+        audit_service.log_access_attempt(
+            user_id=str(user.id) if user else None,
+            operation="read_imei",
+            entity_type="imei",
+            entity_id=imei,
+            success=False,
+            reason=access_details["reason"],
+            ip_address=request.client.host if request.client else None
+        )
+        
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied: {access_details['reason']}"
+        )
     
     # Search for IMEI
     imei_record = db.query(IMEI).filter(IMEI.imei_number == imei).first()
@@ -410,141 +461,232 @@ def check_imei(
         id=uuid.uuid4(),
         date_recherche=datetime.now(),
         imei_recherche=imei,
-        utilisateur_id=current_user.id if current_user else None
+        utilisateur_id=user.id if user else None
     )
     db.add(recherche)
     
-    # Log in audit service (for audit trail)
+    # Log successful access in audit service
+    audit_service.log_access_attempt(
+        user_id=str(user.id) if user else None,
+        operation="read_imei",
+        entity_type="imei", 
+        entity_id=imei,
+        success=True,
+        reason=access_details["reason"],
+        ip_address=request.client.host if request.client else None
+    )
+    
+    # Log IMEI search for tracking
     audit_service.log_imei_search(
         imei=imei,
-        user_id=str(current_user.id) if current_user else None,
+        user_id=str(user.id) if user else None,
         found=found
     )
-
-        # Commit both logs
+    
+    # Commit logs
     db.commit()
     
     if imei_record:
         appareil = imei_record.appareil
         
-        # Base response for all users
-        response = {
-            "id":imei_record.id,
+        # Build base response
+        response_data = {
+            "id": str(imei_record.id),
             "imei": imei,
             "found": True,
             "status": imei_record.status,
             "slot_number": imei_record.slot_number,
             "message": translator.translate("imei_found"),
             "search_logged": True,
-            "search_id": str(recherche.id)
+            "search_id": str(recherche.id),
+            "access_context": {
+                "niveau_d'accès": niveau_acces_utilisateur,
+                "access_reason": access_details["reason"],
+                "data_scope": access_details["scope"]
+            }
         }
         
-        # Enhanced details for authenticated users
-        if user_type != "visitor":
-            response["device"] = {
+        # Ajouter les informations d'appareil selon le niveau d'accès
+        if niveau_acces_utilisateur in ["limited", "standard", "elevated", "admin"]:
+            info_appareil = {
                 "id": str(appareil.id),
                 "marque": appareil.marque,
                 "modele": appareil.modele,
-                "emmc": appareil.emmc,
-                "utilisateur_id": str(appareil.utilisateur_id) if appareil.utilisateur_id else None
+                "emmc": appareil.emmc
             }
+            
+            # Add ownership info for elevated users and admins
+            if niveau_acces_utilisateur in ["elevated", "admin"]:
+                info_appareil["utilisateur_id"] = str(appareil.utilisateur_id) if appareil.utilisateur_id else None
+                
+                # Ajouter les détails complets d'appareil pour les admins
+                if niveau_acces_utilisateur == "admin":
+                    info_appareil.update({
+                        "created_date": appareil.date_creation.isoformat() if hasattr(appareil, 'date_creation') else None,
+                        "last_updated": appareil.date_modification.isoformat() if hasattr(appareil, 'date_modification') else None
+                    })
+            
+            response_data["appareil"] = info_appareil
         else:
-            # Limited info for visitors
-            response["device"] = {
+            # Informations limitées pour visiteurs et utilisateurs de base
+            response_data["appareil"] = {
                 "marque": appareil.marque,
                 "modele": appareil.modele
             }
         
-        return response
+        return response_data
     
+    # IMEI not found response
     return {
         "imei": imei,
         "found": False,
         "message": translator.translate("imei_not_found"),
         "search_logged": True,
-        "search_id": str(recherche.id)
+        "search_id": str(recherche.id),
+        "access_context": {
+            "niveau_d'accès": niveau_acces_utilisateur,
+            "access_reason": access_details["reason"]
+        }
     }
 
-# Device Management APIs with proper audit logging
-@app.post("/devices", tags=["Devices"])
-def register_device(
-    device_data: dict, 
+# APIs de Gestion d'Appareils Améliorées avec contrôle d'accès granulaire
+@app.post("/appareils", tags=["Appareils"])
+def enregistrer_appareil(
+    donnees_appareil: dict, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user")),
+    user: Utilisateur = Depends(get_current_user),
     audit_service: AuditService = Depends(get_audit_service)
 ):
-    """Register device with audit logging"""
-    # Set device owner to current user if not admin
-    if current_user.type_utilisateur != "administrateur":
-        device_data["utilisateur_id"] = current_user.id
+    """
+    Enregistrer un appareil avec contrôle d'accès amélioré et journalisation d'audit
     
-    device = Appareil(
+    ### Contrôle d'Accès:
+    - Les utilisateurs standard peuvent enregistrer des appareils pour eux-mêmes
+    - Les utilisateurs élevés peuvent enregistrer des appareils dans leur organisation
+    - Les admins peuvent enregistrer des appareils pour tout utilisateur
+    - Les utilisateurs limités (parties concernées) ont un accès restreint basé sur les marques
+    """
+    # Vérifier si l'utilisateur a la permission de créer des appareils
+    if not PermissionManager.has_permission(user, Operation.CREATE_DEVICE):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission refusée: Impossible de créer des appareils"
+        )
+    
+    # Valider l'accès aux marques pour les parties concernées
+    marque_appareil = donnees_appareil.get("marque")
+    if user.access_level == "limited" and user.allowed_brands:
+        if marque_appareil not in user.allowed_brands:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Accès refusé: Marque '{marque_appareil}' non autorisée"
+            )
+    
+    # Définir le propriétaire de l'appareil selon le niveau d'accès
+    if user.type_utilisateur != "administrateur" and user.access_level not in ["elevated"]:
+        donnees_appareil["utilisateur_id"] = user.id
+    
+    appareil = Appareil(
         id=uuid.uuid4(),
-        marque=device_data.get("marque"),
-        modele=device_data.get("modele"),
-        emmc=device_data.get("emmc"),
-        utilisateur_id=device_data.get("utilisateur_id")
+        marque=donnees_appareil.get("marque"),
+        modele=donnees_appareil.get("modele"),
+        emmc=donnees_appareil.get("emmc"),
+        utilisateur_id=donnees_appareil.get("utilisateur_id")
     )
-    db.add(device)
-    db.flush()  # Get the device ID
+    db.add(appareil)
+    db.flush()  # Obtenir l'ID de l'appareil
     
-    # Add IMEIs
-    imeis_data = device_data.get("imeis", [])
-    imei_numbers = []
-    for i, imei_data in enumerate(imeis_data):
+    # Ajouter les IMEIs avec validation
+    donnees_imeis = donnees_appareil.get("imeis", [])
+    numeros_imei = []
+    
+    for i, donnees_imei in enumerate(donnees_imeis):
+        numero_imei = donnees_imei.get("imei_number")
+        
+        # Valider l'accès aux plages IMEI pour les parties concernées
+        if user.access_level == "limited" and user.allowed_imei_ranges:
+            can_access, _ = PermissionManager.can_access_imei(user, numero_imei, db)
+            if not can_access:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Accès refusé: IMEI '{numero_imei}' non autorisé"
+                )
+        
         imei = IMEI(
             id=uuid.uuid4(),
-            imei_number=imei_data.get("imei_number"),
-            slot_number=imei_data.get("slot_number", i + 1),
-            status=imei_data.get("status", "active"),
-            appareil_id=device.id
+            imei_number=numero_imei,
+            slot_number=donnees_imei.get("slot_number", i + 1),
+            status=donnees_imei.get("status", "active"),
+            appareil_id=appareil.id
         )
         db.add(imei)
-        imei_numbers.append(imei.imei_number)
+        numeros_imei.append(imei.imei_number)
     
     db.commit()
-    db.refresh(device)
+    db.refresh(appareil)
     
-    # Log device creation
+    # Journaliser la création d'appareil avec contexte d'accès
     audit_service.log_device_creation(
-        device_id=str(device.id),
-        user_id=str(current_user.id),
+        device_id=str(appareil.id),
+        user_id=str(user.id),
         device_data={
-            "marque": device.marque,
-            "modele": device.modele,
-            "emmc": device.emmc,
-            "imeis": imei_numbers
+            "marque": appareil.marque,
+            "modele": appareil.modele,
+            "emmc": appareil.emmc,
+            "imeis": numeros_imei,
+            "niveau_d'accès": user.access_level or "basique"
         }
     )
     
     return {
-        "id": str(device.id),
-        "marque": device.marque,
-        "modele": device.modele,
+        "id": str(appareil.id),
+        "marque": appareil.marque,
+        "modele": appareil.modele,
         "imeis": [
             {
                 "imei_number": imei.imei_number,
                 "slot_number": imei.slot_number,
                 "status": imei.status
             }
-            for imei in device.imeis
-        ]
+            for imei in appareil.imeis
+        ],
+        "niveau_d'accès": user.access_level or "basique"
     }
 
-@app.get("/searches", tags=["Search History"])
+@app.get("/recherches", tags=["Historique de Recherche"])
 def list_searches(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
+    user: Utilisateur = Depends(get_current_user)
 ):
-    """List searches - users see only their searches, admins see all"""
-    if current_user.type_utilisateur == "administrateur":
-        searches = db.query(Recherche).offset(skip).limit(limit).all()
-    else:
-        searches = db.query(Recherche).filter(
-            Recherche.utilisateur_id == current_user.id
-        ).offset(skip).limit(limit).all()
+    """
+    Lister les recherches avec contrôle d'accès amélioré
+    
+    ### Niveaux d'Accès:
+    - Les utilisateurs standard voient seulement leurs propres recherches
+    - Les utilisateurs élevés voient les recherches organisationnelles
+    - Les admins voient toutes les recherches
+    - Les utilisateurs limités voient les recherches dans leur périmètre de données
+    """
+    # Vérifier si l'utilisateur a la permission de lire l'historique des recherches
+    if not PermissionManager.has_permission(user, Operation.READ_SEARCH_HISTORY):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission refusée: Impossible de lire l'historique des recherches"
+        )
+    
+    query = db.query(Recherche)
+    
+    # Appliquer un filtrage basé sur l'accès en utilisant des permissions simples
+    if user.type_utilisateur != "administrateur" and user.access_level != "admin":
+        if user.data_scope == "own":
+            query = query.filter(Recherche.utilisateur_id == user.id)
+        elif user.access_level == "limited":
+            # Les utilisateurs limités voient seulement leurs propres recherches
+            query = query.filter(Recherche.utilisateur_id == user.id)
+    
+    searches = query.offset(skip).limit(limit).all()
     
     return {
         "searches": [
@@ -555,18 +697,154 @@ def list_searches(
                 "utilisateur_id": str(search.utilisateur_id) if search.utilisateur_id else None
             }
             for search in searches
-        ]
+        ],
+        "access_context": {
+            "niveau_d'accès": user.access_level or "basique",
+            "data_scope": user.data_scope or "own",
+            "total_accessible": len(searches)
+        }
     }
 
-# User Management APIs with proper audit logging
-@app.post("/users", tags=["Users", "Admin"])
+# Enhanced device listing with granular filtering
+@app.get("/appareils", tags=["Appareils"],summary= "Liste des appareils")
+def list_devices(
+    skip: int = 0,
+    limit: int = 100,
+    brand: str = None,
+    db: Session = Depends(get_db),
+    user: Utilisateur = Depends(get_current_user)
+):
+    """
+Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
+
+### Contrôle d'accès :
+- Les utilisateurs voient les appareils en fonction de leur périmètre de données
+- Le filtrage par marque respecte les marques autorisées pour les parties concernées
+- Filtrage organisationnel pour les utilisateurs privilégiés
+- Accès complet pour les administrateurs
+    """
+    # Check if user has permission to read devices
+    if not PermissionManager.has_permission(user, Operation.READ_DEVICE):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Autorisation refusée : impossible de lire les appareils"
+        )
+    
+    # Get data filter context for this user
+    filter_context = PermissionManager.get_data_filter_context(user)
+    
+    query = db.query(Appareil)
+    
+    # Apply access-based filtering based on user's data scope
+    if not filter_context["is_admin"]:
+        if filter_context["scope"].value == "own":
+            query = query.filter(Appareil.utilisateur_id == user.id)
+        elif filter_context["scope"].value == "brands" and filter_context["allowed_brands"]:
+            query = query.filter(Appareil.marque.in_(filter_context["allowed_brands"]))
+        elif filter_context["scope"].value == "organization" and filter_context["organization"]:
+            # Organization filtering would need additional device fields
+            pass
+    
+    # Apply brand filter with access validation
+    if brand:
+        # Validate brand access for limited users
+        if user.access_level == "limited" and user.allowed_brands:
+            if brand not in user.allowed_brands:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Accès refusé : Marque '{brand}' pas dans les marques autorisées"
+                )
+        query = query.filter(Appareil.marque == brand)
+    
+    devices = query.offset(skip).limit(limit).all()
+    
+    # Build response with access-appropriate data
+    device_list = []
+    for device in devices:
+        can_access, access_details = PermissionManager.can_access_device(user, device)
+        
+        if can_access:
+            device_info = {
+                "id": str(device.id),
+                "marque": device.marque,
+                "modele": device.modele,
+                "can_modify": PermissionManager.has_permission(user, Operation.UPDATE_DEVICE) and can_access,
+                "access_reason": access_details["reason"]
+            }
+            
+            # Add enhanced info based on access level
+            user_level = AccessLevel(user.access_level or "basique")
+            if user_level in [AccessLevel.ELEVATED, AccessLevel.ADMIN]:
+                device_info.update({
+                    "emmc": device.emmc,
+                    "utilisateur_id": str(device.utilisateur_id) if device.utilisateur_id else None,
+                    "imei_count": len(device.imeis)
+                })
+            
+            device_list.append(device_info)
+    
+    return {
+        "devices": device_list,
+        "access_context": {
+            "niveau_d'accès": user.access_level or "basique",
+            "data_scope": filter_context["scope"].value,
+            "allowed_brands": filter_context["allowed_brands"],
+            "total_accessible": len(device_list)
+        },
+        "filters": {
+            "brand": brand,
+            "skip": skip,
+            "limit": limit
+        }
+    }
+
+# Nouvel endpoint pour les parties concernées pour vérifier leurs permissions d'accès
+@app.get("/mes-permissions", tags=["Utilisateurs"])
+def get_my_permissions(
+    user = Depends(get_current_user_optional)
+):
+    """
+    Obtenir les permissions et niveaux d'accès de l'utilisateur actuel
+    
+    ### Retourne:
+    - Niveau d'accès actuel et permissions
+    - Marques autorisées et plages IMEI
+    - Périmètre de données et restrictions
+    - Opérations disponibles
+    """
+    if not user:
+        return {
+            "niveau_d'accès": "visiteur",
+            "permissions": ["read_imei"],
+            "restrictions": "Accès public uniquement"
+        }
+    
+    permissions_summary = PermissionManager.get_user_permissions_summary(user)
+    
+    return {
+        "user_info": {
+            "id": str(user.id),
+            "name": user.nom,
+            "niveau_d'accès": user.access_level or "basique",
+            "organization": user.organization
+        },
+        "permissions": permissions_summary,
+        "current_session": {
+            "is_authenticated": True,
+            "is_admin": user.type_utilisateur == "administrateur",
+            "request_ip": "current_session"
+        }
+    }
+
+# APIs de Gestion des Utilisateurs avec journalisation d'audit appropriée
+@app.post("/utilisateurs", tags=["Utilisateurs", "Admin"])
 def create_user(
     user_data: dict, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("admin")),
+    current_user: Utilisateur = Depends(get_admin_user),
     audit_service: AuditService = Depends(get_audit_service)
 ):
-    """Admin only - create new user with audit logging"""
+    """Admin seulement - créer un nouvel utilisateur avec journalisation d'audit"""
     from .core.auth import get_password_hash
     
     user = Utilisateur(
@@ -593,15 +871,15 @@ def create_user(
     
     return {"id": str(user.id), "nom": user.nom, "email": user.email}
 
-@app.get("/users/{user_id}")
+@app.get("/utilisateurs/{user_id}")
 def get_user(
     user_id: str, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user")),
+    current_user: Utilisateur = Depends(get_current_user),
     translator = Depends(get_current_translator)
 ):
-    """Get user details - users can only see their own data, admins see all"""
-    # Users can only access their own data
+    """Obtenir les détails utilisateur - les utilisateurs ne peuvent voir que leurs propres données, les admins voient tout"""
+    # Les utilisateurs ne peuvent accéder qu'à leurs propres données
     if current_user.type_utilisateur != "administrateur" and str(current_user.id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -615,7 +893,7 @@ def get_user(
             detail=translator.translate("user_not_found")
         )
     
-    # Get user's devices and SIMs
+    # Obtenir les appareils et cartes SIM de l'utilisateur
     devices = db.query(Appareil).filter(Appareil.utilisateur_id == user_id).all()
     sims = db.query(SIM).filter(SIM.utilisateur_id == user_id).all()
     
@@ -636,15 +914,15 @@ def get_user(
         "sims": [{"id": str(s.id), "iccid": s.iccid, "operateur": s.operateur} for s in sims]
     }
 
-# SIM Card Management APIs
-@app.post("/sims", tags=["SIM Cards"])
+# APIs de Gestion des Cartes SIM
+@app.post("/cartes-sim", tags=["Cartes SIM"])
 def register_sim(
     sim_data: dict, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
+    current_user: Utilisateur = Depends(get_current_user)
 ):
-    """Register new SIM - authenticated users only"""
-    # Set SIM owner to current user if not admin
+    """Enregistrer une nouvelle carte SIM - utilisateurs authentifiés seulement"""
+    # Définir le propriétaire de la carte SIM à l'utilisateur actuel si pas admin
     if current_user.type_utilisateur != "administrateur":
         sim_data["utilisateur_id"] = current_user.id
         
@@ -659,14 +937,14 @@ def register_sim(
     db.refresh(sim)
     return {"id": str(sim.id), "iccid": sim.iccid, "operateur": sim.operateur}
 
-@app.get("/sims", tags=["SIM Cards"])
+@app.get("/cartes-sim", tags=["Cartes SIM"])
 def list_sims(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
+    current_user: Utilisateur = Depends(get_current_user)
 ):
-    """List SIMs - users see only their SIMs, admins see all"""
+    """Lister les cartes SIM - les utilisateurs voient seulement leurs cartes SIM, les admins voient tout"""
     if current_user.type_utilisateur == "administrateur":
         sims = db.query(SIM).offset(skip).limit(limit).all()
     else:
@@ -686,7 +964,7 @@ def list_sims(
         ]
     }
 
-@app.get("/sims/{iccid}", tags=["SIM Cards"])
+@app.get("/cartes-sim/{iccid}", tags=["Cartes SIM"])
 def check_iccid(iccid: str, db: Session = Depends(get_db)):
     sim = db.query(SIM).filter(SIM.iccid == iccid).first()
     if sim:
@@ -701,12 +979,12 @@ def check_iccid(iccid: str, db: Session = Depends(get_db)):
         }
     return {"iccid": iccid, "found": False, "message": "ICCID not found"}
 
-@app.put("/devices/{device_id}/assign", tags=["Devices", "Admin"])
+@app.put("/appareils/{device_id}/assigner", tags=["Appareils", "Admin"])
 def assign_device_to_user(
     device_id: str, 
     assignment_data: dict,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("admin")),
+    current_user: Utilisateur = Depends(get_admin_user),
     audit_service: AuditService = Depends(get_audit_service),
     translator = Depends(get_current_translator)
 ):
@@ -732,17 +1010,17 @@ def assign_device_to_user(
     
     return {"message": translator.translate("device_assigned")}
 
-# Analytics and Statistics APIs
-@app.get("/analytics/searches", tags=["Analytics"])
+# APIs d'Analyses et Statistiques
+@app.get("/analyses/recherches", tags=["Analyses"])
 def search_analytics(
-    days: int = Query(7, description="Number of days to analyze"),
+    days: int = Query(7, description="Nombre de jours à analyser"),
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
+    current_user: Utilisateur = Depends(get_current_user)
 ):
-    """Search analytics - filtered by user access level"""
+    """Analyses des recherches - filtrées par niveau d'accès utilisateur"""
     start_date = datetime.now() - timedelta(days=days)
     
-    # Admin sees all searches, users see only their own
+    # L'admin voit toutes les recherches, les utilisateurs voient seulement les leurs
     if current_user.type_utilisateur == "administrateur":
         searches_query = db.query(Recherche).filter(
             Recherche.date_recherche >= start_date
@@ -755,13 +1033,13 @@ def search_analytics(
     
     total_searches = searches_query.count()
     
-    # Searches by day
+    # Recherches par jour
     daily_searches = searches_query.with_entities(
         func.date(Recherche.date_recherche).label('date'),
         func.count(Recherche.id).label('count')
     ).group_by(func.date(Recherche.date_recherche)).all()
     
-    # Most searched IMEIs
+    # IMEIs les plus recherchés
     popular_imeis = searches_query.with_entities(
         Recherche.imei_recherche,
         func.count(Recherche.id).label('count')
@@ -774,18 +1052,24 @@ def search_analytics(
         "popular_imeis": [{"imei": imei.imei_recherche, "count": imei.count} for imei in popular_imeis]
     }
 
-@app.get("/analytics/devices", tags=["Analytics"])
+@app.get("/analyses/appareils", tags=["Analyses"])
 def device_analytics(db: Session = Depends(get_db)):
-    # Total devices
+    """
+    Obtenir les analyses statistiques des appareils.
+    
+    Returns:
+        dict: Statistiques des appareils incluant total, assignés, non-assignés et répartition par marque
+    """
+    # Total des appareils
     total_devices = db.query(Appareil).count()
     
-    # Devices by brand
+    # Appareils par marque
     brand_stats = db.query(
         Appareil.marque,
         func.count(Appareil.id).label('count')
     ).group_by(Appareil.marque).order_by(desc('count')).all()
     
-    # Assigned vs unassigned devices
+    # Appareils assignés vs non assignés
     assigned = db.query(Appareil).filter(Appareil.utilisateur_id.isnot(None)).count()
     unassigned = total_devices - assigned
     
@@ -797,16 +1081,31 @@ def device_analytics(db: Session = Depends(get_db)):
     }
 
 # Search History APIs
-@app.get("/users/{user_id}/searches", tags=["Search History"])
+@app.get("/utilisateurs/{user_id}/recherches", tags=["Historique de Recherche"])
 def user_search_history(
     user_id: str,
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
+    current_user: Utilisateur = Depends(get_current_user)
 ):
-    """Get user search history - users can only see their own searches"""
-    # Users can only access their own search history
+    """
+    Obtenir l'historique de recherche d'un utilisateur.
+    
+    Args:
+        user_id: Identifiant de l'utilisateur
+        skip: Nombre d'éléments à ignorer pour la pagination
+        limit: Nombre maximum d'éléments à retourner
+        db: Session de base de données
+        current_user: Utilisateur actuel connecté
+    
+    Returns:
+        dict: Historique des recherches de l'utilisateur
+    
+    Note:
+        Les utilisateurs ne peuvent voir que leur propre historique
+    """
+    # Les utilisateurs ne peuvent accéder qu'à leur propre historique de recherche
     if current_user.type_utilisateur != "administrateur" and str(current_user.id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -828,8 +1127,18 @@ def user_search_history(
         ]
     }
 
-@app.get("/imei/{imei}/history", tags=["Search History"])
+@app.get("/imei/{imei}/historique", tags=["Historique de Recherche"])
 def imei_search_history(imei: str, db: Session = Depends(get_db)):
+    """
+    Obtenir l'historique de recherche pour un IMEI spécifique.
+    
+    Args:
+        imei: Numéro IMEI à rechercher
+        db: Session de base de données
+    
+    Returns:
+        dict: Historique des recherches pour cet IMEI incluant le nombre total et les recherches récentes
+    """
     searches = db.query(Recherche).filter(
         Recherche.imei_recherche == imei
     ).order_by(desc(Recherche.date_recherche)).limit(20).all()
@@ -858,17 +1167,33 @@ def list_notifications(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("user"))
+    current_user: Utilisateur = Depends(get_current_user)
 ):
-    """List notifications - users see only their notifications, admins see all"""
+    """
+    Lister les notifications.
+    
+    Args:
+        user_id: Identifiant de l'utilisateur (optionnel, pour les administrateurs)
+        status: Statut des notifications à filtrer (optionnel)
+        skip: Nombre d'éléments à ignorer pour la pagination
+        limit: Nombre maximum d'éléments à retourner
+        db: Session de base de données
+        current_user: Utilisateur actuel connecté
+    
+    Returns:
+        dict: Liste des notifications
+        
+    Note:
+        Les utilisateurs voient uniquement leurs notifications, les administrateurs voient toutes
+    """
     query = db.query(Notification)
     
-    # Apply user filtering based on role
+    # Appliquer le filtrage utilisateur basé sur le rôle
     if current_user.type_utilisateur != "administrateur":
-        # Regular users can only see their own notifications
+        # Les utilisateurs réguliers ne peuvent voir que leurs propres notifications
         query = query.filter(Notification.utilisateur_id == current_user.id)
     else:
-        # Admins can filter by user_id if provided
+        # Les administrateurs peuvent filtrer par user_id si fourni
         if user_id:
             query = query.filter(Notification.utilisateur_id == user_id)
     
@@ -890,15 +1215,26 @@ def list_notifications(
         ]
     }
 
-# Admin APIs
-@app.get("/admin/users", tags=["Admin"])
+# API Admin
+@app.get("/admin/utilisateurs", tags=["Admin"])
 def list_all_users(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("admin"))
+    current_user: Utilisateur = Depends(get_admin_user)
 ):
-    """Admin only - list all users"""
+    """
+    Lister tous les utilisateurs - Administrateurs uniquement.
+    
+    Args:
+        skip: Nombre d'éléments à ignorer pour la pagination
+        limit: Nombre maximum d'éléments à retourner
+        db: Session de base de données
+        current_user: Utilisateur administrateur actuel
+    
+    Returns:
+        dict: Liste de tous les utilisateurs du système
+    """
     users = db.query(Utilisateur).offset(skip).limit(limit).all()
     return {
         "users": [
@@ -912,8 +1248,8 @@ def list_all_users(
         ]
     }
 
-# Enhanced audit logs endpoint
-@app.get("/admin/audit-logs", tags=["Admin"])
+# Endpoint amélioré des journaux d'audit
+@app.get("/admin/journaux-audit", tags=["Admin"])
 def get_audit_logs(
     user_id: Optional[str] = None,
     action_filter: Optional[str] = None,
@@ -923,9 +1259,25 @@ def get_audit_logs(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("admin"))
+    current_user: Utilisateur = Depends(get_admin_user)
 ):
-    """Admin only - get audit logs with enhanced filtering"""
+    """
+    Obtenir les journaux d'audit avec filtrage amélioré - Administrateurs uniquement.
+    
+    Args:
+        user_id: Filtrer par identifiant d'utilisateur (optionnel)
+        action_filter: Filtrer par type d'action (optionnel)
+        entity_type: Filtrer par type d'entité (optionnel)
+        start_date: Date de début pour le filtrage (optionnel)
+        end_date: Date de fin pour le filtrage (optionnel)
+        skip: Nombre d'éléments à ignorer pour la pagination
+        limit: Nombre maximum d'éléments à retourner
+        db: Session de base de données
+        current_user: Utilisateur administrateur actuel
+    
+    Returns:
+        dict: Journaux d'audit filtrés
+    """
     query = db.query(JournalAudit)
     
     if user_id:
@@ -935,7 +1287,7 @@ def get_audit_logs(
     if entity_type:
         query = query.filter(JournalAudit.action.contains(entity_type))
     
-    # Date filtering
+    # Filtrage par date
     if start_date:
         try:
             start_dt = datetime.fromisoformat(start_date)
@@ -973,93 +1325,116 @@ def get_audit_logs(
         }
     }
 
-@app.delete("/admin/devices/{device_id}", tags=["Admin"])
+@app.delete("/admin/appareils/{device_id}", tags=["Admin"])
 def delete_device(
-    device_id: str, 
+    appareil_id: str, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("admin")),
+    current_user: Utilisateur = Depends(get_admin_user),
     audit_service: AuditService = Depends(get_audit_service),
     translator = Depends(get_current_translator)
 ):
-    """Admin only - delete device with audit logging"""
-    device = db.query(Appareil).filter(Appareil.id == device_id).first()
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+    """
+    Supprimer un appareil avec journalisation d'audit - Administrateurs uniquement.
     
-    # Collect device data for audit log before deletion
-    device_data = {
-        "marque": device.marque,
-        "modele": device.modele,
-        "emmc": device.emmc,
-        "imeis": [imei.imei_number for imei in device.imeis]
+    Args:
+        appareil_id: Identifiant de l'appareil à supprimer
+        db: Session de base de données
+        current_user: Utilisateur administrateur actuel
+        audit_service: Service d'audit pour la journalisation
+        translator: Service de traduction
+    
+    Returns:
+        dict: Message de confirmation de suppression
+    """
+    appareil = db.query(Appareil).filter(Appareil.id == appareil_id).first()
+    if not appareil:
+        raise HTTPException(status_code=404, detail="Appareil non trouvé")
+    
+    # Collecter les données de l'appareil pour le journal d'audit avant suppression
+    appareil_data = {
+        "marque": appareil.marque,
+        "modele": appareil.modele,
+        "emmc": appareil.emmc,
+        "imeis": [imei.imei_number for imei in appareil.imeis]
     }
     
-    db.delete(device)
+    db.delete(appareil)
     db.commit()
     
-    # Log device deletion
+    # Journaliser la suppression de l'appareil
     audit_service.log_device_deletion(
-        device_id=device_id,
+        device_id=appareil_id,
         user_id=str(current_user.id),
-        device_data=device_data
+        device_data=appareil_data
     )
     
     return {"message":translator.translate('device_deleted')}
 
-# Bulk Operations
-@app.post("/admin/bulk-import-devices", tags=["Devices", "Admin"])
+# Opérations en lot
+@app.post("/admin/import-lot-appareils", tags=["Appareils", "Admin"])
 def bulk_import_devices(
     devices_data: List[dict], 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("admin")),
+    current_user: Utilisateur = Depends(get_admin_user),
     audit_service: AuditService = Depends(get_audit_service)
 ):
-    """Admin only - bulk import devices with audit logging"""
+    """
+    Import en lot d'appareils avec journalisation d'audit - Administrateurs uniquement.
+    
+    Args:
+        devices_data: Liste des données d'appareils à importer
+        db: Session de base de données
+        current_user: Utilisateur administrateur actuel
+        audit_service: Service d'audit pour la journalisation
+    
+    Returns:
+        dict: Résultats de l'import incluant le nombre d'appareils importés et les erreurs
+    """
     imported_count = 0
     errors = []
     
     for device_data in devices_data:
         try:
-            device = Appareil(
+            appareil = Appareil(
                 id=uuid.uuid4(),
                 marque=device_data.get("marque"),
                 modele=device_data.get("modele"),
                 emmc=device_data.get("emmc"),
                 utilisateur_id=device_data.get("utilisateur_id")
             )
-            db.add(device)
-            db.flush()  # Get the device ID
+            db.add(appareil)
+            db.flush()  # Obtenir l'ID de l'appareil
             
-            # Add IMEIs
+            # Ajouter les IMEIs
             imeis_data = device_data.get("imeis", [])
             for i, imei_data in enumerate(imeis_data):
                 if isinstance(imei_data, str):
-                    # Simple string format
+                    # Format chaîne simple
                     imei = IMEI(
                         id=uuid.uuid4(),
                         imei_number=imei_data,
                         slot_number=i + 1,
                         status="active",
-                        appareil_id=device.id
+                        appareil_id=appareil.id
                     )
                 else:
-                    # Dictionary format
+                    # Format dictionnaire
                     imei = IMEI(
                         id=uuid.uuid4(),
                         imei_number=imei_data.get("imei_number"),
                         slot_number=imei_data.get("slot_number", i + 1),
                         status=imei_data.get("status", "active"),
-                        appareil_id=device.id
+                        appareil_id=appareil.id
                     )
                 db.add(imei)
             
             imported_count += 1
         except Exception as e:
-            errors.append(f"Error importing device {device_data.get('marque', 'Unknown')}: {str(e)}")
+            errors.append(f"Erreur lors de l'import de l'appareil {device_data.get('marque', 'Inconnu')}: {str(e)}")
     
     db.commit()
     
-    # Log bulk import operation
+    # Journaliser l'opération d'import en lot
     audit_service.log_bulk_import(
         user_id=str(current_user.id),
         imported_count=imported_count,
@@ -1071,29 +1446,43 @@ def bulk_import_devices(
         "errors": errors
     }
 
-@app.post("/devices/{device_id}/imeis", tags=["Devices"])
-def add_imei_to_device(device_id: str, imei_data: dict, db: Session = Depends(get_db)):
-    device = db.query(Appareil).filter(Appareil.id == device_id).first()
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+@app.post("/appareils/{appareil_id}/imeis", tags=["Appareils"])
+def add_imei_to_device(appareil_id: str, imei_data: dict, db: Session = Depends(get_db)):
+    """
+    Ajouter un IMEI à un appareil.
     
-    # Check if device already has 2 IMEIs
-    if len(device.imeis) >= 2:
-        raise HTTPException(status_code=400, detail="Device already has maximum number of IMEIs (2)")
+    Args:
+        appareil_id: Identifiant de l'appareil
+        imei_data: Données de l'IMEI à ajouter
+        db: Session de base de données
+    
+    Returns:
+        dict: Confirmation d'ajout avec détails de l'IMEI
+        
+    Raises:
+        HTTPException: Si l'appareil n'est pas trouvé ou a déjà le maximum d'IMEIs
+    """
+    appareil = db.query(Appareil).filter(Appareil.id == appareil_id).first()
+    if not appareil:
+        raise HTTPException(status_code=404, detail="Appareil non trouvé")
+    
+    # Vérifier si l'appareil a déjà 2 IMEIs
+    if len(appareil.imeis) >= 2:
+        raise HTTPException(status_code=400, detail="L'appareil a déjà le nombre maximum d'IMEIs (2)")
     
     imei = IMEI(
         id=uuid.uuid4(),
         imei_number=imei_data.get("imei_number"),
-        slot_number=imei_data.get("slot_number", len(device.imeis) + 1),
+        slot_number=imei_data.get("slot_number", len(appareil.imeis) + 1),
         status=imei_data.get("status", "active"),
-        appareil_id=device.id
+        appareil_id=appareil.id
     )
     
     db.add(imei)
     db.commit()
     
     return {
-        "message": "IMEI added successfully",
+        "message": "IMEI ajouté avec succès",
         "imei": {
             "id": str(imei.id),
             "imei_number": imei.imei_number,
@@ -1107,11 +1496,24 @@ def update_imei_status(
     imei_id: str, 
     status_data: dict, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(require_auth("admin")),
+    current_user: Utilisateur = Depends(get_admin_user),
     audit_service: AuditService = Depends(get_audit_service),
     translator = Depends(get_current_translator)
 ):
-    """Admin only - update IMEI status with audit logging"""
+    """
+    Mettre à jour le statut d'un IMEI avec journalisation d'audit - Administrateurs uniquement.
+    
+    Args:
+        imei_id: Identifiant de l'IMEI
+        status_data: Nouvelles données de statut
+        db: Session de base de données
+        current_user: Utilisateur administrateur actuel
+        audit_service: Service d'audit pour la journalisation
+        translator: Service de traduction
+    
+    Returns:
+        dict: Message de confirmation de mise à jour
+    """
     imei = db.query(IMEI).filter(IMEI.id == imei_id).first()
     if not imei:
         raise HTTPException(status_code=404, detail=translator.translate("imei_not_found_error"))
@@ -1121,7 +1523,7 @@ def update_imei_status(
     imei.status = new_status
     db.commit()
     
-    # Log IMEI status change
+    # Journaliser le changement de statut IMEI
     audit_service.log_imei_status_change(
         imei_id=str(imei.id),
         imei_number=imei.imei_number,
@@ -1132,18 +1534,35 @@ def update_imei_status(
     
     return {"message": translator.translate("imei_status_updated")}
 
-# PUBLIC ANALYTICS (Limited for visitors)
-@app.get("/public/stats", tags=["Public", "Analytics"])
+# ANALYSES PUBLIQUES (Limitées pour les visiteurs)
+@app.get("/public/statistiques", tags=["Public", "Analyses"])
 def public_statistics(
     request: Request,
     db: Session = Depends(get_db),
-    user_info: tuple = Depends(allow_all_with_limits),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
-    """Public statistics with limited information"""
-    current_user, user_type = user_info
+    """
+    Statistiques publiques avec informations limitées.
     
-    # Basic stats available to all
+    Args:
+        request: Requête HTTP
+        db: Session de base de données
+        user: Utilisateur optionnel (peut être None pour les visiteurs)
+        translator: Service de traduction
+    
+    Returns:
+        dict: Statistiques publiques limitées
+    """
+    current_user = user
+    type_utilisateur = "visiteur"
+    if current_user:
+        if current_user.type_utilisateur == "administrateur":
+            type_utilisateur = "admin"
+        else:
+            type_utilisateur = "utilisateur"
+    
+    # Statistiques de base disponibles pour tous
     total_devices = db.query(Appareil).count()
     total_imeis = db.query(IMEI).count()
     
@@ -1153,8 +1572,8 @@ def public_statistics(
         translator.translate("last_updated"): datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     
-    # Enhanced stats for authenticated users
-    if user_type != "visitor":
+    # Statistiques améliorées pour les utilisateurs authentifiés
+    if type_utilisateur != "visiteur":
         total_users = db.query(Utilisateur).count()
         total_searches = db.query(Recherche).count()
         response.update({

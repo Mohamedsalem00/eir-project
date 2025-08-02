@@ -213,3 +213,106 @@ class AuditService:
                 "errors": errors[:5]  # Limit errors to first 5
             }
         )
+    
+    # Enhanced Permission Management Audit Methods
+    
+    def log_permission_change(self, target_user_id: str, admin_user_id: str, changes: Dict[str, Any]):
+        """Log user permission changes"""
+        return self.log_action(
+            action=f"User permissions modified for user {target_user_id}",
+            user_id=admin_user_id,
+            entity_type="user_permissions",
+            entity_id=target_user_id,
+            details={
+                "changes": changes,
+                "change_count": len(changes)
+            }
+        )
+    
+    def log_access_rule_change(self, target_user_id: str, admin_user_id: str, action: str, rule_data: Dict[str, Any]):
+        """Log access rule additions/removals"""
+        return self.log_action(
+            action=f"Access rule {action} for user {target_user_id}",
+            user_id=admin_user_id,
+            entity_type="access_rule",
+            entity_id=target_user_id,
+            details={
+                "rule_action": action,
+                "rule_data": rule_data
+            }
+        )
+    
+    def log_bulk_permission_update(self, admin_user_id: str, user_ids: list, changes: Dict[str, Any], errors: list):
+        """Log bulk permission updates"""
+        return self.log_action(
+            action=f"Bulk permission update - {len(user_ids)} users affected",
+            user_id=admin_user_id,
+            entity_type="bulk_permissions",
+            details={
+                "affected_users": user_ids,
+                "changes": changes,
+                "success_count": len(user_ids),
+                "error_count": len(errors),
+                "errors": errors[:5]  # Limit errors to first 5
+            }
+        )
+    
+    def log_template_application(self, target_user_id: str, admin_user_id: str, template_name: str, additional_config: Dict[str, Any]):
+        """Log permission template application"""
+        return self.log_action(
+            action=f"Permission template '{template_name}' applied to user {target_user_id}",
+            user_id=admin_user_id,
+            entity_type="permission_template",
+            entity_id=target_user_id,
+            details={
+                "template_name": template_name,
+                "additional_config": additional_config
+            }
+        )
+    
+    def log_access_attempt(self, user_id: Optional[str], operation: str, entity_type: str, entity_id: str, 
+                          success: bool, reason: str, ip_address: Optional[str] = None):
+        """Log access attempts for security monitoring"""
+        action = f"Access {'granted' if success else 'denied'}: {operation} on {entity_type} {entity_id}"
+        
+        return self.log_action(
+            action=action,
+            user_id=user_id,
+            entity_type="access_control",
+            entity_id=f"{entity_type}:{entity_id}",
+            details={
+                "operation": operation,
+                "success": success,
+                "reason": reason,
+                "ip_address": ip_address
+            }
+        )
+    
+    def log_data_access(self, user_id: Optional[str], data_type: str, access_scope: str, 
+                       filter_applied: bool, record_count: int):
+        """Log data access patterns for analytics"""
+        return self.log_action(
+            action=f"Data access: {data_type} with scope {access_scope}",
+            user_id=user_id,
+            entity_type="data_access",
+            details={
+                "data_type": data_type,
+                "access_scope": access_scope,
+                "filter_applied": filter_applied,
+                "record_count": record_count
+            }
+        )
+    
+    def log_security_event(self, event_type: str, severity: str, user_id: Optional[str] = None, 
+                          details: Optional[Dict[str, Any]] = None):
+        """Log security-related events"""
+        return self.log_action(
+            action=f"Security event: {event_type} (severity: {severity})",
+            user_id=user_id,
+            entity_type="security_event",
+            details={
+                "event_type": event_type,
+                "severity": severity,
+                **(details or {})
+            }
+        )

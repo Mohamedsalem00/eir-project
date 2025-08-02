@@ -1,13 +1,31 @@
 # backend/requirements.txt
-fastapi
-uvicorn[standard]
-sqlalchemy
-psycopg2-binary
-python-dotenv
+# Core FastAPI and web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Database and ORM
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.12.0
+
+# Authentication and Security
+python-jose[cryptography]>=3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
-python-jose[cryptography]
-pydantic
+
+# Data validation and parsing
+pydantic>=2.0.0
 pydantic[email]
-babel
-python-multipart
+
+# Environment and configuration
+python-dotenv>=1.0.0
+
+# Internationalization
+babel>=2.13.0
+
+# File handling and forms
+python-multipart>=0.0.6
+
+# Additional utilities for enhanced features
+requests>=2.31.0
+python-dateutil>=2.8.0

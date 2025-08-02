@@ -5,6 +5,7 @@ from ..core.database import Base
 import uuid
 
 class ImportExport(Base):
+    """Modèle pour la table importexport"""
     __tablename__ = "importexport"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
@@ -13,5 +14,5 @@ class ImportExport(Base):
     date = Column(DateTime)
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))
 
-    # Relationship
+    # Relation
     utilisateur = relationship("Utilisateur", back_populates="import_exports")

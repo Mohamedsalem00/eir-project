@@ -5,12 +5,13 @@ from ..core.database import Base
 import uuid
 
 class JournalAudit(Base):
-    __tablename__ = "journalaudit"
+    """Modèle pour la table journal_audit"""
+    __tablename__ = "journal_audit"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     action = Column(Text)
     date = Column(DateTime)
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))
 
-    # Relationship
+    # Relation
     utilisateur = relationship("Utilisateur", back_populates="audit_logs")

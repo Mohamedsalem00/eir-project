@@ -35,8 +35,8 @@ def get_language_from_request(
         if accepted_languages:
             return accepted_languages[0]
     
-    # 4. Default to English
-    return "en"
+    # 4. Default to French
+    return "fr"
 
 def get_current_translator(
     request: Request,

@@ -37,4 +37,4 @@ class I18nMiddleware(BaseHTTPMiddleware):
                 if lang_code in SUPPORTED_LANGUAGES:
                     return lang_code
         
-        return "en"
+        return "fr"

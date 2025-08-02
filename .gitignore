@@ -1,1 +1,76 @@
+# Environment variables
 .env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+.docker/
+
+# Logs
+*.log
+logs/
+
+# Database backups
+backups/
+*.sql
+*.dump
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Documentation temporaire
+*_TEMP.md
+*_TEMPORAIRE.md
+FRANCISATION_*.md
+ENDPOINTS_*.md
+PLAN_*.md
+RAPPORT_*.md
+
+# Scripts de test temporaires
+test_*.py
+franciser_*.py
+*_test_*.py
+
+# Fichiers de validation temporaires
+validation_*.py
+test_validation_*.py

@@ -1,11 +1,12 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, Any
 import time
 from collections import defaultdict
 from .database import SessionLocal
 from .auth import verify_token
+from .permissions import PermissionManager, Operation, AccessLevel, DataScope
 from ..models.utilisateur import Utilisateur
 
 security = HTTPBearer()
@@ -40,6 +41,13 @@ def get_current_user(
             detail="User not found"
         )
     
+    # Check if user is active
+    if hasattr(user, 'is_active') and not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated"
+        )
+    
     return user
 
 def get_admin_user(current_user: Utilisateur = Depends(get_current_user)) -> Utilisateur:
@@ -67,6 +75,9 @@ def get_current_user_optional(
         
         if user_id:
             user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
+            # Check if user is active
+            if user and hasattr(user, 'is_active') and not user.is_active:
+                return None
             return user
     except:
         pass
@@ -100,14 +111,13 @@ def check_visitor_rate_limit(request: Request):
     visitor_requests[client_ip].append(now)
 
 
-
 def get_current_user_with_visitor_support(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
     db: Session = Depends(get_db)
 ) -> tuple[Optional[Utilisateur], str]:
-    """Get current user and user type (admin/user/visitor)
-    Note: visitors are anonymous - no database record needed"""
+    """Get current user and user type with enhanced access level detection
+    Returns: (user, access_level_string)"""
     if credentials is None:
         # Anonymous visitor - apply rate limiting
         check_visitor_rate_limit(request)
@@ -121,8 +131,17 @@ def get_current_user_with_visitor_support(
         if user_id:
             user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
             if user:
-                user_type = "admin" if user.type_utilisateur == "administrateur" else "user"
-                return user, user_type
+                # Check if user is active
+                if hasattr(user, 'is_active') and not user.is_active:
+                    check_visitor_rate_limit(request)
+                    return None, "visitor"
+                
+                # Return user with their specific access level
+                access_level = user.access_level or "basic"
+                if user.type_utilisateur == "administrateur":
+                    access_level = "admin"
+                
+                return user, access_level
     except:
         # Invalid token, treat as anonymous visitor
         check_visitor_rate_limit(request)
@@ -132,9 +151,88 @@ def get_current_user_with_visitor_support(
     check_visitor_rate_limit(request)
     return None, "visitor"
 
+def get_access_context(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get comprehensive access context for advanced permission checking"""
+    user, access_level = get_current_user_with_visitor_support(request, credentials, db)
+    
+    # Get permission context from PermissionManager
+    filter_context = PermissionManager.get_data_filter_context(user)
+    
+    return {
+        "user": user,
+        "access_level": access_level,
+        "is_authenticated": user is not None,
+        "is_admin": filter_context["is_admin"],
+        "permissions": PermissionManager.get_user_permissions_summary(user) if user else {},
+        "data_filter": filter_context,
+        "request_ip": request.client.host if request.client else "unknown"
+    }
+
+def require_operation_permission(operation: Operation):
+    """Enhanced dependency factory for operation-specific permission checking"""
+    def permission_dependency(
+        access_context: Dict[str, Any] = Depends(get_access_context)
+    ) -> Dict[str, Any]:
+        user = access_context["user"]
+        
+        if not PermissionManager.has_permission(user, operation):
+            # Provide detailed error message based on user status
+            if not user:
+                detail = f"Authentication required for operation: {operation.value}"
+                status_code = status.HTTP_401_UNAUTHORIZED
+            else:
+                detail = f"Insufficient permissions for operation: {operation.value}. Current access level: {access_context['access_level']}"
+                status_code = status.HTTP_403_FORBIDDEN
+            
+            raise HTTPException(status_code=status_code, detail=detail)
+        
+        return access_context
+    
+    return permission_dependency
+
+def require_access_level(min_level: AccessLevel):
+    """Enhanced dependency factory for access level checking"""
+    def level_dependency(
+        access_context: Dict[str, Any] = Depends(get_access_context)
+    ) -> Dict[str, Any]:
+        user = access_context["user"]
+        current_level_str = access_context["access_level"]
+        
+        try:
+            current_level = AccessLevel(current_level_str)
+        except ValueError:
+            current_level = AccessLevel.VISITOR
+        
+        # Check if current level meets minimum requirement
+        level_hierarchy = [
+            AccessLevel.VISITOR,
+            AccessLevel.BASIC,
+            AccessLevel.LIMITED,
+            AccessLevel.STANDARD,
+            AccessLevel.ELEVATED,
+            AccessLevel.ADMIN
+        ]
+        
+        if level_hierarchy.index(current_level) < level_hierarchy.index(min_level):
+            if current_level == AccessLevel.VISITOR:
+                status_code = status.HTTP_401_UNAUTHORIZED
+                detail = f"Authentication required. Minimum access level: {min_level.value}"
+            else:
+                status_code = status.HTTP_403_FORBIDDEN
+                detail = f"Insufficient access level. Required: {min_level.value}, Current: {current_level.value}"
+            
+            raise HTTPException(status_code=status_code, detail=detail)
+        
+        return access_context
+    
+    return level_dependency
 
 def require_auth(min_level: str = "user"):
-    """Dependency factory to require specific authentication level"""
+    """Enhanced authentication dependency with access level support"""
     def auth_dependency(
         request: Request,
         credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -162,5 +260,46 @@ def allow_all_with_limits(
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
     db: Session = Depends(get_db)
 ) -> tuple[Optional[Utilisateur], str]:
-    """Allow all user types with appropriate limitations"""
+    """Allow all user types with appropriate limitations and enhanced context"""
     return get_current_user_with_visitor_support(request, credentials, db)
+
+def filter_query_by_access(query, access_context: Dict[str, Any], entity_type: str):
+    """Apply access-based filtering to database queries"""
+    user = access_context["user"]
+    filter_context = access_context["data_filter"]
+    
+    if filter_context["is_admin"]:
+        return query  # Admin sees everything
+    
+    if not user:
+        # Anonymous users get no data
+        return query.filter(False)
+    
+    # Apply filtering based on data scope
+    scope = filter_context["scope"]
+    
+    if scope == DataScope.OWN:
+        # User sees only their own data
+        if entity_type == "device":
+            query = query.filter_by(utilisateur_id=user.id)
+        elif entity_type == "search":
+            query = query.filter_by(utilisateur_id=user.id)
+        elif entity_type == "sim":
+            query = query.filter_by(utilisateur_id=user.id)
+    
+    elif scope == DataScope.BRANDS:
+        # User sees data for specific brands
+        allowed_brands = filter_context["allowed_brands"]
+        if allowed_brands and entity_type == "device":
+            query = query.filter(query.model.marque.in_(allowed_brands))
+    
+    elif scope == DataScope.ORGANIZATION:
+        # User sees organization data (would need organization field on entities)
+        if filter_context["organization"] and hasattr(query.model, 'organization'):
+            query = query.filter_by(organization=filter_context["organization"])
+    
+    elif scope == DataScope.RANGES:
+        # Apply IMEI range filtering (complex logic for IMEI-related queries)
+        pass  # Implement based on specific needs
+    
+    return query

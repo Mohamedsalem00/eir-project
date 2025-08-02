@@ -2,93 +2,95 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-class APIMetadata(BaseModel):
-    """API metadata information"""
-    name: str = Field(..., description="API service name")
-    version: str = Field(..., description="API version")
-    build: str = Field(..., description="Build version")
-    environment: str = Field(..., description="Deployment environment")
-    uptime_status: str = Field(..., description="Service uptime status")
+class MetadonneesAPI(BaseModel):
+    """Informations de métadonnées de l'API"""
+    nom: str = Field(..., description="Nom du service API")
+    version: str = Field(..., description="Version de l'API")
+    build: str = Field(..., description="Version de construction")
+    environnement: str = Field(..., description="Environnement de déploiement")
+    statut_disponibilite: str = Field(..., description="Statut de disponibilité du service")
 
-class ContactInfo(BaseModel):
-    """Contact information"""
-    organization: str = Field(..., description="Organization name")
-    email: str = Field(..., description="Contact email")
-    support_email: str = Field(..., description="Support email")
-    documentation_url: str = Field(..., description="Documentation URL")
+class InfosContact(BaseModel):
+    """Informations de contact"""
+    organisation: str = Field(..., description="Nom de l'organisation")
+    email: str = Field(..., description="Email de contact")
+    email_support: str = Field(..., description="Email de support")
+    url_documentation: str = Field(..., description="URL de documentation")
 
-class SecurityInfo(BaseModel):
-    """Security and compliance information"""
-    authentication_methods: List[str] = Field(..., description="Supported authentication methods")
-    rate_limiting: str = Field(..., description="Rate limiting policy")
-    compliance_standards: List[str] = Field(..., description="Compliance standards")
-    data_encryption: str = Field(..., description="Data encryption status")
+class InfosSecurite(BaseModel):
+    """Informations de sécurité et conformité"""
+    methodes_authentification: List[str] = Field(..., description="Méthodes d'authentification supportées")
+    limitation_taux: str = Field(..., description="Politique de limitation du taux")
+    normes_conformite: List[str] = Field(..., description="Normes de conformité")
+    chiffrement_donnees: str = Field(..., description="Statut du chiffrement des données")
 
-class ServiceCapabilities(BaseModel):
-    """Service capabilities and features"""
-    imei_validation: Dict[str, Any] = Field(..., description="IMEI validation capabilities")
-    device_management: Dict[str, Any] = Field(..., description="Device management features")
-    user_management: Dict[str, Any] = Field(..., description="User management features")
-    analytics: Dict[str, Any] = Field(..., description="Analytics capabilities")
-    bulk_operations: Dict[str, Any] = Field(..., description="Bulk operation support")
+class CapacitesService(BaseModel):
+    """Capacités et fonctionnalités du service"""
+    validation_imei: Dict[str, Any] = Field(..., description="Capacités de validation IMEI")
+    gestion_appareils: Dict[str, Any] = Field(..., description="Fonctionnalités de gestion d'appareils")
+    gestion_utilisateurs: Dict[str, Any] = Field(..., description="Fonctionnalités de gestion d'utilisateurs")
+    analyses: Dict[str, Any] = Field(..., description="Capacités d'analyse")
+    operations_lot: Dict[str, Any] = Field(..., description="Support des opérations en lot")
 
-class APIEndpoints(BaseModel):
-    """Available API endpoints"""
-    public: Dict[str, str] = Field(..., description="Public endpoints")
-    authenticated: Dict[str, str] = Field(..., description="Authenticated user endpoints")
-    admin: Dict[str, str] = Field(..., description="Admin-only endpoints")
+class PointsTerminaisonAPI(BaseModel):
+    """Points de terminaison API disponibles"""
+    publics: Dict[str, str] = Field(..., description="Points de terminaison publics")
+    authentifies: Dict[str, str] = Field(..., description="Points de terminaison pour utilisateurs authentifiés")
+    admin: Dict[str, str] = Field(..., description="Points de terminaison admin uniquement")
 
-class TechnicalSpecs(BaseModel):
-    """Technical specifications"""
-    supported_formats: List[str] = Field(..., description="Supported data formats")
-    max_request_size: str = Field(..., description="Maximum request size")
-    response_time_sla: str = Field(..., description="Response time SLA")
-    availability_sla: str = Field(..., description="Availability SLA")
-    sdk_support: List[str] = Field(..., description="Available SDKs")
+class SpecificationsTechniques(BaseModel):
+    """Spécifications techniques"""
+    formats_supportes: List[str] = Field(..., description="Formats de données supportés")
+    taille_max_requete: str = Field(..., description="Taille maximale de requête")
+    sla_temps_reponse: str = Field(..., description="SLA du temps de réponse")
+    sla_disponibilite: str = Field(..., description="SLA de disponibilité")
+    support_sdk: List[str] = Field(..., description="SDKs disponibles")
 
-class WelcomeResponse(BaseModel):
-    """Professional API welcome response"""
-    title: str = Field(..., description="API title")
-    description: str = Field(..., description="API description")
-    tagline: str = Field(..., description="API tagline")
-    status: str = Field(..., description="Current API status")
-    timestamp: str = Field(..., description="Response timestamp")
-    language: str = Field(..., description="Response language")
+class ReponseBienvenue(BaseModel):
+    """Réponse de bienvenue professionnelle de l'API"""
+    titre: str = Field(..., description="Titre de l'API")
+    description: str = Field(..., description="Description de l'API")
+    slogan: str = Field(..., description="Slogan de l'API")
+    statut: str = Field(..., description="Statut actuel de l'API")
+    horodatage: str = Field(..., description="Horodatage de la réponse")
+    langue: str = Field(..., description="Langue de la réponse")
     
-    # Core information
-    api: APIMetadata
-    contact: ContactInfo
-    security: SecurityInfo
+    # Informations principales
+    api: MetadonneesAPI
+    contact: InfosContact
+    securite: InfosSecurite
     
-    # Service details
-    capabilities: ServiceCapabilities
-    endpoints: APIEndpoints
-    technical_specs: TechnicalSpecs
+    # Détails du service
+    capacites: CapacitesService
+    points_terminaison: PointsTerminaisonAPI
+    specifications_techniques: SpecificationsTechniques
     
-    # Quick start
-    quick_start: Dict[str, str] = Field(..., description="Quick start information")
+    # Démarrage rapide
+    demarrage_rapide: Dict[str, str] = Field(..., description="Informations de démarrage rapide")
     
-    # Legal
-    legal: Dict[str, str] = Field(..., description="Legal information")
+    # Légal
+    legal: Dict[str, str] = Field(..., description="Informations légales")
 
-class HealthCheckResponse(BaseModel):
-    status: str
-    timestamp: str
+class ReponseControleEtat(BaseModel):
+    """Réponse du contrôle d'état de santé"""
+    statut: str
+    horodatage: str
     service: str
     version: str
-    uptime: str
-    database: Dict[str, str]
-    system_info: Dict[str, str]
-    endpoints_status: Dict[str, str]
-    security_status: Dict[str, str]
+    duree_fonctionnement: str
+    base_donnees: Dict[str, str]
+    infos_systeme: Dict[str, str]
+    statut_points_terminaison: Dict[str, str]
+    statut_securite: Dict[str, str]
 
-class APIInfoResponse(BaseModel):
-    api_name: str
+class ReponseInfosAPI(BaseModel):
+    """Réponse des informations API"""
+    nom_api: str
     version: str
     description: str
-    purpose: str
-    capabilities: Dict[str, Dict[str, Any]]
-    technical_specifications: Dict[str, str]
-    compliance_features: Dict[str, str]
-    supported_formats: Dict[str, List[str]]
-    integration_ready: Dict[str, str]
+    objectif: str
+    capacites: Dict[str, Dict[str, Any]]
+    specifications_techniques: Dict[str, str]
+    fonctionnalites_conformite: Dict[str, str]
+    formats_supportes: Dict[str, List[str]]
+    pret_integration: Dict[str, str]

@@ -1,22 +1,22 @@
 SUPPORTED_LANGUAGES = {
-    "en": {
-        "name": "English",
-        "native_name": "English",
-        "code": "en",
-        "rtl": False
-    },
     "fr": {
-        "name": "French", 
-        "native_name": "Français",
+        "nom": "Français", 
+        "nom_natif": "Français",
         "code": "fr",
-        "rtl": False
+        "droite_vers_gauche": False
+    },
+    "en": {
+        "nom": "Anglais",
+        "nom_natif": "English",
+        "code": "en",
+        "droite_vers_gauche": False
     },
     "ar": {
-        "name": "Arabic",
-        "native_name": "العربية", 
+        "nom": "Arabe",
+        "nom_natif": "العربية", 
         "code": "ar",
-        "rtl": True
+        "droite_vers_gauche": True
     }
 }
 
-DEFAULT_LANGUAGE = "en"
+DEFAULT_LANGUAGE = "fr"

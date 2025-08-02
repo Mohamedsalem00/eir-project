@@ -5,6 +5,7 @@ from ..core.database import Base
 import uuid
 
 class Appareil(Base):
+    """Modèle pour la table appareil"""
     __tablename__ = "appareil"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
@@ -13,6 +14,6 @@ class Appareil(Base):
     emmc = Column(String(100))
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))
 
-    # Relationships
+    # Relations
     utilisateur = relationship("Utilisateur", back_populates="appareils")
     imeis = relationship("IMEI", back_populates="appareil", cascade="all, delete-orphan")

@@ -17,30 +17,30 @@ class WelcomeService:
         
         return WelcomeResponse(
             title=self.translator.translate("welcome_title"),
-            description=self.translator.translate("welcome_description"),
-            tagline=self.translator.translate("welcome_tagline"),
-            status=self.translator.translate("api_status"),
+            description=self.translator.translate("description_bienvenue"),
+            tagline=self.translator.translate("slogan_bienvenue"),
+            status=self.translator.translate("statut_api"),
             timestamp=current_time.isoformat(),
             language=self.translator.current_language,
             
             api=APIMetadata(
-                name=self.translator.translate("service_name"),
-                version=self.translator.translate("api_version"),
-                build=self.translator.translate("build_version"),
-                environment=self.translator.translate("environment"),
-                uptime_status=self.translator.translate("uptime_status")
+                name=self.translator.translate("nom_service"),
+                version=self.translator.translate("version_api"),
+                build=self.translator.translate("version_construction"),
+                environment=self.translator.translate("environnement"),
+                uptime_status=self.translator.translate("statut_temps_fonctionnement")
             ),
             
             contact=ContactInfo(
-                organization=self.translator.translate("organization"),
-                email=self.translator.translate("contact_email"),
-                support_email=self.translator.translate("support_email"),
-                documentation_url=self.translator.translate("documentation_url")
+                organization=self.translator.translate("organisation"),
+                email=self.translator.translate("email_contact"),
+                support_email=self.translator.translate("email_support"),
+                documentation_url=self.translator.translate("url_documentation")
             ),
             
             security=SecurityInfo(
                 authentication_methods=["JWT Bearer Token", "API Key (Enterprise)"],
-                rate_limiting=self.translator.translate("rate_limits"),
+                rate_limiting=self.translator.translate("limites_taux"),
                 compliance_standards=["GDPR", "SOX", "ISO 27001", "GSMA Guidelines"],
                 data_encryption="TLS 1.3, AES-256"
             ),
@@ -50,17 +50,17 @@ class WelcomeService:
             technical_specs=self._get_technical_specs(),
             
             quick_start={
-                "documentation": self.translator.translate("documentation_url"),
+                "documentation": self.translator.translate("url_documentation"),
                 "interactive_docs": f"{request_url.rstrip('/')}/docs" if request_url else "/docs",
-                "health_check": f"{request_url.rstrip('/')}/health" if request_url else "/health",
+                "health_check": f"{request_url.rstrip('/')}/verification-etat" if request_url else "/verification-etat",
                 "imei_check_example": f"{request_url.rstrip('/')}/imei/123456789012345" if request_url else "/imei/123456789012345",
                 "supported_languages": f"{request_url.rstrip('/')}/languages" if request_url else "/languages"
             },
             
             legal={
-                "terms_of_service": self.translator.translate("terms_of_service"),
-                "privacy_policy": self.translator.translate("privacy_policy"),
-                "license": self.translator.translate("license"),
+                "terms_of_service": self.translator.translate("conditions_service"),
+                "privacy_policy": self.translator.translate("politique_confidentialite"),
+                "license": self.translator.translate("licence"),
                 "data_retention": "Data retained according to regional regulations"
             }
         )
@@ -109,7 +109,7 @@ class WelcomeService:
             "imei_lookup": "/imei/{imei}",
             "imei_search_log": "/imei/{imei}/search",
             "public_statistics": "/public/stats",
-            "health_check": "/health",
+            "health_check": "/verification-etat",
             "api_info": "/",
             "supported_languages": "/languages"
         }

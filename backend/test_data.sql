@@ -1,77 +1,186 @@
--- Test data for EIR Project Database - Updated Schema
+-- Test data for EIR project with proper access control
+-- Run this after schema_postgres.sql and migrate_essential_access.sql
 
--- Insert test users with working passwords
--- All users have password: "password123"
--- Using fresh generated bcrypt hash
--- Removed visiteur_anonyme as anonymous users don't need database records
+-- Clear existing data
+DELETE FROM IMEI;
+DELETE FROM Appareil;
+DELETE FROM Recherche;
+DELETE FROM SIM;
+DELETE FROM Notification;
+DELETE FROM JournalAudit;
+DELETE FROM ImportExport;
+DELETE FROM Utilisateur;
 
-INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur) VALUES
-('550e8400-e29b-41d4-a716-446655440001', 'Admin User', 'admin@eir.com', '$2b$12$/p3EJSTtw.jEreZ9hqrHHOlHqjQ.ZkdH4PIU0807wdgMOo4R6TSWC', 'administrateur'),
-('550e8400-e29b-41d4-a716-446655440002', 'John Doe', 'john.doe@email.com', '$2b$12$/p3EJSTtw.jEreZ9hqrHHOlHqjQ.ZkdH4PIU0807wdgMOo4R6TSWC', 'utilisateur_authentifie'),
-('550e8400-e29b-41d4-a716-446655440003', 'Jane Smith', 'jane.smith@email.com', '$2b$12$/p3EJSTtw.jEreZ9hqrHHOlHqjQ.ZkdH4PIU0807wdgMOo4R6TSWC', 'utilisateur_authentifie');
+-- Create admin user
+INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, access_level, data_scope, is_active)
+VALUES (
+    gen_random_uuid(),
+    'System Administrator',
+    'admin@eir-project.com',
+    '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK', -- admin123
+    'administrateur',
+    'admin',
+    'all',
+    true
+);
 
--- Insert test devices (Appareil) - WITHOUT imei field
-INSERT INTO Appareil (id, marque, modele, emmc, utilisateur_id) VALUES
-('660e8400-e29b-41d4-a716-446655440001', 'Apple', 'iPhone 13', 'A15_EMMC_128GB', '550e8400-e29b-41d4-a716-446655440002'),
-('660e8400-e29b-41d4-a716-446655440002', 'Samsung', 'Galaxy S21', 'EXYNOS_EMMC_256GB', '550e8400-e29b-41d4-a716-446655440003'),
-('660e8400-e29b-41d4-a716-446655440003', 'Google', 'Pixel 6', 'TENSOR_EMMC_128GB', '550e8400-e29b-41d4-a716-446655440002'),
-('660e8400-e29b-41d4-a716-446655440004', 'OnePlus', '9 Pro', 'SNAPDRAGON_EMMC_256GB', '550e8400-e29b-41d4-a716-446655440003'),
-('660e8400-e29b-41d4-a716-446655440005', 'Xiaomi', 'Mi 11', 'SNAPDRAGON_EMMC_128GB', NULL),
-('660e8400-e29b-41d4-a716-446655440006', 'Unknown', 'Test Device', 'TEST_EMMC', NULL),
-('660e8400-e29b-41d4-a716-446655440007', 'Blacklisted', 'Stolen Phone', 'BLOCKED_EMMC', NULL);
+-- Create sample regular user
+INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, access_level, data_scope, is_active)
+VALUES (
+    gen_random_uuid(),
+    'Regular User',
+    'user@example.com',
+    '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK', -- admin123
+    'utilisateur_authentifie',
+    'standard',
+    'own',
+    true
+);
 
--- Insert IMEI records (separate table)
-INSERT INTO IMEI (id, imei_number, slot_number, status, appareil_id) VALUES
--- Single SIM devices
-('cc0e8400-e29b-41d4-a716-446655440001', '123456789012345', 1, 'active', '660e8400-e29b-41d4-a716-446655440001'),
-('cc0e8400-e29b-41d4-a716-446655440002', '234567890123456', 1, 'active', '660e8400-e29b-41d4-a716-446655440002'),
-('cc0e8400-e29b-41d4-a716-446655440003', '345678901234567', 1, 'active', '660e8400-e29b-41d4-a716-446655440003'),
--- Dual SIM device (OnePlus 9 Pro)
-('cc0e8400-e29b-41d4-a716-446655440004', '456789012345678', 1, 'active', '660e8400-e29b-41d4-a716-446655440004'),
-('cc0e8400-e29b-41d4-a716-446655440005', '456789012345679', 2, 'active', '660e8400-e29b-41d4-a716-446655440004'),
--- Other devices
-('cc0e8400-e29b-41d4-a716-446655440006', '567890123456789', 1, 'active', '660e8400-e29b-41d4-a716-446655440005'),
-('cc0e8400-e29b-41d4-a716-446655440007', '999888777666555', 1, 'unknown', '660e8400-e29b-41d4-a716-446655440006'),
-('cc0e8400-e29b-41d4-a716-446655440008', '111222333444555', 1, 'blocked', '660e8400-e29b-41d4-a716-446655440007');
+-- Create sample insurance company user
+INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, access_level, data_scope, organization, is_active, allowed_brands)
+VALUES (
+    gen_random_uuid(),
+    'Insurance Agent',
+    'insurance@company.com',
+    '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK', -- admin123
+    'utilisateur_authentifie',
+    'limited',
+    'brands',
+    'SecureInsurance Corp',
+    true,
+    '["Samsung", "Apple", "Huawei"]'
+);
 
--- Insert test searches with more recent dates
-INSERT INTO Recherche (id, date_recherche, imei_recherche, utilisateur_id) VALUES
-('880e8400-e29b-41d4-a716-446655440001', '2024-12-15 10:30:00', '123456789012345', '550e8400-e29b-41d4-a716-446655440002'),
-('880e8400-e29b-41d4-a716-446655440002', '2024-12-15 11:45:00', '234567890123456', '550e8400-e29b-41d4-a716-446655440003'),
-('880e8400-e29b-41d4-a716-446655440003', '2024-12-15 14:20:00', '999888777666555', '550e8400-e29b-41d4-a716-446655440002'),
-('880e8400-e29b-41d4-a716-446655440004', '2024-12-16 09:15:00', '345678901234567', '550e8400-e29b-41d4-a716-446655440001'),
-('880e8400-e29b-41d4-a716-446655440005', '2024-12-16 16:30:00', '111222333444555', NULL), -- Anonymous search
-('880e8400-e29b-41d4-a716-446655440006', '2024-12-17 10:00:00', '000000000000000', '550e8400-e29b-41d4-a716-446655440002'),
-('880e8400-e29b-41d4-a716-446655440007', '2024-12-17 11:00:00', '123123123123123', NULL); -- Anonymous search
+-- Create sample law enforcement user  
+INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, access_level, data_scope, organization, is_active, allowed_imei_ranges)
+VALUES (
+    gen_random_uuid(),
+    'Police Officer',
+    'police@cybercrime.gov',
+    '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK', -- admin123
+    'utilisateur_authentifie',
+    'limited',
+    'ranges', 
+    'Police Cyber Crime Unit',
+    true,
+    '[{"type": "prefix", "prefix": "35274508", "description": "Investigation case"}]'
+);
 
--- Insert test SIM cards
-INSERT INTO SIM (id, iccid, operateur, utilisateur_id) VALUES
-('770e8400-e29b-41d4-a716-446655440001', '89332402001234567890', 'Orange', '550e8400-e29b-41d4-a716-446655440002'),
-('770e8400-e29b-41d4-a716-446655440002', '89332402001234567891', 'SFR', '550e8400-e29b-41d4-a716-446655440003'),
-('770e8400-e29b-41d4-a716-446655440003', '89332402001234567892', 'Bouygues', '550e8400-e29b-41d4-a716-446655440002'),
-('770e8400-e29b-41d4-a716-446655440004', '89332402001234567893', 'Free', '550e8400-e29b-41d4-a716-446655440003'),
-('770e8400-e29b-41d4-a716-446655440005', '89332402001234567894', 'Orange', NULL);
+-- Create sample tech manufacturer user
+INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, access_level, data_scope, organization, is_active, allowed_brands)
+VALUES (
+    gen_random_uuid(),
+    'Tech Manufacturer',
+    'manufacturer@techcorp.com',
+    '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK', -- admin123
+    'utilisateur_authentifie',
+    'standard',
+    'brands',
+    'TechCorp Manufacturing',
+    true,
+    '["TechCorp"]'
+);
 
--- Insert test notifications
-INSERT INTO Notification (id, type, contenu, statut, utilisateur_id) VALUES
-('990e8400-e29b-41d4-a716-446655440001', 'email', 'Bienvenue sur la plateforme EIR', 'envoyé', '550e8400-e29b-41d4-a716-446655440002'),
-('990e8400-e29b-41d4-a716-446655440002', 'sms', 'Code de vérification: 123456', 'envoyé', '550e8400-e29b-41d4-a716-446655440003'),
-('990e8400-e29b-41d4-a716-446655440003', 'email', 'Nouvel appareil détecté sur votre compte', 'en_attente', '550e8400-e29b-41d4-a716-446655440002'),
-('990e8400-e29b-41d4-a716-446655440004', 'sms', 'Alerte sécurité: connexion suspecte', 'échoué', '550e8400-e29b-41d4-a716-446655440003'),
-('990e8400-e29b-41d4-a716-446655440005', 'email', 'Rapport mensuel des recherches', 'envoyé', '550e8400-e29b-41d4-a716-446655440001');
+-- Insert sample devices and IMEIs
+-- Insert devices first, then their IMEIs
+WITH regular_user AS (SELECT id FROM Utilisateur WHERE email = 'user@example.com'),
+     manufacturer_user AS (SELECT id FROM Utilisateur WHERE email = 'manufacturer@techcorp.com')
 
--- Insert test audit logs with recent dates
-INSERT INTO JournalAudit (id, action, date, utilisateur_id) VALUES
-('aa0e8400-e29b-41d4-a716-446655440001', 'Connexion utilisateur', '2024-12-15 08:00:00', '550e8400-e29b-41d4-a716-446655440002'),
-('aa0e8400-e29b-41d4-a716-446655440002', 'Recherche IMEI: 123456789012345', '2024-12-15 10:30:00', '550e8400-e29b-41d4-a716-446655440002'),
-('aa0e8400-e29b-41d4-a716-446655440003', 'Ajout nouvel appareil', '2024-12-15 12:15:00', '550e8400-e29b-41d4-a716-446655440003'),
-('aa0e8400-e29b-41d4-a716-446655440004', 'Modification profil utilisateur', '2024-12-16 14:45:00', '550e8400-e29b-41d4-a716-446655440002'),
-('aa0e8400-e29b-41d4-a716-446655440005', 'Export données CSV', '2024-12-16 16:20:00', '550e8400-e29b-41d4-a716-446655440001');
+-- Insert Samsung device
+INSERT INTO Appareil (id, marque, modele, emmc, utilisateur_id)
+SELECT gen_random_uuid(), 'Samsung', 'Galaxy S21', '128GB', regular_user.id
+FROM regular_user;
 
--- Insert test import/export operations - COMPLETELY CLEAN (no duplicates at all)
-INSERT INTO ImportExport (id, type_operation, fichier, date, utilisateur_id) VALUES
-('bb0e8400-e29b-41d4-a716-446655440001', 'import', 'imei_batch_001.csv', '2024-12-10 09:00:00', '550e8400-e29b-41d4-a716-446655440001'),
-('bb0e8400-e29b-41d4-a716-446655440002', 'export', 'recherches_decembre.json', '2024-12-15 17:30:00', '550e8400-e29b-41d4-a716-446655440001'),
-('bb0e8400-e29b-41d4-a716-446655440003', 'import', 'sim_cards_batch.csv', '2024-12-12 11:20:00', '550e8400-e29b-41d4-a716-446655440001'),
-('bb0e8400-e29b-41d4-a716-446655440004', 'export', 'appareils_utilisateurs.csv', '2024-12-16 10:15:00', '550e8400-e29b-41d4-a716-446655440002'),
-('bb0e8400-e29b-41d4-a716-446655440005', 'import', 'users_update.json', '2024-12-14 15:45:00', '550e8400-e29b-41d4-a716-446655440001');
+-- Insert Apple device
+INSERT INTO Appareil (id, marque, modele, emmc, utilisateur_id)
+SELECT gen_random_uuid(), 'Apple', 'iPhone 13', '256GB', regular_user.id
+FROM regular_user;
+
+-- Insert TechCorp device
+INSERT INTO Appareil (id, marque, modele, emmc, utilisateur_id)
+SELECT gen_random_uuid(), 'TechCorp', 'TC-Pro-2024', '512GB', manufacturer_user.id
+FROM manufacturer_user;
+
+-- Insert IMEIs for the devices
+INSERT INTO IMEI (id, imei_number, slot_number, status, appareil_id)
+SELECT 
+    gen_random_uuid(),
+    '352745080123456',
+    1,
+    'active',
+    a.id
+FROM Appareil a 
+JOIN Utilisateur u ON a.utilisateur_id = u.id 
+WHERE u.email = 'user@example.com' AND a.marque = 'Samsung';
+
+INSERT INTO IMEI (id, imei_number, slot_number, status, appareil_id)
+SELECT 
+    gen_random_uuid(),
+    '354123456789012',
+    1,
+    'active',
+    a.id
+FROM Appareil a 
+JOIN Utilisateur u ON a.utilisateur_id = u.id 
+WHERE u.email = 'user@example.com' AND a.marque = 'Apple';
+
+INSERT INTO IMEI (id, imei_number, slot_number, status, appareil_id)
+SELECT 
+    gen_random_uuid(),
+    '352745080987654',
+    1,
+    'active',
+    a.id
+FROM Appareil a 
+JOIN Utilisateur u ON a.utilisateur_id = u.id 
+WHERE u.email = 'manufacturer@techcorp.com' AND a.marque = 'TechCorp';
+
+-- Insert sample SIM cards
+WITH regular_user_id AS (SELECT id FROM Utilisateur WHERE email = 'user@example.com')
+INSERT INTO SIM (id, iccid, operateur, utilisateur_id)
+SELECT 
+    gen_random_uuid(),
+    '8934051234567890123',
+    'Orange',
+    id
+FROM regular_user_id;
+
+-- Insert sample search history
+WITH regular_user_id AS (SELECT id FROM Utilisateur WHERE email = 'user@example.com')
+INSERT INTO Recherche (id, date_recherche, imei_recherche, utilisateur_id)
+SELECT 
+    gen_random_uuid(),
+    NOW() - INTERVAL '1 hour',
+    '352745080123456',
+    id
+FROM regular_user_id;
+
+-- Insert sample notification
+WITH admin_user_id AS (SELECT id FROM Utilisateur WHERE email = 'admin@eir-project.com')
+INSERT INTO Notification (id, type, contenu, statut, utilisateur_id)
+SELECT 
+    gen_random_uuid(),
+    'system',
+    'Database initialized successfully',
+    'unread',
+    id
+FROM admin_user_id;
+
+-- Create audit log entry
+WITH admin_user_id AS (SELECT id FROM Utilisateur WHERE email = 'admin@eir-project.com')
+INSERT INTO JournalAudit (id, action, date, utilisateur_id)
+SELECT 
+    gen_random_uuid(),
+    'Database initialization completed',
+    NOW(),
+    id
+FROM admin_user_id;
+
+-- Verify the data
+SELECT 
+    'Data Summary' as info,
+    (SELECT COUNT(*) FROM Utilisateur) as users,
+    (SELECT COUNT(*) FROM Appareil) as devices,
+    (SELECT COUNT(*) FROM IMEI) as imeis,
+    (SELECT COUNT(*) FROM SIM) as sims;
