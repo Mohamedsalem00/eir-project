@@ -84,7 +84,7 @@ show_help() {
     echo ""
     echo "Examples:"
     echo "  $0 \"docker ps\""
-    echo "  $0 \"docker-compose up -d\""
+    echo "  $0 \"docker compose up -d\""
     echo "  $0 \"docker build -t myapp .\""
     echo "  $0 --setup"
     echo ""

@@ -78,11 +78,11 @@ test_docker() {
 
 # Test 2: Docker Compose file validation
 test_docker_compose() {
-    if docker-compose config > /dev/null 2>&1; then
-        log_info "Configuration docker-compose.yml valide"
+    if docker compose config > /dev/null 2>&1; then
+        log_info "Configuration docker compose.yml valide"
         return 0
     else
-        log_error "Configuration docker-compose.yml invalide"
+        log_error "Configuration docker compose.yml invalide"
         return 1
     fi
 }
@@ -228,7 +228,7 @@ test_database_files() {
 test_container_build() {
     log_info "Test de construction des conteneurs (peut prendre quelques minutes)..."
     
-    if docker-compose build --no-cache > /dev/null 2>&1; then
+    if docker compose build --no-cache > /dev/null 2>&1; then
         log_info "Construction des conteneurs réussie"
         return 0
     else
@@ -242,7 +242,7 @@ test_container_startup() {
     log_info "Test de démarrage des conteneurs..."
     
     # Start containers
-    if docker-compose up -d > /dev/null 2>&1; then
+    if docker compose up -d > /dev/null 2>&1; then
         log_info "Conteneurs démarrés"
         
         # Wait for services to be ready
@@ -296,12 +296,12 @@ test_french_api() {
 test_database_connectivity() {
     log_info "Test de connectivité à la base de données..."
     
-    if docker-compose exec -T db pg_isready -U postgres > /dev/null 2>&1; then
+    if docker compose exec -T db pg_isready -U postgres > /dev/null 2>&1; then
         log_info "Base de données accessible"
         
         # Test database content
         local table_count
-        table_count=$(docker-compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
+        table_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
         
         if [[ "$table_count" -gt 0 ]]; then
             log_info "Base de données contient $table_count tables"
@@ -332,7 +332,7 @@ test_documentation() {
 # Cleanup function
 cleanup() {
     log_info "Nettoyage après tests..."
-    docker-compose down > /dev/null 2>&1 || true
+    docker compose down > /dev/null 2>&1 || true
 }
 
 # Main test execution
@@ -344,7 +344,7 @@ main() {
     
     # Run all tests
     run_test "Disponibilité Docker" "test_docker"
-    run_test "Validation docker-compose.yml" "test_docker_compose"
+    run_test "Validation docker compose.yml" "test_docker_compose"
     run_test "Scripts de gestion disponibles" "test_scripts_available"
     run_test "Structure du backend" "test_backend_structure"
     run_test "Fichiers de traduction" "test_translation_files"

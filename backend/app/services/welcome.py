@@ -16,7 +16,7 @@ class WelcomeService:
         current_time = datetime.now()
         
         return WelcomeResponse(
-            title=self.translator.translate("welcome_title"),
+            title=self.translator.translate("titre_bienvenue_api"),
             description=self.translator.translate("description_bienvenue"),
             tagline=self.translator.translate("slogan_bienvenue"),
             status=self.translator.translate("statut_api"),

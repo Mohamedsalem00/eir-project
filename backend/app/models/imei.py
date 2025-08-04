@@ -8,9 +8,9 @@ class IMEI(Base):
     __tablename__ = "imei"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    imei_number = Column(String(20), unique=True, index=True, nullable=False)
-    slot_number = Column(Integer)  # 1 for primary, 2 for secondary (dual-SIM)
-    status = Column(String(50), default="active")  # active, blocked, stolen, etc.
+    numero_imei = Column(String(20), unique=True, index=True, nullable=False)
+    numero_slot = Column(Integer)  # 1 pour principal, 2 pour secondaire (dual-SIM)
+    statut = Column(String(50), default="actif")  # actif, bloque, vole, etc.
     appareil_id = Column(UUID(as_uuid=True), ForeignKey("appareil.id"), nullable=False)
 
     # Relationship

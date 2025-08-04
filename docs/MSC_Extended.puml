@@ -1,6 +1,6 @@
 @startuml
 !theme plain
-title Processus de Vérification IMEI dans le Réseau Mobile
+title Processus de Vérification IMEI - Options d'Intégration Réseau
 
 actor "Utilisateur" as U
 participant "Téléphone mobile" as T
@@ -9,6 +9,8 @@ participant "Contrôleur BSC" as BSC
 participant "Centre de commutation (MSC)" as MSC
 participant "HLR/VLR" as HLR
 participant "Service EIR" as IMEI_Checker
+participant "DMS" as DMS
+participant "GSMA API" as GSMA
 
 U -> T : Allume le téléphone
 T -> BTS : Demande d'accès au réseau
@@ -18,14 +20,24 @@ BSC -> MSC : Requête d'attachement
 MSC -> HLR : Vérification IMSI/MSISDN
 HLR --> MSC : Résultat d'abonnement (OK)
 
-MSC -> IMEI_Checker : Requête IMEI (REST API)
-note right : GET /imei/{imei_number}\nAuthentication: Bearer token
+alt Protocole REST (Par défaut)
+    MSC -> IMEI_Checker : GET /imei/{imei_number}
+    note right : Authentication: Bearer token
+else Protocole MAP (Production)
+    MSC -> IMEI_Checker : MAP-CHECK-IMEI-REQ
+    note right : SS7/SIGTRAN
+else Intégration DMS
+    MSC -> IMEI_Checker : POST /msc/check-imei
+    IMEI_Checker -> DMS : SOAP sync-device
+    DMS --> IMEI_Checker : Device status
+end
 
 alt Base de données locale
     IMEI_Checker -> IMEI_Checker : Recherche en base PostgreSQL
     IMEI_Checker --> MSC : {"statut": "allowed", "trouve": true}
 else API externe (GSMA)
-    IMEI_Checker -> IMEI_Checker : Appel API externe
+    IMEI_Checker -> GSMA : GET /validate-imei/{imei}
+    GSMA --> IMEI_Checker : Device validation result
     IMEI_Checker -> IMEI_Checker : Mise en cache locale
     IMEI_Checker --> MSC : {"statut": "bloqué", "trouve": true}
 end

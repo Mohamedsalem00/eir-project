@@ -47,9 +47,9 @@ restart_containers() {
     log_info "Redémarrage des conteneurs..."
     
     # Stop containers gracefully
-    if docker-compose ps -q | grep -q .; then
+    if docker compose ps -q | grep -q .; then
         log_info "Arrêt des conteneurs existants..."
-        docker-compose down
+        docker compose down
         log_success "Conteneurs arrêtés"
     else
         log_info "Aucun conteneur en cours d'exécution"
@@ -57,7 +57,7 @@ restart_containers() {
     
     # Start containers
     log_info "Démarrage des conteneurs..."
-    if docker-compose up -d; then
+    if docker compose up -d; then
         log_success "Conteneurs démarrés"
     else
         log_error "Échec du démarrage des conteneurs"
@@ -74,7 +74,7 @@ wait_for_services() {
     local db_attempt=1
     
     while [ $db_attempt -le $db_attempts ]; do
-        if docker-compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
+        if docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
             log_success "Base de données prête !"
             break
         fi
@@ -115,7 +115,7 @@ wait_for_services() {
 show_status() {
     echo ""
     echo "📊 Statut des conteneurs :"
-    docker-compose ps
+    docker compose ps
     
     echo ""
     echo "🎉 Redémarrage terminé !"
@@ -129,8 +129,8 @@ show_status() {
     echo "   curl http://localhost:8000/verification-etat"
     echo ""
     echo "🔧 Si problèmes :"
-    echo "   docker-compose logs web    # Logs du service web"
-    echo "   docker-compose logs db     # Logs de la base de données"
+    echo "   docker compose logs web    # Logs du service web"
+    echo "   docker compose logs db     # Logs de la base de données"
     echo "   ./scripts/rebuild-containers.sh  # Reconstruction complète"
 }
 
@@ -143,7 +143,7 @@ restart_service() {
     else
         log_info "Redémarrage du service : $service"
         
-        if docker-compose restart "$service"; then
+        if docker compose restart "$service"; then
             log_success "Service $service redémarré"
         else
             log_error "Échec du redémarrage du service $service"
@@ -154,7 +154,7 @@ restart_service() {
         sleep 5
         
         # Check service status
-        if docker-compose ps "$service" | grep -q "Up"; then
+        if docker compose ps "$service" | grep -q "Up"; then
             log_success "Service $service opérationnel"
         else
             log_warning "Service $service pourrait avoir des problèmes"

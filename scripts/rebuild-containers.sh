@@ -47,8 +47,8 @@ check_docker() {
 # Function to stop containers
 stop_containers() {
     log_info "Arrêt des conteneurs existants..."
-    if docker-compose ps -q | grep -q .; then
-        docker-compose down -v --remove-orphans
+    if docker compose ps -q | grep -q .; then
+        docker compose down -v --remove-orphans
         log_success "Conteneurs arrêtés avec succès"
     else
         log_info "Aucun conteneur en cours d'exécution"
@@ -61,7 +61,7 @@ cleanup_docker() {
     
     # Remove old images
     if docker images -q eir-project* | grep -q .; then
-        docker-compose down --rmi all 2>/dev/null || true
+        docker compose down --rmi all 2>/dev/null || true
         log_success "Images supprimées"
     fi
     
@@ -85,7 +85,7 @@ build_containers() {
     fi
     
     # Build with no cache
-    if docker-compose build --no-cache; then
+    if docker compose build --no-cache; then
         log_success "Conteneurs construits avec succès"
     else
         log_error "Échec de la construction des conteneurs"
@@ -97,7 +97,7 @@ build_containers() {
 start_containers() {
     log_info "Démarrage des conteneurs..."
     
-    if docker-compose up -d; then
+    if docker compose up -d; then
         log_success "Conteneurs démarrés"
     else
         log_error "Échec du démarrage des conteneurs"
@@ -113,7 +113,7 @@ wait_for_database() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if docker-compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
+        if docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
             log_success "Base de données prête !"
             return 0
         fi
@@ -133,11 +133,11 @@ initialize_database() {
     
     # Check if tables exist
     local table_count
-    table_count=$(docker-compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
+    table_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
     
     if [[ "$table_count" -eq "0" ]]; then
         log_warning "Base de données vide, initialisation manuelle..."
-        if docker-compose exec -T web bash /app/scripts/init-db.sh; then
+        if docker compose exec -T web bash /app/scripts/init-db.sh; then
             log_success "Base de données initialisée"
         else
             log_error "Échec de l'initialisation de la base de données"
@@ -169,7 +169,7 @@ test_api() {
     done
     
     log_warning "API ne répond pas encore. Vérifiez les logs :"
-    echo "   docker-compose logs web"
+    echo "   docker compose logs web"
     return 1
 }
 
@@ -177,7 +177,7 @@ test_api() {
 show_status() {
     echo ""
     echo "📊 Statut des conteneurs :"
-    docker-compose ps
+    docker compose ps
     
     echo ""
     echo "🎉 Reconstruction complète terminée !"
@@ -206,9 +206,9 @@ show_status() {
     echo "   curl http://localhost:8000/imei/352745080123456"
     echo ""
     echo "🔧 Dépannage :"
-    echo "   docker-compose logs web    # Logs du service web"
-    echo "   docker-compose logs db     # Logs de la base de données"
-    echo "   docker-compose ps          # Statut des services"
+    echo "   docker compose logs web    # Logs du service web"
+    echo "   docker compose logs db     # Logs de la base de données"
+    echo "   docker compose ps          # Statut des services"
     echo "   ./scripts/restart-containers.sh  # Redémarrage simple"
 }
 

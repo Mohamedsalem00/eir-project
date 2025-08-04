@@ -74,3 +74,6 @@ franciser_*.py
 # Fichiers de validation temporaires
 validation_*.py
 test_validation_*.py
+
+# test 
+test

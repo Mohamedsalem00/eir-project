@@ -19,10 +19,6 @@ echo "✅ PostgreSQL is ready!"
 echo "📋 Creating main database schema..."
 PGPASSWORD=postgres psql -h db -U postgres -d imei_db -f /app/schema_postgres.sql
 
-# Apply access control migration
-echo "🔐 Applying access control enhancements..."
-PGPASSWORD=postgres psql -h db -U postgres -d imei_db -f /app/migrate_essential_access.sql
-
 # Insert test data
 echo "📊 Inserting test data..."
 PGPASSWORD=postgres psql -h db -U postgres -d imei_db -f /app/test_data.sql

@@ -14,9 +14,9 @@ from datetime import datetime
 # Configuration du logger
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["Authentification"])
+router = APIRouter(prefix="/authentification", tags=["Authentification"])
 
-@router.post("/register", response_model=ReponseUtilisateur)
+@router.post("/inscription", response_model=ReponseUtilisateur)
 def register(user_data: CreationUtilisateur, request: Request, db: Session = Depends(get_db)):
     """
     Inscription d'un nouvel utilisateur
@@ -90,7 +90,7 @@ def register(user_data: CreationUtilisateur, request: Request, db: Session = Dep
         )
 
 
-@router.post("/login", response_model=Jeton)
+@router.post("/connexion", response_model=Jeton)
 def login(user_credentials: ConnexionUtilisateur, request: Request, db: Session = Depends(get_db)):
     """
     Connexion utilisateur
@@ -207,7 +207,7 @@ def get_profile(current_user: Utilisateur = Depends(get_current_user)):
             detail="Erreur interne du serveur lors de la récupération du profil"
         )
 
-@router.post("/logout")
+@router.post("/deconnexion")
 def logout(current_user: Utilisateur = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Déconnexion utilisateur

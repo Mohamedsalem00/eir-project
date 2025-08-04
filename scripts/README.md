@@ -112,7 +112,7 @@ Script interactif avec menu complet pour toutes les opérations :
 # Choisir option 6
 
 # Ou directement avec Docker
-docker-compose ps
+docker compose ps
 ```
 
 ### Test de l'API Francisée
@@ -128,11 +128,11 @@ curl http://localhost:8000/docs
 ### Consultation des Logs
 ```bash
 # Logs en temps réel
-docker-compose logs -f
+docker compose logs -f
 
 # Logs d'un service spécifique
-docker-compose logs web
-docker-compose logs db
+docker compose logs web
+docker compose logs db
 ```
 
 ## 🐛 Dépannage
@@ -161,14 +161,14 @@ sudo kill -9 <PID>
 ./scripts/rebuild-database.sh
 
 # Ou suppression manuelle du volume
-docker-compose down
+docker compose down
 docker volume rm eir-project_postgres_data
 ```
 
 #### Conteneurs qui ne démarrent pas
 ```bash
 # Vérification des logs
-docker-compose logs
+docker compose logs
 
 # Reconstruction forcée
 ./scripts/rebuild-containers.sh --force
@@ -192,7 +192,7 @@ docker volume prune -f
 ./scripts/manage-eir.sh
 
 # Sauvegarde manuelle
-docker-compose exec db pg_dump -U postgres imei_db > backup.sql
+docker compose exec db pg_dump -U postgres imei_db > backup.sql
 ```
 
 ### Mises à Jour
@@ -207,19 +207,19 @@ git pull
 ### Logs de Debug
 ```bash
 # Logs détaillés de tous les services
-docker-compose logs --details
+docker compose logs --details
 
 # Logs en mode verbose
-docker-compose up --verbose
+docker compose up --verbose
 ```
 
 ### Vérification de la Configuration
 ```bash
-# Validation du docker-compose.yml
-docker-compose config
+# Validation du docker compose.yml
+docker compose config
 
 # Test de connectivité
-docker-compose exec web ping db
+docker compose exec web ping db
 ```
 
 ---

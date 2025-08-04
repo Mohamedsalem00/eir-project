@@ -46,7 +46,7 @@ check_docker() {
 check_database() {
     log_info "Vérification de l'accès à la base de données..."
     
-    if ! docker-compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
+    if ! docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
         log_error "Base de données non accessible. Utilisez rebuild-database.sh pour une reconstruction complète."
         exit 1
     fi
@@ -59,7 +59,7 @@ clear_data() {
     log_info "Suppression des données existantes..."
     
     # Clear tables in proper order (respecting foreign keys)
-    docker-compose exec -T db psql -U postgres -d imei_db << 'EOF'
+    docker compose exec -T db psql -U postgres -d imei_db << 'EOF'
 -- Disable foreign key checks temporarily
 SET session_replication_role = replica;
 
@@ -106,7 +106,7 @@ reload_test_data() {
     fi
     
     # Load test data
-    if docker-compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/03-test-data.sql; then
+    if docker compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/03-test-data.sql; then
         log_success "Données de test rechargées"
     else
         log_error "Échec du rechargement des données de test"
@@ -118,12 +118,12 @@ reload_test_data() {
 create_custom_data() {
     log_info "Création de données personnalisées..."
     
-    docker-compose exec -T db psql -U postgres -d imei_db << 'EOF'
+    docker compose exec -T db psql -U postgres -d imei_db << 'EOF'
 -- Insert additional test users
-INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, access_level, data_scope, is_active)
+INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, est_actif)
 VALUES 
     (gen_random_uuid(), 'Testeur API', 'tester@eir-project.com', '$2b$12$LQv3c7yD8ED8YzLwq2T7vu7C6YXCX3STj6yzGHdRLgIZDQzjfHI8C', 'utilisateur_authentifie', 'standard', 'own', true),
-    (gen_random_uuid(), 'Support Technique', 'support@eir-project.com', '$2b$12$LQv3c7yD8ED8YzLwq2T7vu7C6YXCX3STj6yzGHdRLgIZDQzjfHI8C', 'utilisateur_authentifie', 'limited', 'all', true);
+    (gen_random_uuid(), 'Support Technique', 'support@eir-project.com', '$2b$12$LQv3c7yD8ED8YzLwq2T7vu7C6YXCX3STj6yzGHdRLgIZDQzjfHI8C', 'utilisateur_authentifie', 'limited', 'tout', true);
 
 -- Insert some additional test devices
 WITH new_user AS (
@@ -169,7 +169,7 @@ verify_reset() {
     
     # Count records
     local counts
-    counts=$(docker-compose exec -T db psql -U postgres -d imei_db -t << 'EOF'
+    counts=$(docker compose exec -T db psql -U postgres -d imei_db -t << 'EOF'
 SELECT 
     'Utilisateurs: ' || COUNT(*) FROM Utilisateur
 UNION ALL
@@ -197,7 +197,7 @@ restart_web_if_needed() {
         log_success "Service web opérationnel"
     else
         log_info "Redémarrage du service web..."
-        docker-compose restart web
+        docker compose restart web
         
         # Wait for API
         local max_attempts=10
@@ -228,7 +228,7 @@ show_status() {
     echo "🎉 Réinitialisation de la base de données terminée !"
     echo ""
     echo "📊 Statut :"
-    docker-compose ps
+    docker compose ps
     echo ""
     echo "🔑 Utilisateurs de test disponibles (mot de passe: admin123) :"
     echo "   👑 admin@eir-project.com (Administrateur)"

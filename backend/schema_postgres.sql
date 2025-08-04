@@ -5,13 +5,13 @@ CREATE TABLE utilisateur (
     email VARCHAR(100) UNIQUE,
     mot_de_passe TEXT,
     type_utilisateur VARCHAR(50),
-    -- Essential access control fields
-    access_level VARCHAR(50) DEFAULT 'basic',
-    data_scope VARCHAR(50) DEFAULT 'own',
-    organization VARCHAR(100),
-    is_active BOOLEAN DEFAULT TRUE,
-    allowed_brands JSONB DEFAULT '[]',
-    allowed_imei_ranges JSONB DEFAULT '[]'
+    -- Champs essentiels de contrôle d'accès
+    niveau_acces VARCHAR(50) DEFAULT 'basique',
+    portee_donnees VARCHAR(50) DEFAULT 'personnel',
+    organisation VARCHAR(100),
+    est_actif BOOLEAN DEFAULT TRUE,
+    marques_autorisees JSONB DEFAULT '[]',
+    plages_imei_autorisees JSONB DEFAULT '[]'
 );
 
 -- Table: appareil (removed imei field)
@@ -23,16 +23,16 @@ CREATE TABLE appareil (
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
 
--- Table: imei (new table for handling multiple IMEIs per device)
+-- Table : imei (nouvelle table pour gérer plusieurs IMEIs par appareil)
 CREATE TABLE imei (
     id UUID PRIMARY KEY,
-    imei_number VARCHAR(20) UNIQUE,
-    slot_number INTEGER,
-    status VARCHAR(50) DEFAULT 'active',
+    numero_imei VARCHAR(20) UNIQUE,
+    numero_slot INTEGER,
+    statut VARCHAR(50) DEFAULT 'actif',
     appareil_id UUID REFERENCES appareil(id) NOT NULL
 );
 
--- Table: sim
+-- Table : sim
 CREATE TABLE sim (
     id UUID PRIMARY KEY,
     iccid VARCHAR(22) UNIQUE,
@@ -40,7 +40,7 @@ CREATE TABLE sim (
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
 
--- Table: recherche
+-- Table : recherche
 CREATE TABLE recherche (
     id UUID PRIMARY KEY,
     date_recherche TIMESTAMP,
@@ -48,7 +48,7 @@ CREATE TABLE recherche (
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
 
--- Table: Notification
+-- Table : notification
 CREATE TABLE notification (
     id UUID PRIMARY KEY,
     type VARCHAR(50),
@@ -57,7 +57,7 @@ CREATE TABLE notification (
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
 
--- Table: journal_audit (lowercase to match SQLAlchemy model)
+-- Table : journal_audit (minuscules pour correspondre au modèle SQLAlchemy)
 CREATE TABLE journal_audit (
     id UUID PRIMARY KEY,
     action TEXT,
@@ -65,7 +65,7 @@ CREATE TABLE journal_audit (
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
 
--- Table: ImportExport
+-- Table : ImportExport
 CREATE TABLE importexport (
     id UUID PRIMARY KEY,
     type_operation VARCHAR(50),
@@ -74,35 +74,35 @@ CREATE TABLE importexport (
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
 
--- Create indexes for better performance
-CREATE INDEX idx_imei_number ON imei(imei_number);
-CREATE INDEX idx_appareil_user ON appareil(utilisateur_id);
+-- Créer des index pour de meilleures performances
+CREATE INDEX idx_numero_imei ON imei(numero_imei);
+CREATE INDEX idx_appareil_utilisateur ON appareil(utilisateur_id);
 CREATE INDEX idx_recherche_imei ON recherche(imei_recherche);
 CREATE INDEX idx_recherche_date ON recherche(date_recherche);
 
--- Essential indexes for access control
-CREATE INDEX idx_utilisateur_access_level ON utilisateur(access_level);
-CREATE INDEX idx_utilisateur_organization ON utilisateur(organization);
-CREATE INDEX idx_utilisateur_is_active ON utilisateur(is_active);
-CREATE INDEX idx_utilisateur_allowed_brands ON utilisateur USING GIN(allowed_brands) WHERE allowed_brands != '[]';
+-- Index essentiels pour le contrôle d'accès
+CREATE INDEX idx_utilisateur_niveau_acces ON utilisateur(niveau_acces);
+CREATE INDEX idx_utilisateur_organisation ON utilisateur(organisation);
+CREATE INDEX idx_utilisateur_est_actif ON utilisateur(est_actif);
+CREATE INDEX idx_utilisateur_marques_autorisees ON utilisateur USING GIN(marques_autorisees) WHERE marques_autorisees != '[]';
 
--- Add constraints for data integrity
-ALTER TABLE utilisateur ADD CONSTRAINT chk_access_level 
-CHECK (access_level IN ('visitor', 'basic', 'limited', 'standard', 'elevated', 'admin'));
+-- Ajouter des contraintes pour l'intégrité des données
+ALTER TABLE utilisateur ADD CONSTRAINT chk_niveau_acces 
+CHECK (niveau_acces IN ('visiteur', 'basique', 'limite', 'standard', 'eleve', 'admin'));
 
-ALTER TABLE utilisateur ADD CONSTRAINT chk_data_scope 
-CHECK (data_scope IN ('own', 'organization', 'brands', 'ranges', 'all'));
+ALTER TABLE utilisateur ADD CONSTRAINT chk_portee_donnees 
+CHECK (portee_donnees IN ('personnel', 'organisation', 'marques', 'plages', 'tout'));
 
--- Update existing users with default access levels
+-- Mettre à jour les utilisateurs existants avec les niveaux d'accès par défaut
 UPDATE utilisateur 
 SET 
-    access_level = CASE 
+    niveau_acces = CASE 
         WHEN type_utilisateur = 'administrateur' THEN 'admin'
         WHEN type_utilisateur = 'utilisateur_authentifie' THEN 'standard'
-        ELSE 'basic'
+        ELSE 'basique'
     END,
-    data_scope = CASE 
-        WHEN type_utilisateur = 'administrateur' THEN 'all'
-        ELSE 'own'
+    portee_donnees = CASE 
+        WHEN type_utilisateur = 'administrateur' THEN 'tout'
+        ELSE 'personnel'
     END
-WHERE access_level IS NULL;
+WHERE niveau_acces IS NULL;

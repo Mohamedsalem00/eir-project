@@ -12,8 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       # Mount SQL files for easy access
       - ./backend/schema_postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./backend/migrate_essential_access.sql:/docker-entrypoint-initdb.d/02-migrate.sql
-      - ./backend/test_data.sql:/docker-entrypoint-initdb.d/03-test-data.sql
+      - ./backend/test_data.sql:/docker-entrypoint-initdb.d/02-test-data.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -29,9 +28,9 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/schema_postgres.sql:/app/schema_postgres.sql
-      - ./backend/migrate_essential_access.sql:/app/migrate_essential_access.sql
       - ./backend/test_data.sql:/app/test_data.sql
       - ./scripts:/app/scripts
+      - ./config:/app/config
     ports:
       - "8000:8000"
     env_file:

@@ -51,7 +51,7 @@ backup_database() {
     
     mkdir -p "$backup_dir"
     
-    if docker-compose exec -T db pg_dump -U postgres imei_db > "$backup_dir/$backup_file" 2>/dev/null; then
+    if docker compose exec -T db pg_dump -U postgres imei_db > "$backup_dir/$backup_file" 2>/dev/null; then
         log_success "Sauvegarde créée : $backup_dir/$backup_file"
         return 0
     else
@@ -65,7 +65,7 @@ remove_database() {
     log_info "Suppression de la base de données existante..."
     
     # Stop containers
-    docker-compose down -v
+    docker compose down -v
     log_success "Conteneurs arrêtés"
     
     # Remove database volume
@@ -82,7 +82,7 @@ start_database() {
     log_info "Démarrage du service de base de données..."
     
     # Start only database service
-    if docker-compose up -d db; then
+    if docker compose up -d db; then
         log_success "Service de base de données démarré"
     else
         log_error "Échec du démarrage de la base de données"
@@ -96,7 +96,7 @@ start_database() {
     log_info "Attente de la disponibilité de la base de données..."
     
     while [ $attempt -le $max_attempts ]; do
-        if docker-compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
+        if docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
             log_success "Base de données disponible !"
             break
         fi
@@ -117,13 +117,13 @@ create_database() {
     log_info "Création de la base de données..."
     
     # Create database
-    if docker-compose exec -T db psql -U postgres -c "CREATE DATABASE imei_db;" 2>/dev/null; then
+    if docker compose exec -T db psql -U postgres -c "CREATE DATABASE imei_db;" 2>/dev/null; then
         log_success "Base de données 'imei_db' créée"
     else
         log_warning "Base de données 'imei_db' existe déjà ou erreur de création"
         # Drop and recreate if exists
-        docker-compose exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS imei_db;"
-        docker-compose exec -T db psql -U postgres -c "CREATE DATABASE imei_db;"
+        docker compose exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS imei_db;"
+        docker compose exec -T db psql -U postgres -c "CREATE DATABASE imei_db;"
         log_success "Base de données 'imei_db' recréée"
     fi
 }
@@ -139,7 +139,7 @@ apply_schema() {
     fi
     
     # Apply schema
-    if docker-compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/01-schema.sql; then
+    if docker compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/01-schema.sql; then
         log_success "Schéma appliqué avec succès"
     else
         log_error "Échec de l'application du schéma"
@@ -153,7 +153,7 @@ apply_migrations() {
     
     # Check if migration file exists
     if [[ -f "backend/migrations/access_control_migration.sql" ]]; then
-        if docker-compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/02-migrate.sql; then
+        if docker compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/02-migrate.sql; then
             log_success "Migrations appliquées"
         else
             log_warning "Problème avec les migrations"
@@ -172,7 +172,7 @@ load_test_data() {
         
         # Check if test data file exists
         if [[ -f "backend/test_data.sql" ]]; then
-            if docker-compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/03-test-data.sql; then
+            if docker compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/03-test-data.sql; then
                 log_success "Données de test chargées"
             else
                 log_error "Échec du chargement des données de test"
@@ -192,13 +192,13 @@ verify_database() {
     
     # Count tables
     local table_count
-    table_count=$(docker-compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d ' \n')
+    table_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d ' \n')
     
     log_success "Tables créées : $table_count"
     
     # Count users
     local user_count
-    user_count=$(docker-compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM Utilisateur;" 2>/dev/null | tr -d ' \n' || echo "0")
+    user_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM Utilisateur;" 2>/dev/null | tr -d ' \n' || echo "0")
     
     if [[ "$user_count" -gt "0" ]]; then
         log_success "Utilisateurs de test : $user_count"
@@ -208,7 +208,7 @@ verify_database() {
     
     # Count devices
     local device_count
-    device_count=$(docker-compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM Appareil;" 2>/dev/null | tr -d ' \n' || echo "0")
+    device_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM Appareil;" 2>/dev/null | tr -d ' \n' || echo "0")
     
     if [[ "$device_count" -gt "0" ]]; then
         log_success "Appareils de test : $device_count"
@@ -221,7 +221,7 @@ verify_database() {
 start_web_service() {
     log_info "Démarrage du service web..."
     
-    if docker-compose up -d web; then
+    if docker compose up -d web; then
         log_success "Service web démarré"
         
         # Wait for API
@@ -254,7 +254,7 @@ start_web_service() {
 show_status() {
     echo ""
     echo "📊 Statut final :"
-    docker-compose ps
+    docker compose ps
     
     echo ""
     echo "🎉 Reconstruction de la base de données terminée !"
@@ -272,10 +272,10 @@ show_status() {
     echo "   🏭 manufacturer@techcorp.com (Fabricant)"
     echo ""
     echo "🧪 Test de la base de données :"
-    echo "   docker-compose exec db psql -U postgres -d imei_db -c \"\\dt\""
+    echo "   docker compose exec db psql -U postgres -d imei_db -c \"\\dt\""
     echo ""
     echo "🔧 Si problèmes :"
-    echo "   docker-compose logs db     # Logs de la base de données"
+    echo "   docker compose logs db     # Logs de la base de données"
     echo "   ./scripts/reset-database.sh  # Réinitialisation rapide"
 }
 

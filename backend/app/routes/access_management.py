@@ -6,8 +6,8 @@ Fournit des points de terminaison pour que les administrateurs configurent le co
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-from ..core.dependencies import get_db, require_access_level, get_access_context
-from ..core.permissions import AccessLevel, Operation, PermissionManager, DataScope
+from ..core.dependencies import get_db, require_niveau_acces, get_access_context
+from ..core.permissions import AccessLevel, Operation, PermissionManager, PorteeDonnees
 from ..models.utilisateur import Utilisateur
 from ..services.audit import AuditService
 from ..core.audit_deps import get_audit_service
@@ -45,14 +45,14 @@ class ResumePermissionUtilisateur(BaseModel):
 
 @router.get("/niveaux-acces", response_model=List[InfoNiveauAcces])
 def obtenir_niveaux_acces(
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN))
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
 ):
     """Obtenir tous les niveaux d'accès disponibles et leurs permissions par défaut"""
     niveaux = []
     
     for niveau in AccessLevel:
         permissions = PermissionManager.ACCESS_PERMISSIONS.get(niveau, [])
-        portee = PermissionManager.SCOPE_PERMISSIONS.get(niveau, DataScope.NONE)
+        portee = PermissionManager.SCOPE_PERMISSIONS.get(niveau, PorteeDonnees.NONE)
         
         # Créer une description basée sur le niveau
         descriptions = {
@@ -81,20 +81,20 @@ def lister_utilisateurs_avec_permissions(
     filtre_organisation: Optional[str] = Query(None),
     actifs_seulement: bool = Query(True),
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN))
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
 ):
     """Lister tous les utilisateurs avec leurs résumés de permissions"""
     requete = db.query(Utilisateur)
     
     # Appliquer les filtres
     if filtre_niveau_acces:
-        requete = requete.filter(Utilisateur.access_level == filtre_niveau_acces)
+        requete = requete.filter(Utilisateur.niveau_acces == filtre_niveau_acces)
     
     if filtre_organisation:
         requete = requete.filter(Utilisateur.organization == filtre_organisation)
     
     if actifs_seulement:
-        requete = requete.filter(Utilisateur.is_active == True)
+        requete = requete.filter(Utilisateur.est_actif == True)
     
     utilisateurs = requete.offset(ignorer).limit(limite).all()
     
@@ -106,12 +106,12 @@ def lister_utilisateurs_avec_permissions(
             id_utilisateur=str(utilisateur.id),
             nom=utilisateur.nom,
             email=utilisateur.email,
-            niveau_acces=utilisateur.access_level or "basique",
-            portee_donnees=utilisateur.data_scope or "propre",
+            niveau_acces=utilisateur.niveau_acces or "basique",
+            portee_donnees=utilisateur.portee_donnees or "propre",
             organisation=utilisateur.organization,
-            est_actif=getattr(utilisateur, 'is_active', True),
+            est_actif=getattr(utilisateur, 'est_actif', True),
             nombre_permissions=len(resume_permissions["permissions"]["effective"]),
-            nombre_restrictions=len(utilisateur.allowed_brands or []) + len(utilisateur.allowed_imei_ranges or [])
+            nombre_restrictions=len(utilisateur.marques_autorisees or []) + len(utilisateur.plages_imei_autorisees or [])
         ))
     
     return resumes
@@ -120,7 +120,7 @@ def lister_utilisateurs_avec_permissions(
 def obtenir_permissions_utilisateur(
     id_utilisateur: str,
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN))
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
 ):
     """Obtenir les permissions détaillées pour un utilisateur spécifique"""
     utilisateur = db.query(Utilisateur).filter(Utilisateur.id == id_utilisateur).first()
@@ -134,7 +134,7 @@ def mettre_a_jour_permissions_utilisateur(
     id_utilisateur: str,
     mise_a_jour_permission: MiseAJourPermission,
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN)),
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN)),
     service_audit: AuditService = Depends(get_audit_service)
 ):
     """Mettre à jour les permissions et niveaux d'accès utilisateur"""
@@ -147,13 +147,13 @@ def mettre_a_jour_permissions_utilisateur(
     
     # Suivre les changements pour le journal d'audit
     if mise_a_jour_permission.niveau_acces is not None:
-        ancien_niveau = utilisateur.access_level
-        utilisateur.access_level = mise_a_jour_permission.niveau_acces
+        ancien_niveau = utilisateur.niveau_acces
+        utilisateur.niveau_acces = mise_a_jour_permission.niveau_acces
         changements["niveau_acces"] = {"de": ancien_niveau, "vers": mise_a_jour_permission.niveau_acces}
     
     if mise_a_jour_permission.portee_donnees is not None:
-        ancienne_portee = utilisateur.data_scope
-        utilisateur.data_scope = mise_a_jour_permission.portee_donnees
+        ancienne_portee = utilisateur.portee_donnees
+        utilisateur.portee_donnees = mise_a_jour_permission.portee_donnees
         changements["portee_donnees"] = {"de": ancienne_portee, "vers": mise_a_jour_permission.portee_donnees}
     
     if mise_a_jour_permission.organisation is not None:
@@ -162,13 +162,13 @@ def mettre_a_jour_permissions_utilisateur(
         changements["organisation"] = {"de": ancienne_org, "vers": mise_a_jour_permission.organisation}
     
     if mise_a_jour_permission.marques_autorisees is not None:
-        anciennes_marques = utilisateur.allowed_brands
-        utilisateur.allowed_brands = mise_a_jour_permission.marques_autorisees
+        anciennes_marques = utilisateur.marques_autorisees
+        utilisateur.marques_autorisees = mise_a_jour_permission.marques_autorisees
         changements["marques_autorisees"] = {"de": anciennes_marques, "vers": mise_a_jour_permission.marques_autorisees}
     
     if mise_a_jour_permission.plages_imei_autorisees is not None:
-        anciennes_plages = utilisateur.allowed_imei_ranges
-        utilisateur.allowed_imei_ranges = mise_a_jour_permission.plages_imei_autorisees
+        anciennes_plages = utilisateur.plages_imei_autorisees
+        utilisateur.plages_imei_autorisees = mise_a_jour_permission.plages_imei_autorisees
         changements["plages_imei_autorisees"] = {"de": anciennes_plages, "vers": mise_a_jour_permission.plages_imei_autorisees}
     
     if mise_a_jour_permission.operations_personnalisees is not None:
@@ -177,8 +177,8 @@ def mettre_a_jour_permissions_utilisateur(
         changements["permissions_personnalisees"] = {"de": anciennes_permissions, "vers": utilisateur.permissions}
     
     if mise_a_jour_permission.est_actif is not None:
-        ancien_statut = getattr(utilisateur, 'is_active', True)
-        utilisateur.is_active = mise_a_jour_permission.est_actif
+        ancien_statut = getattr(utilisateur, 'est_actif', True)
+        utilisateur.est_actif = mise_a_jour_permission.est_actif
         changements["est_actif"] = {"de": ancien_statut, "vers": mise_a_jour_permission.est_actif}
     
     db.commit()
@@ -201,7 +201,7 @@ def ajouter_regle_acces(
     id_utilisateur: str,
     donnees_regle: Dict[str, Any],
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN)),
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN)),
     service_audit: AuditService = Depends(get_audit_service)
 ):
     """Ajouter une règle d'accès spécifique pour les parties concernées"""
@@ -219,23 +219,23 @@ def ajouter_regle_acces(
             **{k: v for k, v in donnees_regle.items() if k not in ["type", "description"]}
         }
         
-        plages_actuelles = utilisateur.allowed_imei_ranges or []
+        plages_actuelles = utilisateur.plages_imei_autorisees or []
         plages_actuelles.append(nouvelle_plage)
-        utilisateur.allowed_imei_ranges = plages_actuelles
+        utilisateur.plages_imei_autorisees = plages_actuelles
     
     elif type_regle == "marque":
         # Ajouter un accès à une marque
         marque = donnees_regle.get("marque")
         if marque:
-            marques_actuelles = utilisateur.allowed_brands or []
+            marques_actuelles = utilisateur.marques_autorisees or []
             if marque not in marques_actuelles:
                 marques_actuelles.append(marque)
-                utilisateur.allowed_brands = marques_actuelles
+                utilisateur.marques_autorisees = marques_actuelles
     
     elif type_regle == "organisation":
         # Définir l'accès organisation
         utilisateur.organization = donnees_regle.get("organisation")
-        utilisateur.data_scope = "organisation"
+        utilisateur.portee_donnees = "organisation"
     
     db.commit()
     
@@ -258,9 +258,9 @@ def ajouter_regle_acces(
 def supprimer_regle_acces(
     id_utilisateur: str,
     index_regle: int,
-    type_regle: str,  # "imei_range", "brand"
+    type_regle: str,  # "imei_range", "marque"
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN)),
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN)),
     service_audit: AuditService = Depends(get_audit_service)
 ):
     """Remove specific access rule"""
@@ -271,16 +271,16 @@ def supprimer_regle_acces(
     removed_rule = None
     
     if rule_type == "imei_range":
-        ranges = user.allowed_imei_ranges or []
+        ranges = user.plages_imei_autorisees or []
         if 0 <= rule_index < len(ranges):
             removed_rule = ranges.pop(rule_index)
-            user.allowed_imei_ranges = ranges
+            user.plages_imei_autorisees = ranges
     
-    elif rule_type == "brand":
-        brands = user.allowed_brands or []
+    elif rule_type == "marque":
+        brands = user.marques_autorisees or []
         if 0 <= rule_index < len(brands):
             removed_rule = brands.pop(rule_index)
-            user.allowed_brands = brands
+            user.marques_autorisees = brands
     
     if removed_rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
@@ -288,7 +288,7 @@ def supprimer_regle_acces(
     db.commit()
     
     # Log the rule removal
-    current_admin = access_context["user"]
+    current_admin = contexte_acces["user"]
     audit_service.log_access_rule_change(
         target_user_id=str(user.id),
         admin_user_id=str(current_admin.id),
@@ -309,7 +309,7 @@ def obtenir_journal_audit_permissions(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN))
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
 ):
     """Get audit log of permission changes"""
     from ..models.journal_audit import JournalAudit
@@ -349,7 +349,7 @@ def obtenir_journal_audit_permissions(
 def mettre_a_jour_permissions_lot(
     update_data: Dict[str, Any],
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN)),
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN)),
     service_audit: AuditService = Depends(get_audit_service)
 ):
     """Bulk update permissions for multiple users"""
@@ -373,17 +373,17 @@ def mettre_a_jour_permissions_lot(
                 continue
             
             # Apply changes
-            if "access_level" in permission_changes:
-                user.access_level = permission_changes["access_level"]
+            if "niveau_acces" in permission_changes:
+                user.niveau_acces = permission_changes["niveau_acces"]
             
-            if "data_scope" in permission_changes:
-                user.data_scope = permission_changes["data_scope"]
+            if "portee_donnees" in permission_changes:
+                user.portee_donnees = permission_changes["portee_donnees"]
             
             if "organization" in permission_changes:
                 user.organization = permission_changes["organization"]
             
-            if "is_active" in permission_changes:
-                user.is_active = permission_changes["is_active"]
+            if "est_actif" in permission_changes:
+                user.est_actif = permission_changes["est_actif"]
             
             updated_users.append(str(user.id))
             
@@ -393,7 +393,7 @@ def mettre_a_jour_permissions_lot(
     db.commit()
     
     # Log bulk update
-    current_admin = access_context["user"]
+    current_admin = contexte_acces["user"]
     audit_service.log_bulk_permission_update(
         admin_user_id=str(current_admin.id),
         user_ids=updated_users,
@@ -411,42 +411,42 @@ def mettre_a_jour_permissions_lot(
 
 @router.get("/modeles")
 def obtenir_modeles_permissions(
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN))
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
 ):
     """Get predefined permission templates for common use cases"""
     templates = {
         "insurance_company": {
             "name": "Insurance Company",
-            "access_level": "limited",
-            "data_scope": "brands",
+            "niveau_acces": "limited",
+            "portee_donnees": "brands",
             "description": "Access to specific device brands for insurance purposes",
             "default_permissions": ["read_imei", "search_imei", "read_device", "read_analytics"]
         },
         "law_enforcement": {
             "name": "Law Enforcement",
-            "access_level": "limited",
-            "data_scope": "ranges",
+            "niveau_acces": "limited",
+            "portee_donnees": "ranges",
             "description": "Access to specific IMEI ranges for investigations",
             "default_permissions": ["read_imei", "search_imei", "read_device", "read_analytics"]
         },
         "manufacturer": {
             "name": "Device Manufacturer",
-            "access_level": "elevated",
-            "data_scope": "brands",
+            "niveau_acces": "elevated",
+            "portee_donnees": "brands",
             "description": "Access to their own manufactured devices",
             "default_permissions": ["read_imei", "search_imei", "read_device", "create_device", "update_device", "read_analytics"]
         },
         "regulatory_body": {
             "name": "Regulatory Body",
-            "access_level": "elevated",
-            "data_scope": "all",
+            "niveau_acces": "elevated",
+            "portee_donnees": "all",
             "description": "Regulatory oversight with comprehensive monitoring access",
             "default_permissions": ["read_imei", "search_imei", "read_device", "read_analytics", "read_audit"]
         },
         "partner_organization": {
             "name": "Partner Organization",
-            "access_level": "standard",
-            "data_scope": "organization",
+            "niveau_acces": "standard",
+            "portee_donnees": "organization",
             "description": "Standard access within organizational boundaries",
             "default_permissions": ["read_imei", "search_imei", "read_device", "create_device", "update_device", "read_sim", "create_sim"]
         }
@@ -460,12 +460,12 @@ def appliquer_modele_permissions(
     id_utilisateur: str,
     config_supplementaire: Optional[Dict[str, Any]] = None,
     db: Session = Depends(get_db),
-    contexte_acces: Dict[str, Any] = Depends(require_access_level(AccessLevel.ADMIN)),
+    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN)),
     service_audit: AuditService = Depends(get_audit_service)
 ):
     """Apply a permission template to a user"""
     # Get templates
-    templates_response = get_permission_templates(access_context)
+    templates_response = get_permission_templates(contexte_acces)
     templates = templates_response["templates"]
     
     if template_name not in templates:
@@ -478,23 +478,23 @@ def appliquer_modele_permissions(
     template = templates[template_name]
     
     # Apply template settings
-    user.access_level = template["access_level"]
-    user.data_scope = template["data_scope"]
+    user.niveau_acces = template["niveau_acces"]
+    user.portee_donnees = template["portee_donnees"]
     user.permissions = {"operations": template["default_permissions"]}
     
     # Apply additional configuration
     if additional_config:
         if "organization" in additional_config:
             user.organization = additional_config["organization"]
-        if "allowed_brands" in additional_config:
-            user.allowed_brands = additional_config["allowed_brands"]
-        if "allowed_imei_ranges" in additional_config:
-            user.allowed_imei_ranges = additional_config["allowed_imei_ranges"]
+        if "marques_autorisees" in additional_config:
+            user.marques_autorisees = additional_config["marques_autorisees"]
+        if "plages_imei_autorisees" in additional_config:
+            user.plages_imei_autorisees = additional_config["plages_imei_autorisees"]
     
     db.commit()
     
     # Log template application
-    current_admin = access_context["user"]
+    current_admin = contexte_acces["user"]
     audit_service.log_template_application(
         target_user_id=str(user.id),
         admin_user_id=str(current_admin.id),

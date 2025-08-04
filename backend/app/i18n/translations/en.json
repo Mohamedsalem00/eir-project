@@ -136,7 +136,7 @@
   "id": "ID",
   "numero_imei": "IMEI Number",
   "numero_emplacement": "Slot Number",
-  "statut": "Status",
+  "statut": "statut",
   "actif": "Active",
   "type": "Type",
   "contenu": "Content",

@@ -8,7 +8,7 @@ setup_docker_commands() {
         if sudo docker info > /dev/null 2>&1; then
             echo -e "\033[1;33m⚠️  Docker nécessite sudo - utilisation de sudo pour toutes les commandes Docker\033[0m"
             export DOCKER_CMD="sudo docker"
-            export DOCKER_COMPOSE_CMD="sudo docker-compose"
+            export DOCKER_COMPOSE_CMD="sudo docker compose"
             export USE_SUDO=true
         else
             echo -e "\033[0;31m❌ Docker n'est pas disponible ou accessible\033[0m"
@@ -20,7 +20,7 @@ setup_docker_commands() {
         fi
     else
         export DOCKER_CMD="docker"
-        export DOCKER_COMPOSE_CMD="docker-compose"
+        export DOCKER_COMPOSE_CMD="docker compose"
         export USE_SUDO=false
     fi
 }

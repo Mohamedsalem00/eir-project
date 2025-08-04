@@ -14,13 +14,13 @@ class Utilisateur(Base):
     mot_de_passe = Column(Text)
     type_utilisateur = Column(String(50))
     
-    # Champs essentiels de contrôle d'accès (noms correspondant au schéma DB)
-    access_level = Column(String(50), default="basic")  # basic, limited, standard, elevated, admin
-    data_scope = Column(String(50), default="own")  # own, organization, brands, ranges, all
-    organization = Column(String(100))  # Affiliation organisationnelle
-    is_active = Column(Boolean, default=True)  # Statut du compte
-    allowed_brands = Column(JSON, default=lambda: [])  # Marques d'appareils accessibles
-    allowed_imei_ranges = Column(JSON, default=lambda: [])  # Plages/préfixes IMEI spécifiques
+    # Champs essentiels de contrôle d'accès (noms français correspondant au schéma DB)
+    niveau_acces = Column(String(50), default="basique")  # basique, limite, standard, eleve, admin
+    portee_donnees = Column(String(50), default="personnel")  # personnel, organisation, marques, plages, tout
+    organisation = Column(String(100))  # Affiliation organisationnelle
+    est_actif = Column(Boolean, default=True)  # Statut du compte
+    marques_autorisees = Column(JSON, default=lambda: [])  # Marques d'appareils accessibles
+    plages_imei_autorisees = Column(JSON, default=lambda: [])  # Plages/préfixes IMEI spécifiques
 
     # Relations
     appareils = relationship("Appareil", back_populates="utilisateur")

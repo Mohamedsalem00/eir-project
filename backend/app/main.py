@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text
 from .core.dependencies import get_db, get_current_user, get_current_user_optional, get_admin_user
-from .core.permissions import PermissionManager, Operation, AccessLevel, require_permission, require_access_level
+from .core.permissions import PermissionManager, Operation, AccessLevel, require_permission, require_niveau_acces
 from .core.i18n_deps import get_current_translator, get_language_from_request
 from .core.audit_deps import get_audit_service
 from .i18n import get_translator, SUPPORTED_LANGUAGES
@@ -22,6 +22,15 @@ from datetime import datetime, timedelta
 import uuid
 from typing import Optional, List, Dict, Any
 import platform
+
+# Import pour l'intégration multi-protocoles
+from .interface_gateway.dispatcher import (
+    handle_incoming_request, 
+    get_supported_protocols, 
+    validate_payload,
+    ProtocolNotEnabledException, 
+    UnsupportedProtocolException
+)
 
 # Configuration FastAPI améliorée
 app = FastAPI(
@@ -140,7 +149,7 @@ async def bienvenue(
     current_user = user
     type_utilisateur = "visiteur"
     if current_user:
-        if current_user.type_utilisateur == "administrateur" or current_user.access_level == "admin":
+        if current_user.type_utilisateur == "administrateur" or current_user.niveau_acces == "admin":
             type_utilisateur = "admin"
         else:
             type_utilisateur = "utilisateur"
@@ -155,7 +164,7 @@ async def bienvenue(
             "validation_par_lot": type_utilisateur != "visiteur",
             "suivi_historique": type_utilisateur != "visiteur",
             "surveillance_statut": type_utilisateur == "admin",
-            "formats_supportes": ["IMEI 15 chiffres", "IMEI 14 chiffres"]
+            "formats_supportes": [translator.translate("format_15_chiffres"), translator.translate("format_14_chiffres")]
         },
         "gestion_appareils": {
             "enregistrement_appareil": type_utilisateur != "visiteur",
@@ -174,12 +183,12 @@ async def bienvenue(
     
     # Construire les points de terminaison basés sur le type d'utilisateur
     points_terminaison_publics = {
-        "recherche_imei": "/imei/{imei}",
-        "journal_recherche_imei": "/imei/{imei}/historique",
-        "statistiques_publiques": "/public/statistiques",
-        "verification_sante": "/verification-etat",
-        "info_api": "/",
-        "langues_supportees": "/languages"
+        translator.translate("endpoint_recherche_imei"): "/imei/{imei}",
+        translator.translate("endpoint_journal_recherche_imei"): "/imei/{imei}/historique",
+        translator.translate("endpoint_statistiques_publiques"): "/public/statistiques",
+        translator.translate("endpoint_verification_sante"): "/verification-etat",
+        translator.translate("endpoint_info_api"): "/",
+        translator.translate("endpoint_langues_supportees"): "/languages"
     }
     
     points_terminaison_authentifies = {}
@@ -187,28 +196,28 @@ async def bienvenue(
     
     if type_utilisateur in ["utilisateur", "admin"]:
         points_terminaison_authentifies = {
-            "appareils_utilisateur": "/appareils",
-            "sims_utilisateur": "/cartes-sim", 
-            "historique_recherche": "/recherches",
-            "profil_utilisateur": "/utilisateurs/{user_id}",
-            "notifications": "/notifications",
-            "analyses": "/analyses/recherches"
+            translator.translate("endpoint_appareils_utilisateur"): "/appareils",
+            translator.translate("endpoint_sims_utilisateur"): "/cartes-sim", 
+            translator.translate("endpoint_historique_recherches"): "/recherches",
+            translator.translate("endpoint_profil_utilisateur"): "/utilisateurs/{user_id}",
+            translator.translate("endpoint_notifications"): "/notifications",
+            translator.translate("endpoint_analyses"): "/analyses/recherches"
         }
     if type_utilisateur == "admin":
         points_terminaison_admin = {
-            "gestion_utilisateurs": "/utilisateurs",
-            "utilisateurs_admin": "/admin/utilisateurs",
-            "gestion_appareils": "/admin/appareils",
-            "operations_lot": "/admin/import-lot-appareils",
-            "journaux_audit": "/admin/journaux-audit",
-            "analyses_systeme": "/analyses/appareils"
+            translator.translate("endpoint_gestion_utilisateurs"): "/utilisateurs",
+            translator.translate("endpoint_utilisateurs_admin"): "/admin/utilisateurs",
+            translator.translate("endpoint_gestion_appareils"): "/admin/appareils",
+            translator.translate("endpoint_operations_lot"): "/admin/import-lot-appareils",
+            translator.translate("endpoint_journaux_audit"): "/admin/journaux-audit",
+            translator.translate("endpoint_analyses_systeme"): "/analyses/appareils"
         }
     
     return {
-        "title": translator.translate("welcome_title"),
-        "description": translator.translate("welcome_description"),
-        "tagline": translator.translate("welcome_tagline"),
-        "status": translator.translate("api_status"),
+        "title": translator.translate("titre_bienvenue_api"),
+        "description": translator.translate("description_bienvenue"),
+        "tagline": translator.translate("slogan_bienvenue"),
+        "statut": translator.translate("statut_api"),
         "timestamp": datetime.now().isoformat(),
         "language": translator.current_language,
         
@@ -221,17 +230,17 @@ async def bienvenue(
         },
         
         "contact": {
-            "organization": translator.translate("organization"),
-            "email": translator.translate("contact_email"),
-            "support_email": translator.translate("support_email"),
-            "documentation_url": translator.translate("documentation_url")
+            "organization": translator.translate("organisation"),
+            "email": translator.translate("email_contact"),
+            "support_email": translator.translate("email_support"),
+            "documentation_url": translator.translate("url_documentation")
         },
         
         "securite": {
-            "methodes_authentification": ["JWT Bearer Token", "Clé API (Entreprise)"],
-            "limitation_taux": translator.translate("rate_limits"),
-            "normes_conformite": ["RGPD", "SOX", "ISO 27001", "Directives GSMA"],
-            "chiffrement_donnees": "TLS 1.3, AES-256"
+            "methodes_authentification": [translator.translate("auth_jwt"), translator.translate("auth_cle_api")],
+            "limitation_taux": translator.translate("limites_taux"),
+            "normes_conformite": [translator.translate("conformite_rgpd"), translator.translate("conformite_sox"), translator.translate("conformite_iso"), translator.translate("conformite_gsma")],
+            "chiffrement_donnees": translator.translate("chiffrement_donnees")
         },
         
         "capacites": capacites,
@@ -243,11 +252,11 @@ async def bienvenue(
         },
         
         "specifications_techniques": {
-            "formats_supportes": ["JSON", "XML (sur demande)"],
-            "taille_max_requete": "10MB",
-            "sla_temps_reponse": "< 200ms (95e percentile)",
-            "sla_disponibilite": "99,9% de disponibilité",
-            "support_sdk": ["Python", "JavaScript", "Java", "exemples cURL"]
+            "formats_supportes": [translator.translate("format_json"), translator.translate("format_xml")],
+            "taille_max_requete": translator.translate("taille_max_requete"),
+            "sla_temps_reponse": translator.translate("sla_temps_reponse"),
+            "sla_disponibilite": translator.translate("sla_disponibilite"),
+            "support_sdk": [translator.translate("sdk_python"), translator.translate("sdk_javascript"), translator.translate("sdk_java"), translator.translate("sdk_curl")]
         },
         
         "demarrage_rapide": {
@@ -261,8 +270,8 @@ async def bienvenue(
         "legal": {
             "conditions_service": translator.translate("conditions_service"),
             "politique_confidentialite": translator.translate("politique_confidentialite"),
-            "licence": translator.translate("license"),
-            "retention_donnees": "Données conservées selon les réglementations régionales"
+            "licence": translator.translate("licence"),
+            "retention_donnees": translator.translate("retention_donnees")
         }
     }
 
@@ -301,13 +310,13 @@ async def verification_etat(
     """
     try:
         # Tester la connexion à la base de données
-        db_status = {"statut": "connecte", "message": "Connexion base de données réussie"}
-        db_latency = "< 10ms"
+        db_status = {"statut": translator.translate("statut_connecte"), "message": translator.translate("base_donnees_connectee")}
+        db_latency = translator.translate("latence_bonne")
         try:
             db.execute(text("SELECT 1"))
         except Exception as e:
-            db_status = {"statut": "erreur", "message": str(e)}
-            db_latency = "N/A"
+            db_status = {"statut": translator.translate("statut_erreur"), "message": str(e)}
+            db_latency = translator.translate("latence_na")
         
         # Informations système
         infos_systeme = {
@@ -319,18 +328,18 @@ async def verification_etat(
         
         # Vérification du statut des points de terminaison
         statut_points_terminaison = {
-            "authentification": "operationnel",
-            "validation_imei": "operationnel", 
-            "gestion_appareils": "operationnel",
-            "analyses": "operationnel"
+            translator.translate("endpoint_authentification"): translator.translate("statut_operationnel"),
+            translator.translate("endpoint_validation_imei"): translator.translate("statut_operationnel"), 
+            translator.translate("endpoint_gestion_appareils"): translator.translate("statut_operationnel"),
+            translator.translate("endpoint_analyses"): translator.translate("statut_operationnel")
         }
         
         # Statut de sécurité
         statut_securite = {
-            "chiffrement_tls": "active",
-            "validation_jwt": "active",
-            "limitation_taux": "active",
-            "journalisation_audit": "active"
+            translator.translate("securite_tls"): translator.translate("statut_active"),
+            translator.translate("securite_jwt"): translator.translate("statut_active"),
+            translator.translate("securite_limitation_taux"): translator.translate("statut_active"),
+            translator.translate("securite_journalisation_audit"): translator.translate("statut_active")
         }
         
         return {
@@ -353,8 +362,8 @@ async def verification_etat(
         return JSONResponse(
             status_code=503,
             content={
-                "statut": "malsain",
-                "message": f"Vérification d'état échouée: {str(e)}",
+                "statut": translator.translate("statut_defaillant"),
+                "message": translator.translate("verification_sante_echec").format(error=str(e)),
                 "horodatage": datetime.now().isoformat()
             }
         )
@@ -366,7 +375,7 @@ async def verification_etat(
     summary="Langues Supportées",
     description="Obtenir la liste des langues supportées et informations de locale"
 )
-def obtenir_langues_supportees():
+def obtenir_langues_supportees(translator = Depends(get_current_translator)):
     """
     ## Langues Supportées
     
@@ -380,9 +389,9 @@ def obtenir_langues_supportees():
         "langues_supportees": SUPPORTED_LANGUAGES,
         "langue_par_defaut": "fr",
         "utilisation": {
-            "en_tete": "Définir l'en-tête X-Language avec le code de langue désiré",
-            "parametre_requete": "Ajouter ?lang=code à toute URL de requête",
-            "accept_language": "L'en-tête Accept-Language du navigateur est automatiquement détecté"
+            "en_tete": translator.translate("usage_langue_en_tete"),
+            "parametre_requete": translator.translate("usage_langue_requete"),
+            "accept_language": translator.translate("usage_langue_accept")
         }
     }
 
@@ -430,7 +439,7 @@ def verifier_imei(
     # Obtenir le niveau d'accès utilisateur
     niveau_acces_utilisateur = "visiteur"
     if user:
-        niveau_acces_utilisateur = user.access_level or "basique"
+        niveau_acces_utilisateur = user.niveau_acces or "basique"
     
     # Check if user can access this specific IMEI
     can_access, access_details = PermissionManager.can_access_imei(user, imei, db)
@@ -453,7 +462,7 @@ def verifier_imei(
         )
     
     # Search for IMEI
-    imei_record = db.query(IMEI).filter(IMEI.imei_number == imei).first()
+    imei_record = db.query(IMEI).filter(IMEI.numero_imei == imei).first()
     found = imei_record is not None
     
     # Log the search in Recherche table (for search history)
@@ -493,16 +502,16 @@ def verifier_imei(
         response_data = {
             "id": str(imei_record.id),
             "imei": imei,
-            "found": True,
-            "status": imei_record.status,
-            "slot_number": imei_record.slot_number,
-            "message": translator.translate("imei_found"),
-            "search_logged": True,
-            "search_id": str(recherche.id),
-            "access_context": {
-                "niveau_d'accès": niveau_acces_utilisateur,
-                "access_reason": access_details["reason"],
-                "data_scope": access_details["scope"]
+            "trouve": True,
+            "statut": imei_record.statut,
+            "numero_slot": imei_record.numero_slot,
+            "message": translator.translate("imei_trouve"),
+            "recherche_enregistree": True,
+            "id_recherche": str(recherche.id),
+            "contexte_acces": {
+                "niveau_acces": niveau_acces_utilisateur,
+                "motif_acces": access_details["reason"],
+                "portee_donnees": access_details["portee_donnees"]
             }
         }
         
@@ -539,13 +548,13 @@ def verifier_imei(
     # IMEI not found response
     return {
         "imei": imei,
-        "found": False,
-        "message": translator.translate("imei_not_found"),
-        "search_logged": True,
-        "search_id": str(recherche.id),
-        "access_context": {
-            "niveau_d'accès": niveau_acces_utilisateur,
-            "access_reason": access_details["reason"]
+        "trouve": False,
+        "message": translator.translate("erreur_imei_non_trouve"),
+        "recherche_enregistree": True,
+        "id_recherche": str(recherche.id),
+        "contexte_acces": {
+            "niveau_acces": niveau_acces_utilisateur,
+            "motif_acces": access_details["reason"]
         }
     }
 
@@ -575,15 +584,15 @@ def enregistrer_appareil(
     
     # Valider l'accès aux marques pour les parties concernées
     marque_appareil = donnees_appareil.get("marque")
-    if user.access_level == "limited" and user.allowed_brands:
-        if marque_appareil not in user.allowed_brands:
+    if user.niveau_acces == "limited" and user.marques_autorisees:
+        if marque_appareil not in user.marques_autorisees:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Accès refusé: Marque '{marque_appareil}' non autorisée"
             )
     
     # Définir le propriétaire de l'appareil selon le niveau d'accès
-    if user.type_utilisateur != "administrateur" and user.access_level not in ["elevated"]:
+    if user.type_utilisateur != "administrateur" and user.niveau_acces not in ["elevated"]:
         donnees_appareil["utilisateur_id"] = user.id
     
     appareil = Appareil(
@@ -601,10 +610,10 @@ def enregistrer_appareil(
     numeros_imei = []
     
     for i, donnees_imei in enumerate(donnees_imeis):
-        numero_imei = donnees_imei.get("imei_number")
+        numero_imei = donnees_imei.get("numero_imei")
         
         # Valider l'accès aux plages IMEI pour les parties concernées
-        if user.access_level == "limited" and user.allowed_imei_ranges:
+        if user.niveau_acces == "limited" and user.plages_imei_autorisees:
             can_access, _ = PermissionManager.can_access_imei(user, numero_imei, db)
             if not can_access:
                 raise HTTPException(
@@ -614,13 +623,13 @@ def enregistrer_appareil(
         
         imei = IMEI(
             id=uuid.uuid4(),
-            imei_number=numero_imei,
-            slot_number=donnees_imei.get("slot_number", i + 1),
-            status=donnees_imei.get("status", "active"),
+            numero_imei=numero_imei,
+            numero_slot=donnees_imei.get("numero_slot", i + 1),
+            status=donnees_imei.get("statut", "active"),
             appareil_id=appareil.id
         )
         db.add(imei)
-        numeros_imei.append(imei.imei_number)
+        numeros_imei.append(imei.numero_imei)
     
     db.commit()
     db.refresh(appareil)
@@ -634,7 +643,7 @@ def enregistrer_appareil(
             "modele": appareil.modele,
             "emmc": appareil.emmc,
             "imeis": numeros_imei,
-            "niveau_d'accès": user.access_level or "basique"
+            "niveau_acces": user.niveau_acces or "basique"
         }
     )
     
@@ -644,13 +653,13 @@ def enregistrer_appareil(
         "modele": appareil.modele,
         "imeis": [
             {
-                "imei_number": imei.imei_number,
-                "slot_number": imei.slot_number,
-                "status": imei.status
+                "numero_imei": imei.numero_imei,
+                "numero_slot": imei.numero_slot,
+                "statut": imei.statut
             }
             for imei in appareil.imeis
         ],
-        "niveau_d'accès": user.access_level or "basique"
+        "niveau_acces": user.niveau_acces or "basique"
     }
 
 @app.get("/recherches", tags=["Historique de Recherche"])
@@ -679,10 +688,10 @@ def list_searches(
     query = db.query(Recherche)
     
     # Appliquer un filtrage basé sur l'accès en utilisant des permissions simples
-    if user.type_utilisateur != "administrateur" and user.access_level != "admin":
-        if user.data_scope == "own":
+    if user.type_utilisateur != "administrateur" and user.niveau_acces != "admin":
+        if user.portee_donnees == "own":
             query = query.filter(Recherche.utilisateur_id == user.id)
-        elif user.access_level == "limited":
+        elif user.niveau_acces == "limited":
             # Les utilisateurs limités voient seulement leurs propres recherches
             query = query.filter(Recherche.utilisateur_id == user.id)
     
@@ -698,9 +707,9 @@ def list_searches(
             }
             for search in searches
         ],
-        "access_context": {
-            "niveau_d'accès": user.access_level or "basique",
-            "data_scope": user.data_scope or "own",
+        "contexte_acces": {
+            "niveau_acces": user.niveau_acces or "basique",
+            "portee_donnees": user.portee_donnees or "own",
             "total_accessible": len(searches)
         }
     }
@@ -710,7 +719,7 @@ def list_searches(
 def list_devices(
     skip: int = 0,
     limit: int = 100,
-    brand: str = None,
+    marque: str = None,
     db: Session = Depends(get_db),
     user: Utilisateur = Depends(get_current_user)
 ):
@@ -735,26 +744,26 @@ Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
     
     query = db.query(Appareil)
     
-    # Apply access-based filtering based on user's data scope
+    # Apply access-based filtering based on user's data portee_donnees
     if not filter_context["is_admin"]:
-        if filter_context["scope"].value == "own":
+        if filter_context["portee_donnees"].value == "own":
             query = query.filter(Appareil.utilisateur_id == user.id)
-        elif filter_context["scope"].value == "brands" and filter_context["allowed_brands"]:
-            query = query.filter(Appareil.marque.in_(filter_context["allowed_brands"]))
-        elif filter_context["scope"].value == "organization" and filter_context["organization"]:
+        elif filter_context["portee_donnees"].value == "brands" and filter_context["marques_autorisees"]:
+            query = query.filter(Appareil.marque.in_(filter_context["marques_autorisees"]))
+        elif filter_context["portee_donnees"].value == "organization" and filter_context["organization"]:
             # Organization filtering would need additional device fields
             pass
     
-    # Apply brand filter with access validation
-    if brand:
-        # Validate brand access for limited users
-        if user.access_level == "limited" and user.allowed_brands:
-            if brand not in user.allowed_brands:
+    # Apply marque filter with access validation
+    if marque:
+        # Validate marque access for limited users
+        if user.niveau_acces == "limited" and user.marques_autorisees:
+            if marque not in user.marques_autorisees:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Accès refusé : Marque '{brand}' pas dans les marques autorisées"
+                    detail=f"Accès refusé : Marque '{marque}' pas dans les marques autorisées"
                 )
-        query = query.filter(Appareil.marque == brand)
+        query = query.filter(Appareil.marque == marque)
     
     devices = query.offset(skip).limit(limit).all()
     
@@ -769,11 +778,11 @@ Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
                 "marque": device.marque,
                 "modele": device.modele,
                 "can_modify": PermissionManager.has_permission(user, Operation.UPDATE_DEVICE) and can_access,
-                "access_reason": access_details["reason"]
+                "motif_acces": access_details["reason"]
             }
             
             # Add enhanced info based on access level
-            user_level = AccessLevel(user.access_level or "basique")
+            user_level = AccessLevel(user.niveau_acces or "basique")
             if user_level in [AccessLevel.ELEVATED, AccessLevel.ADMIN]:
                 device_info.update({
                     "emmc": device.emmc,
@@ -785,14 +794,14 @@ Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
     
     return {
         "devices": device_list,
-        "access_context": {
-            "niveau_d'accès": user.access_level or "basique",
-            "data_scope": filter_context["scope"].value,
-            "allowed_brands": filter_context["allowed_brands"],
+        "contexte_acces": {
+            "niveau_acces": user.niveau_acces or "basique",
+            "portee_donnees": filter_context["portee_donnees"].value,
+            "marques_autorisees": filter_context["marques_autorisees"],
             "total_accessible": len(device_list)
         },
         "filters": {
-            "brand": brand,
+            "marque": marque,
             "skip": skip,
             "limit": limit
         }
@@ -814,7 +823,7 @@ def get_my_permissions(
     """
     if not user:
         return {
-            "niveau_d'accès": "visiteur",
+            "niveau_acces": "visiteur",
             "permissions": ["read_imei"],
             "restrictions": "Accès public uniquement"
         }
@@ -825,7 +834,7 @@ def get_my_permissions(
         "user_info": {
             "id": str(user.id),
             "name": user.nom,
-            "niveau_d'accès": user.access_level or "basique",
+            "niveau_acces": user.niveau_acces or "basique",
             "organization": user.organization
         },
         "permissions": permissions_summary,
@@ -842,7 +851,8 @@ def create_user(
     user_data: dict, 
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(get_admin_user),
-    audit_service: AuditService = Depends(get_audit_service)
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
 ):
     """Admin seulement - créer un nouvel utilisateur avec journalisation d'audit"""
     from .core.auth import get_password_hash
@@ -869,7 +879,12 @@ def create_user(
         }
     )
     
-    return {"id": str(user.id), "nom": user.nom, "email": user.email}
+    return {
+        "id": str(user.id), 
+        "nom": user.nom, 
+        "email": user.email,
+        "message": translator.translate("utilisateur_cree")
+    }
 
 @app.get("/utilisateurs/{user_id}")
 def get_user(
@@ -883,14 +898,14 @@ def get_user(
     if current_user.type_utilisateur != "administrateur" and str(current_user.id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=translator.translate("access_denied")
+            detail=translator.translate("acces_refuse")
         )
     
     user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
     if not user:
         raise HTTPException(
             status_code=404, 
-            detail=translator.translate("user_not_found")
+            detail=translator.translate("utilisateur_non_trouve")
         )
     
     # Obtenir les appareils et cartes SIM de l'utilisateur
@@ -907,19 +922,19 @@ def get_user(
                 "id": str(d.id), 
                 "marque": d.marque, 
                 "modele": d.modele,
-                "imeis": [imei.imei_number for imei in d.imeis]
+                "imeis": [imei.numero_imei for imei in d.imeis]
             } 
             for d in devices
         ],
         "sims": [{"id": str(s.id), "iccid": s.iccid, "operateur": s.operateur} for s in sims]
     }
 
-# APIs de Gestion des Cartes SIM
 @app.post("/cartes-sim", tags=["Cartes SIM"])
 def register_sim(
     sim_data: dict, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_current_user)
+    current_user: Utilisateur = Depends(get_current_user),
+    translator = Depends(get_current_translator)
 ):
     """Enregistrer une nouvelle carte SIM - utilisateurs authentifiés seulement"""
     # Définir le propriétaire de la carte SIM à l'utilisateur actuel si pas admin
@@ -935,49 +950,35 @@ def register_sim(
     db.add(sim)
     db.commit()
     db.refresh(sim)
-    return {"id": str(sim.id), "iccid": sim.iccid, "operateur": sim.operateur}
-
-@app.get("/cartes-sim", tags=["Cartes SIM"])
-def list_sims(
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_current_user)
-):
-    """Lister les cartes SIM - les utilisateurs voient seulement leurs cartes SIM, les admins voient tout"""
-    if current_user.type_utilisateur == "administrateur":
-        sims = db.query(SIM).offset(skip).limit(limit).all()
-    else:
-        sims = db.query(SIM).filter(
-            SIM.utilisateur_id == current_user.id
-        ).offset(skip).limit(limit).all()
-        
     return {
-        "sims": [
-            {
-                "id": str(sim.id),
-                "iccid": sim.iccid,
-                "operateur": sim.operateur,
-                "utilisateur_id": str(sim.utilisateur_id) if sim.utilisateur_id else None
-            }
-            for sim in sims
-        ]
+        "id": str(sim.id), 
+        "iccid": sim.iccid, 
+        "operateur": sim.operateur,
+        "message": translator.translate("sim_enregistree")
     }
 
 @app.get("/cartes-sim/{iccid}", tags=["Cartes SIM"])
-def check_iccid(iccid: str, db: Session = Depends(get_db)):
+def check_iccid(
+    iccid: str, 
+    db: Session = Depends(get_db),
+    translator = Depends(get_current_translator)
+):
     sim = db.query(SIM).filter(SIM.iccid == iccid).first()
     if sim:
         return {
             "iccid": iccid,
-            "found": True,
+            "trouve": True,
             "sim": {
                 "id": str(sim.id),
                 "operateur": sim.operateur,
                 "utilisateur_id": str(sim.utilisateur_id) if sim.utilisateur_id else None
             }
         }
-    return {"iccid": iccid, "found": False, "message": "ICCID not found"}
+    return {
+        "iccid": iccid, 
+        "trouve": False, 
+        "message": translator.translate("iccid_non_trouve")
+    }
 
 @app.put("/appareils/{device_id}/assigner", tags=["Appareils", "Admin"])
 def assign_device_to_user(
@@ -991,125 +992,231 @@ def assign_device_to_user(
     """Admin only - assign device to user with audit logging"""
     device = db.query(Appareil).filter(Appareil.id == device_id).first()
     if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise HTTPException(
+            status_code=404, 
+            detail=translator.translate("appareil_non_trouve")
+        )
     
     user_id = assignment_data.get("user_id")
     device.utilisateur_id = user_id
     db.commit()
     
     # Get IMEIs for logging
-    imei_numbers = [imei.imei_number for imei in device.imeis]
+    numero_imeis = [imei.numero_imei for imei in device.imeis]
     
     # Log device assignment
     audit_service.log_device_assignment(
         device_id=device_id,
         assigned_to_user_id=user_id,
         assigned_by_user_id=str(current_user.id),
-        imeis=imei_numbers
+        imeis=numero_imeis
     )
     
-    return {"message": translator.translate("device_assigned")}
+    return {"message": translator.translate("appareil_assigne")}
 
-# APIs d'Analyses et Statistiques
-@app.get("/analyses/recherches", tags=["Analyses"])
-def search_analytics(
-    days: int = Query(7, description="Nombre de jours à analyser"),
+@app.delete("/admin/appareils/{device_id}", tags=["Admin"])
+def delete_device(
+    appareil_id: str, 
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_current_user)
+    current_user: Utilisateur = Depends(get_admin_user),
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
 ):
-    """Analyses des recherches - filtrées par niveau d'accès utilisateur"""
-    start_date = datetime.now() - timedelta(days=days)
-    
-    # L'admin voit toutes les recherches, les utilisateurs voient seulement les leurs
-    if current_user.type_utilisateur == "administrateur":
-        searches_query = db.query(Recherche).filter(
-            Recherche.date_recherche >= start_date
-        )
-    else:
-        searches_query = db.query(Recherche).filter(
-            Recherche.date_recherche >= start_date,
-            Recherche.utilisateur_id == current_user.id
+    """
+    Supprimer un appareil avec journalisation d'audit - Administrateurs uniquement.
+    """
+    appareil = db.query(Appareil).filter(Appareil.id == appareil_id).first()
+    if not appareil:
+        raise HTTPException(
+            status_code=404, 
+            detail=translator.translate("appareil_non_trouve")
         )
     
-    total_searches = searches_query.count()
+    # Collecter les données de l'appareil pour le journal d'audit avant suppression
+    appareil_data = {
+        "marque": appareil.marque,
+        "modele": appareil.modele,
+        "emmc": appareil.emmc,
+        "imeis": [imei.numero_imei for imei in appareil.imeis]
+    }
     
-    # Recherches par jour
-    daily_searches = searches_query.with_entities(
-        func.date(Recherche.date_recherche).label('date'),
-        func.count(Recherche.id).label('count')
-    ).group_by(func.date(Recherche.date_recherche)).all()
+    db.delete(appareil)
+    db.commit()
     
-    # IMEIs les plus recherchés
-    popular_imeis = searches_query.with_entities(
-        Recherche.imei_recherche,
-        func.count(Recherche.id).label('count')
-    ).group_by(Recherche.imei_recherche).order_by(desc('count')).limit(10).all()
+    # Journaliser la suppression de l'appareil
+    audit_service.log_device_deletion(
+        device_id=appareil_id,
+        user_id=str(current_user.id),
+        device_data=appareil_data
+    )
+    
+    return {"message": translator.translate("appareil_supprime")}
+
+@app.post("/admin/import-lot-appareils", tags=["Appareils", "Admin"])
+def bulk_import_devices(
+    devices_data: List[dict], 
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user),
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
+):
+    """
+    Import en lot d'appareils avec journalisation d'audit - Administrateurs uniquement.
+    """
+    imported_count = 0
+    errors = []
+    
+    for device_data in devices_data:
+        try:
+            appareil = Appareil(
+                id=uuid.uuid4(),
+                marque=device_data.get("marque"),
+                modele=device_data.get("modele"),
+                emmc=device_data.get("emmc"),
+                utilisateur_id=device_data.get("utilisateur_id")
+            )
+            db.add(appareil)
+            db.flush()  # Obtenir l'ID de l'appareil
+            
+            # Ajouter les IMEIs
+            imeis_data = device_data.get("imeis", [])
+            for i, imei_data in enumerate(imeis_data):
+                if isinstance(imei_data, str):
+                    # Format chaîne simple
+                    imei = IMEI(
+                        id=uuid.uuid4(),
+                        numero_imei=imei_data,
+                        numero_slot=i + 1,
+                        status="active",
+                        appareil_id=appareil.id
+                    )
+                else:
+                    # Format dictionnaire
+                    imei = IMEI(
+                        id=uuid.uuid4(),
+                        numero_imei=imei_data.get("numero_imei"),
+                        numero_slot=imei_data.get("numero_slot", i + 1),
+                        status=imei_data.get("statut", "active"),
+                        appareil_id=appareil.id
+                    )
+                db.add(imei)
+            
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"{translator.translate('prefixe_erreur_import')} {device_data.get('marque', translator.translate('appareil_inconnu'))}: {str(e)}")
+    
+    db.commit()
+    
+    # Journaliser l'opération d'import en lot
+    audit_service.log_bulk_import(
+        user_id=str(current_user.id),
+        imported_count=imported_count,
+        errors=errors
+    )
     
     return {
-        "period_days": days,
-        "total_searches": total_searches,
-        "daily_searches": [{"date": str(day.date), "count": day.count} for day in daily_searches],
-        "popular_imeis": [{"imei": imei.imei_recherche, "count": imei.count} for imei in popular_imeis]
+        "message": translator.translate("import_lot_termine"),
+        "imported_count": imported_count,
+        "errors": errors
     }
 
-@app.get("/analyses/appareils", tags=["Analyses"])
-def device_analytics(db: Session = Depends(get_db)):
+@app.post("/appareils/{appareil_id}/imeis", tags=["Appareils"])
+def add_imei_to_device(
+    appareil_id: str, 
+    imei_data: dict, 
+    db: Session = Depends(get_db),
+    translator = Depends(get_current_translator)
+):
     """
-    Obtenir les analyses statistiques des appareils.
-    
-    Returns:
-        dict: Statistiques des appareils incluant total, assignés, non-assignés et répartition par marque
+    Ajouter un IMEI à un appareil.
     """
-    # Total des appareils
-    total_devices = db.query(Appareil).count()
+    appareil = db.query(Appareil).filter(Appareil.id == appareil_id).first()
+    if not appareil:
+        raise HTTPException(
+            status_code=404, 
+            detail=translator.translate("appareil_non_trouve")
+        )
     
-    # Appareils par marque
-    brand_stats = db.query(
-        Appareil.marque,
-        func.count(Appareil.id).label('count')
-    ).group_by(Appareil.marque).order_by(desc('count')).all()
+    # Vérifier si l'appareil a déjà 2 IMEIs
+    if len(appareil.imeis) >= 2:
+        raise HTTPException(
+            status_code=400, 
+            detail=translator.translate("maximum_imeis_atteint")
+        )
     
-    # Appareils assignés vs non assignés
-    assigned = db.query(Appareil).filter(Appareil.utilisateur_id.isnot(None)).count()
-    unassigned = total_devices - assigned
+    imei = IMEI(
+        id=uuid.uuid4(),
+        numero_imei=imei_data.get("numero_imei"),
+        numero_slot=imei_data.get("numero_slot", len(appareil.imeis) + 1),
+        status=imei_data.get("statut", "active"),
+        appareil_id=appareil.id
+    )
+    
+    db.add(imei)
+    db.commit()
     
     return {
-        "total_devices": total_devices,
-        "assigned_devices": assigned,
-        "unassigned_devices": unassigned,
-        "devices_by_brand": [{"brand": brand.marque, "count": brand.count} for brand in brand_stats]
+        "message": translator.translate("imei_ajoute"),
+        "imei": {
+            "id": str(imei.id),
+            "numero_imei": imei.numero_imei,
+            "numero_slot": imei.numero_slot,
+            "statut": imei.statut
+        }
     }
 
-# Search History APIs
+@app.put("/imeis/{imei_id}/status", tags=["IMEI", "Admin"])
+def update_imei_status(
+    imei_id: str, 
+    status_data: dict, 
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user),
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
+):
+    """
+    Mettre à jour le statut d'un IMEI avec journalisation d'audit - Administrateurs uniquement.
+    """
+    imei = db.query(IMEI).filter(IMEI.id == imei_id).first()
+    if not imei:
+        raise HTTPException(
+            status_code=404, 
+            detail=translator.translate("erreur_imei_non_trouve")
+        )
+    
+    old_status = imei.statut
+    new_status = status_data.get("statut")
+    imei.statut = new_status
+    db.commit()
+    
+    # Journaliser le changement de statut IMEI
+    audit_service.log_imei_status_change(
+        imei_id=str(imei.id),
+        numero_imei=imei.numero_imei,
+        old_status=old_status,
+        new_status=new_status,
+        user_id=str(current_user.id)
+    )
+    
+    return {"message": translator.translate("statut_imei_mis_a_jour")}
+
 @app.get("/utilisateurs/{user_id}/recherches", tags=["Historique de Recherche"])
 def user_search_history(
     user_id: str,
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_current_user)
+    current_user: Utilisateur = Depends(get_current_user),
+    translator = Depends(get_current_translator)
 ):
     """
     Obtenir l'historique de recherche d'un utilisateur.
-    
-    Args:
-        user_id: Identifiant de l'utilisateur
-        skip: Nombre d'éléments à ignorer pour la pagination
-        limit: Nombre maximum d'éléments à retourner
-        db: Session de base de données
-        current_user: Utilisateur actuel connecté
-    
-    Returns:
-        dict: Historique des recherches de l'utilisateur
-    
-    Note:
-        Les utilisateurs ne peuvent voir que leur propre historique
     """
     # Les utilisateurs ne peuvent accéder qu'à leur propre historique de recherche
     if current_user.type_utilisateur != "administrateur" and str(current_user.id) != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
+            detail=translator.translate("acces_refuse_historique_recherches")
         )
     
     searches = db.query(Recherche).filter(
@@ -1127,39 +1234,6 @@ def user_search_history(
         ]
     }
 
-@app.get("/imei/{imei}/historique", tags=["Historique de Recherche"])
-def imei_search_history(imei: str, db: Session = Depends(get_db)):
-    """
-    Obtenir l'historique de recherche pour un IMEI spécifique.
-    
-    Args:
-        imei: Numéro IMEI à rechercher
-        db: Session de base de données
-    
-    Returns:
-        dict: Historique des recherches pour cet IMEI incluant le nombre total et les recherches récentes
-    """
-    searches = db.query(Recherche).filter(
-        Recherche.imei_recherche == imei
-    ).order_by(desc(Recherche.date_recherche)).limit(20).all()
-    
-    search_count = len(searches)
-    last_search = searches[0].date_recherche if searches else None
-    
-    return {
-        "imei": imei,
-        "total_searches": search_count,
-        "last_search": format_datetime(last_search),
-        "recent_searches": [
-            {
-                "date": format_datetime(search.date_recherche),
-                "user_id": str(search.utilisateur_id) if search.utilisateur_id else "anonymous"
-            }
-            for search in searches[:5]
-        ]
-    }
-
-# Notification APIs
 @app.get("/notifications", tags=["Notifications"])
 def list_notifications(
     user_id: Optional[str] = None,
@@ -1167,24 +1241,11 @@ def list_notifications(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_current_user)
+    current_user: Utilisateur = Depends(get_current_user),
+    translator = Depends(get_current_translator)
 ):
     """
     Lister les notifications.
-    
-    Args:
-        user_id: Identifiant de l'utilisateur (optionnel, pour les administrateurs)
-        status: Statut des notifications à filtrer (optionnel)
-        skip: Nombre d'éléments à ignorer pour la pagination
-        limit: Nombre maximum d'éléments à retourner
-        db: Session de base de données
-        current_user: Utilisateur actuel connecté
-    
-    Returns:
-        dict: Liste des notifications
-        
-    Note:
-        Les utilisateurs voient uniquement leurs notifications, les administrateurs voient toutes
     """
     query = db.query(Notification)
     
@@ -1215,40 +1276,6 @@ def list_notifications(
         ]
     }
 
-# API Admin
-@app.get("/admin/utilisateurs", tags=["Admin"])
-def list_all_users(
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_admin_user)
-):
-    """
-    Lister tous les utilisateurs - Administrateurs uniquement.
-    
-    Args:
-        skip: Nombre d'éléments à ignorer pour la pagination
-        limit: Nombre maximum d'éléments à retourner
-        db: Session de base de données
-        current_user: Utilisateur administrateur actuel
-    
-    Returns:
-        dict: Liste de tous les utilisateurs du système
-    """
-    users = db.query(Utilisateur).offset(skip).limit(limit).all()
-    return {
-        "users": [
-            {
-                "id": str(user.id),
-                "nom": user.nom,
-                "email": user.email,
-                "type_utilisateur": user.type_utilisateur
-            }
-            for user in users
-        ]
-    }
-
-# Endpoint amélioré des journaux d'audit
 @app.get("/admin/journaux-audit", tags=["Admin"])
 def get_audit_logs(
     user_id: Optional[str] = None,
@@ -1259,24 +1286,11 @@ def get_audit_logs(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_admin_user)
+    current_user: Utilisateur = Depends(get_admin_user),
+    translator = Depends(get_current_translator)
 ):
     """
     Obtenir les journaux d'audit avec filtrage amélioré - Administrateurs uniquement.
-    
-    Args:
-        user_id: Filtrer par identifiant d'utilisateur (optionnel)
-        action_filter: Filtrer par type d'action (optionnel)
-        entity_type: Filtrer par type d'entité (optionnel)
-        start_date: Date de début pour le filtrage (optionnel)
-        end_date: Date de fin pour le filtrage (optionnel)
-        skip: Nombre d'éléments à ignorer pour la pagination
-        limit: Nombre maximum d'éléments à retourner
-        db: Session de base de données
-        current_user: Utilisateur administrateur actuel
-    
-    Returns:
-        dict: Journaux d'audit filtrés
     """
     query = db.query(JournalAudit)
     
@@ -1293,14 +1307,20 @@ def get_audit_logs(
             start_dt = datetime.fromisoformat(start_date)
             query = query.filter(JournalAudit.date >= start_dt)
         except ValueError:
-            pass
+            raise HTTPException(
+                status_code=400,
+                detail=translator.translate("format_date_invalide")
+            )
             
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date)
             query = query.filter(JournalAudit.date <= end_dt)
         except ValueError:
-            pass
+            raise HTTPException(
+                status_code=400,
+                detail=translator.translate("format_date_invalide")
+            )
     
     logs = query.order_by(desc(JournalAudit.date)).offset(skip).limit(limit).all()
     
@@ -1311,7 +1331,7 @@ def get_audit_logs(
                 "action": log.action,
                 "date": format_datetime(log.date),
                 "utilisateur_id": str(log.utilisateur_id) if log.utilisateur_id else None,
-                "user_name": log.utilisateur.nom if log.utilisateur else "System"
+                "user_name": log.utilisateur.nom if log.utilisateur else translator.translate("systeme")
             }
             for log in logs
         ],
@@ -1325,261 +1345,220 @@ def get_audit_logs(
         }
     }
 
-@app.delete("/admin/appareils/{device_id}", tags=["Admin"])
-def delete_device(
-    appareil_id: str, 
+# ENDPOINT D'INTÉGRATION MULTI-PROTOCOLES
+@app.post(
+    "/verify_imei",
+    tags=["IMEI", "Intégration"],
+    summary="Vérification IMEI Multi-Protocoles",
+    description="Vérifier un IMEI via différents protocoles (REST, SS7, Diameter) selon la configuration"
+)
+async def verify_imei_multi_protocol(
+    request_data: dict,
+    protocol: str = Query(default="rest", description="Protocole à utiliser (rest, ss7, diameter)"),
+    request: Request = None,
     db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_admin_user),
-    audit_service: AuditService = Depends(get_audit_service),
-    translator = Depends(get_current_translator)
-):
-    """
-    Supprimer un appareil avec journalisation d'audit - Administrateurs uniquement.
-    
-    Args:
-        appareil_id: Identifiant de l'appareil à supprimer
-        db: Session de base de données
-        current_user: Utilisateur administrateur actuel
-        audit_service: Service d'audit pour la journalisation
-        translator: Service de traduction
-    
-    Returns:
-        dict: Message de confirmation de suppression
-    """
-    appareil = db.query(Appareil).filter(Appareil.id == appareil_id).first()
-    if not appareil:
-        raise HTTPException(status_code=404, detail="Appareil non trouvé")
-    
-    # Collecter les données de l'appareil pour le journal d'audit avant suppression
-    appareil_data = {
-        "marque": appareil.marque,
-        "modele": appareil.modele,
-        "emmc": appareil.emmc,
-        "imeis": [imei.imei_number for imei in appareil.imeis]
-    }
-    
-    db.delete(appareil)
-    db.commit()
-    
-    # Journaliser la suppression de l'appareil
-    audit_service.log_device_deletion(
-        device_id=appareil_id,
-        user_id=str(current_user.id),
-        device_data=appareil_data
-    )
-    
-    return {"message":translator.translate('device_deleted')}
-
-# Opérations en lot
-@app.post("/admin/import-lot-appareils", tags=["Appareils", "Admin"])
-def bulk_import_devices(
-    devices_data: List[dict], 
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_admin_user),
+    user = Depends(get_current_user_optional),
+    translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
     """
-    Import en lot d'appareils avec journalisation d'audit - Administrateurs uniquement.
+    ## Vérification IMEI Multi-Protocoles
     
-    Args:
-        devices_data: Liste des données d'appareils à importer
-        db: Session de base de données
-        current_user: Utilisateur administrateur actuel
-        audit_service: Service d'audit pour la journalisation
+    Ce point de terminaison permet de vérifier un IMEI en utilisant différents protocoles
+    selon la configuration système et les besoins d'intégration.
     
-    Returns:
-        dict: Résultats de l'import incluant le nombre d'appareils importés et les erreurs
+    ### Protocoles Supportés :
+    - **REST** : Réponse JSON synchrone (par défaut)
+    - **SS7** : Fire-and-forget, pas de réponse (pour intégration MSC/VLR)
+    - **Diameter** : Réponse avec AVPs Diameter (pour intégration MME/SGSN)
+    
+    ### Paramètres :
+    - **imei** : Numéro IMEI à vérifier (requis dans le body)
+    - **protocol** : Protocole à utiliser (query parameter, défaut: rest)
+    
+    ### Configuration :
+    Les protocoles peuvent être activés/désactivés via le fichier `config/protocols.yml`
+    
+    ### Réponses :
+    - **REST** : JSON avec statut détaillé de l'IMEI
+    - **SS7** : Message de confirmation (traitement asynchrone)
+    - **Diameter** : Réponse formatée avec AVPs standard
+    
+    ### Codes d'Erreur :
+    - **400** : Protocole non activé ou payload invalide
+    - **422** : Protocole non supporté
+    - **500** : Erreur de traitement
     """
-    imported_count = 0
-    errors = []
-    
-    for device_data in devices_data:
-        try:
-            appareil = Appareil(
-                id=uuid.uuid4(),
-                marque=device_data.get("marque"),
-                modele=device_data.get("modele"),
-                emmc=device_data.get("emmc"),
-                utilisateur_id=device_data.get("utilisateur_id")
-            )
-            db.add(appareil)
-            db.flush()  # Obtenir l'ID de l'appareil
-            
-            # Ajouter les IMEIs
-            imeis_data = device_data.get("imeis", [])
-            for i, imei_data in enumerate(imeis_data):
-                if isinstance(imei_data, str):
-                    # Format chaîne simple
-                    imei = IMEI(
-                        id=uuid.uuid4(),
-                        imei_number=imei_data,
-                        slot_number=i + 1,
-                        status="active",
-                        appareil_id=appareil.id
-                    )
-                else:
-                    # Format dictionnaire
-                    imei = IMEI(
-                        id=uuid.uuid4(),
-                        imei_number=imei_data.get("imei_number"),
-                        slot_number=imei_data.get("slot_number", i + 1),
-                        status=imei_data.get("status", "active"),
-                        appareil_id=appareil.id
-                    )
-                db.add(imei)
-            
-            imported_count += 1
-        except Exception as e:
-            errors.append(f"Erreur lors de l'import de l'appareil {device_data.get('marque', 'Inconnu')}: {str(e)}")
-    
-    db.commit()
-    
-    # Journaliser l'opération d'import en lot
-    audit_service.log_bulk_import(
-        user_id=str(current_user.id),
-        imported_count=imported_count,
-        errors=errors
-    )
-    
-    return {
-        "imported_count": imported_count,
-        "errors": errors
-    }
-
-@app.post("/appareils/{appareil_id}/imeis", tags=["Appareils"])
-def add_imei_to_device(appareil_id: str, imei_data: dict, db: Session = Depends(get_db)):
-    """
-    Ajouter un IMEI à un appareil.
-    
-    Args:
-        appareil_id: Identifiant de l'appareil
-        imei_data: Données de l'IMEI à ajouter
-        db: Session de base de données
-    
-    Returns:
-        dict: Confirmation d'ajout avec détails de l'IMEI
+    try:
+        # Import des modules d'intégration
+        from .interface_gateway.dispatcher import (
+            handle_incoming_request, 
+            get_supported_protocols, 
+            validate_payload,
+            ProtocolNotEnabledException, 
+            UnsupportedProtocolException
+        )
         
-    Raises:
-        HTTPException: Si l'appareil n'est pas trouvé ou a déjà le maximum d'IMEIs
-    """
-    appareil = db.query(Appareil).filter(Appareil.id == appareil_id).first()
-    if not appareil:
-        raise HTTPException(status_code=404, detail="Appareil non trouvé")
-    
-    # Vérifier si l'appareil a déjà 2 IMEIs
-    if len(appareil.imeis) >= 2:
-        raise HTTPException(status_code=400, detail="L'appareil a déjà le nombre maximum d'IMEIs (2)")
-    
-    imei = IMEI(
-        id=uuid.uuid4(),
-        imei_number=imei_data.get("imei_number"),
-        slot_number=imei_data.get("slot_number", len(appareil.imeis) + 1),
-        status=imei_data.get("status", "active"),
-        appareil_id=appareil.id
-    )
-    
-    db.add(imei)
-    db.commit()
-    
-    return {
-        "message": "IMEI ajouté avec succès",
-        "imei": {
-            "id": str(imei.id),
-            "imei_number": imei.imei_number,
-            "slot_number": imei.slot_number,
-            "status": imei.status
+        # Validation des paramètres d'entrée
+        if not request_data or "imei" not in request_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=translator.translate("imei_requis") if translator else "IMEI requis"
+            )
+        
+        imei = request_data["imei"]
+        
+        # Validation du protocole
+        protocol = protocol.lower()
+        supported_protocols = get_supported_protocols()
+        
+        if protocol not in supported_protocols:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Protocole non supporté: {protocol}. Protocoles supportés: {list(supported_protocols.keys())}"
+            )
+        
+        # Validation de la payload selon le protocole
+        if not validate_payload(protocol, request_data):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Payload invalide pour le protocole {protocol}"
+            )
+        
+        # Ajouter des métadonnées à la requête
+        enhanced_request_data = {
+            **request_data,
+            "user_id": str(user.id) if user else None,
+            "client_ip": request.client.host if request and request.client else None,
+            "user_agent": request.headers.get("user-agent") if request else None
         }
-    }
+        
+        # Log de la requête pour audit
+        if audit_service:
+            audit_service.log_imei_search(
+                imei=imei,
+                user_id=str(user.id) if user else None,
+                found=True  # On mettra à jour selon le résultat
+            )
+        
+        # Traitement via le dispatcher
+        try:
+            response = handle_incoming_request(protocol, enhanced_request_data)
+            
+            # Pour SS7 (fire-and-forget), construire une réponse de confirmation
+            if protocol == "ss7":
+                return {
+                    "status": "accepted",
+                    "message": "Requête SS7 acceptée pour traitement",
+                    "imei": imei,
+                    "protocol": "SS7",
+                    "processing_mode": "fire_and_forget",
+                    "timestamp": datetime.now().isoformat(),
+                    "request_id": str(uuid.uuid4())
+                }
+            
+            # Pour REST et Diameter, retourner la réponse directement
+            return response
+            
+        except ProtocolNotEnabledException as e:
+            # Protocole désactivé dans la configuration
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Protocole {protocol} non activé dans la configuration"
+            )
+        
+        except UnsupportedProtocolException as e:
+            # Protocole non supporté
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e)
+            )
+            
+    except HTTPException:
+        # Re-lever les HTTPExceptions
+        raise
+    except Exception as e:
+        # Erreur inattendue
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erreur inattendue dans verify_imei_multi_protocol: {str(e)}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur de traitement interne: {str(e)}"
+        )
 
-@app.put("/imeis/{imei_id}/status", tags=["IMEI", "Admin"])
-def update_imei_status(
-    imei_id: str, 
-    status_data: dict, 
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_admin_user),
-    audit_service: AuditService = Depends(get_audit_service),
-    translator = Depends(get_current_translator)
-):
-    """
-    Mettre à jour le statut d'un IMEI avec journalisation d'audit - Administrateurs uniquement.
-    
-    Args:
-        imei_id: Identifiant de l'IMEI
-        status_data: Nouvelles données de statut
-        db: Session de base de données
-        current_user: Utilisateur administrateur actuel
-        audit_service: Service d'audit pour la journalisation
-        translator: Service de traduction
-    
-    Returns:
-        dict: Message de confirmation de mise à jour
-    """
-    imei = db.query(IMEI).filter(IMEI.id == imei_id).first()
-    if not imei:
-        raise HTTPException(status_code=404, detail=translator.translate("imei_not_found_error"))
-    
-    old_status = imei.status
-    new_status = status_data.get("status")
-    imei.status = new_status
-    db.commit()
-    
-    # Journaliser le changement de statut IMEI
-    audit_service.log_imei_status_change(
-        imei_id=str(imei.id),
-        imei_number=imei.imei_number,
-        old_status=old_status,
-        new_status=new_status,
-        user_id=str(current_user.id)
-    )
-    
-    return {"message": translator.translate("imei_status_updated")}
-
-# ANALYSES PUBLIQUES (Limitées pour les visiteurs)
-@app.get("/public/statistiques", tags=["Public", "Analyses"])
-def public_statistics(
-    request: Request,
-    db: Session = Depends(get_db),
+@app.get(
+    "/protocols/status",
+    tags=["Système", "Intégration"],
+    summary="Statut des Protocoles",
+    description="Obtenir le statut d'activation des protocoles d'intégration"
+)
+async def get_protocols_status(
     user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
-    Statistiques publiques avec informations limitées.
+    ## Statut des Protocoles d'Intégration
     
-    Args:
-        request: Requête HTTP
-        db: Session de base de données
-        user: Utilisateur optionnel (peut être None pour les visiteurs)
-        translator: Service de traduction
+    Retourne l'état d'activation des différents protocoles d'intégration
+    disponibles dans le système.
     
-    Returns:
-        dict: Statistiques publiques limitées
+    ### Informations Retournées :
+    - **Protocoles supportés** et leur statut d'activation
+    - **Configuration actuelle** des timeouts et paramètres
+    - **Statistiques d'utilisation** (si utilisateur authentifié)
     """
-    current_user = user
-    type_utilisateur = "visiteur"
-    if current_user:
-        if current_user.type_utilisateur == "administrateur":
-            type_utilisateur = "admin"
-        else:
-            type_utilisateur = "utilisateur"
-    
-    # Statistiques de base disponibles pour tous
-    total_devices = db.query(Appareil).count()
-    total_imeis = db.query(IMEI).count()
-    
-    response = {
-        translator.translate("total_devices"): total_devices,
-        translator.translate("total_imeis"): total_imeis,
-        translator.translate("last_updated"): datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    
-    # Statistiques améliorées pour les utilisateurs authentifiés
-    if type_utilisateur != "visiteur":
-        total_users = db.query(Utilisateur).count()
-        total_searches = db.query(Recherche).count()
-        response.update({
-            translator.translate("total_users"): total_users,
-            translator.translate("total_searches"): total_searches
-        })
-    
-    return response
+    try:
+        # Import des modules d'intégration
+        from .interface_gateway.dispatcher import get_supported_protocols
+        
+        # Obtenir le statut des protocoles
+        protocols_status = get_supported_protocols()
+        
+        # Configuration de base accessible à tous
+        response = {
+            "protocols": protocols_status,
+            "total_protocols": len(protocols_status),
+            "active_protocols": sum(1 for active in protocols_status.values() if active),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Informations supplémentaires pour les utilisateurs authentifiés
+        if user:
+            try:
+                from .config_loader import load_protocol_config
+                config = load_protocol_config()
+                
+                response.update({
+                    "timeouts": config.get("timeouts", {}),
+                    "logging_config": config.get("logging", {}),
+                    "user_access_level": user.niveau_acces if user else "public"
+                })
+                
+                # Statistiques pour les administrateurs
+                if user.type_utilisateur == "administrateur":
+                    from .interface_gateway.handlers import rest_handler, ss7_handler, diameter_handler
+                    
+                    response["statistics"] = {
+                        "rest": rest_handler.get_rest_statistics(),
+                        "ss7": ss7_handler.get_ss7_statistics(),
+                        "diameter": diameter_handler.get_diameter_statistics()
+                    }
+            except ImportError as e:
+                response["config_error"] = f"Erreur de chargement de la configuration: {str(e)}"
+        
+        return response
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erreur lors de la récupération du statut des protocoles: {str(e)}")
+        
+        # Retourner une réponse minimale en cas d'erreur
+        return {
+            "protocols": {"rest": True, "ss7": False, "diameter": False},
+            "error": "Impossible de charger la configuration complète",
+            "timestamp": datetime.now().isoformat()
+        }
 

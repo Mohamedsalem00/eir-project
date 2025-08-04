@@ -1,0 +1,48 @@
+# Configuration des protocoles pour l'intégration multi-protocoles
+# Active ou désactive les protocoles de communication
+
+# Activation/désactivation des protocoles d'intégration
+enabled_protocols:
+  rest: true      # API REST/HTTP pour intégrations web et applications mobiles
+  ss7: true       # Signaling System 7 pour intégration avec MSC/VLR/HLR
+  diameter: true  # Protocole Diameter pour intégration avec MME/SGSN/HSS (LTE/4G)
+
+# Configuration des timeouts (en secondes) - Temps d'attente maximum pour chaque protocole
+timeouts:
+  rest: 30        # Timeout pour requêtes HTTP/REST (recommandé: 30s)
+  ss7: 10         # Timeout pour messages SS7 (recommandé: 10s, réseau temps réel)
+  diameter: 60    # Timeout pour sessions Diameter (recommandé: 60s, sessions longues)
+
+# Configuration du logging pour chaque protocole
+logging:
+  rest:
+    level: INFO     # Niveau de log: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    enabled: true   # Activer/désactiver les logs pour ce protocole
+  ss7:
+    level: DEBUG    # DEBUG recommandé pour SS7 (beaucoup de détails techniques)
+    enabled: true
+  diameter:
+    level: INFO     # INFO suffisant pour Diameter (logs équilibrés)
+    enabled: true
+
+# Configuration des endpoints et ports pour chaque protocole
+endpoints:
+  # Configuration REST/HTTP
+  rest:
+    host: "0.0.0.0"    # Interface d'écoute (0.0.0.0 = toutes les interfaces)
+    port: 8000         # Port HTTP pour l'API REST
+  
+  # Configuration SS7 (Signaling System 7)
+  ss7:
+    sccp_address: "1234"        # SCCP Address: Adresse du point de signalisation local
+                                # Format: Point Code (exemple: "1234" pour PC 1-2-3-4)
+    gt: "33123456789"           # Global Title: Identifiant global unique dans le réseau SS7
+                                # Format E.164: Code pays + numéro (33 = France)
+                                # Utilisé pour le routage des messages MAP
+  
+  # Configuration Diameter (protocole AAA pour LTE/4G)
+  diameter:
+    host: "0.0.0.0"             # Interface d'écoute Diameter
+    port: 3868                  # Port standard Diameter (3868 = port officiel IANA)
+    realm: "eir.domain.com"     # Diameter Realm: Domaine de l'entité Diameter
+                                # Format FQDN, utilisé pour l'authentification et le routage

@@ -57,12 +57,12 @@ class Operation(Enum):
     MANAGE_PERMISSIONS = "manage_permissions"
     SYSTEM_CONFIG = "system_config"
 
-class DataScope(Enum):
-    """Data access scope definitions"""
+class PorteeDonnees(Enum):
+    """Data access portee_donnees definitions"""
     NONE = "none"              # No data access
     OWN = "own"               # Only user's own data
     ORGANIZATION = "organization"  # Organization-level data
-    BRANDS = "brands"         # Specific brand data
+    BRANDS = "brands"         # Specific marque data
     RANGES = "ranges"         # Specific IMEI ranges
     ALL = "all"              # All data (admin level)
 
@@ -116,14 +116,14 @@ class PermissionManager:
         AccessLevel.ADMIN: list(Operation),  # All operations
     }
     
-    # Data scope permissions for access levels
+    # Data portee_donnees permissions for access levels
     SCOPE_PERMISSIONS = {
-        AccessLevel.VISITOR: DataScope.NONE,
-        AccessLevel.BASIC: DataScope.OWN,
-        AccessLevel.LIMITED: DataScope.BRANDS,  # Can be customized to RANGES
-        AccessLevel.STANDARD: DataScope.OWN,
-        AccessLevel.ELEVATED: DataScope.ORGANIZATION,
-        AccessLevel.ADMIN: DataScope.ALL,
+        AccessLevel.VISITOR: PorteeDonnees.NONE,
+        AccessLevel.BASIC: PorteeDonnees.OWN,
+        AccessLevel.LIMITED: PorteeDonnees.BRANDS,  # Can be customized to RANGES
+        AccessLevel.STANDARD: PorteeDonnees.OWN,
+        AccessLevel.ELEVATED: PorteeDonnees.ORGANIZATION,
+        AccessLevel.ADMIN: PorteeDonnees.ALL,
     }
     
     @staticmethod
@@ -134,10 +134,10 @@ class PermissionManager:
             return operation in PermissionManager.ACCESS_PERMISSIONS[AccessLevel.VISITOR]
         
         # Get user's access level
-        user_level = AccessLevel(user.access_level or "basic")
+        user_level = AccessLevel(user.niveau_acces or "basic")
         
         # Check if user is active
-        if hasattr(user, 'is_active') and not user.is_active:
+        if hasattr(user, 'est_actif') and not user.est_actif:
             return False
         
         # Check custom permissions first
@@ -157,14 +157,14 @@ class PermissionManager:
         """
         context = {
             "reason": "",
-            "scope": "none",
+            "portee_donnees": "none",
             "restrictions": []
         }
         
         if not user:
             context.update({
-                "reason": "public_access",
-                "scope": "basic_info"
+                "reason": "acces_public",
+                "portee_donnees": "basic_info"
             })
             return True, context
         
@@ -172,18 +172,18 @@ class PermissionManager:
         if user.type_utilisateur == "administrateur":
             context.update({
                 "reason": "admin_access",
-                "scope": "full"
+                "portee_donnees": "full"
             })
             return True, context
         
         # Check IMEI range restrictions for concerned parties
-        allowed_ranges = user.allowed_imei_ranges or []
+        allowed_ranges = user.plages_imei_autorisees or []
         if allowed_ranges:
             for range_rule in allowed_ranges:
                 if PermissionManager._imei_matches_rule(imei, range_rule):
                     context.update({
                         "reason": "imei_range_match",
-                        "scope": "range_limited",
+                        "portee_donnees": "range_limited",
                         "matched_rule": range_rule
                     })
                     return True, context
@@ -195,29 +195,29 @@ class PermissionManager:
             })
             return False, context
         
-        # Check device brand restrictions
-        if db and user.allowed_brands:
-            imei_record = db.query(IMEI).filter(IMEI.imei_number == imei).first()
+        # Check device marque restrictions
+        if db and user.marques_autorisees:
+            imei_record = db.query(IMEI).filter(IMEI.numero_imei == imei).first()
             if imei_record and imei_record.appareil:
-                if imei_record.appareil.marque in user.allowed_brands:
+                if imei_record.appareil.marque in user.marques_autorisees:
                     context.update({
                         "reason": "brand_access",
-                        "scope": "brand_limited",
-                        "brand": imei_record.appareil.marque
+                        "portee_donnees": "brand_limited",
+                        "marque": imei_record.appareil.marque
                     })
                     return True, context
                 else:
                     context.update({
                         "reason": "brand_restriction",
                         "device_brand": imei_record.appareil.marque,
-                        "allowed_brands": user.allowed_brands
+                        "marques_autorisees": user.marques_autorisees
                     })
                     return False, context
         
         # Default access for standard users
         context.update({
             "reason": "standard_access",
-            "scope": "standard"
+            "portee_donnees": "standard"
         })
         return True, context
     
@@ -229,14 +229,14 @@ class PermissionManager:
         """
         context = {
             "reason": "",
-            "scope": "none",
+            "portee_donnees": "none",
             "restrictions": []
         }
         
         if not user:
             context.update({
                 "reason": "anonymous_denied",
-                "scope": "none"
+                "portee_donnees": "none"
             })
             return False, context
         
@@ -244,7 +244,7 @@ class PermissionManager:
         if user.type_utilisateur == "administrateur":
             context.update({
                 "reason": "admin_access",
-                "scope": "full"
+                "portee_donnees": "full"
             })
             return True, context
         
@@ -252,41 +252,41 @@ class PermissionManager:
         if device.utilisateur_id == user.id:
             context.update({
                 "reason": "owner_access",
-                "scope": "full"
+                "portee_donnees": "full"
             })
             return True, context
         
-        # Check brand restrictions for concerned parties
-        allowed_brands = user.allowed_brands or []
+        # Check marque restrictions for concerned parties
+        allowed_brands = user.marques_autorisees or []
         if allowed_brands:
             if device.marque in allowed_brands:
                 context.update({
                     "reason": "brand_access",
-                    "scope": "brand_limited",
-                    "brand": device.marque
+                    "portee_donnees": "brand_limited",
+                    "marque": device.marque
                 })
                 return True, context
             else:
                 context.update({
                     "reason": "brand_restriction",
                     "device_brand": device.marque,
-                    "allowed_brands": allowed_brands
+                    "marques_autorisees": allowed_brands
                 })
                 return False, context
         
         # Check organization access
-        if user.data_scope == "organization" and user.organization:
+        if user.portee_donnees == "organization" and user.organization:
             # This would require organization field on devices - placeholder logic
             context.update({
                 "reason": "organization_access",
-                "scope": "organization"
+                "portee_donnees": "organization"
             })
             return True, context
         
         # Default deny for non-matching cases
         context.update({
             "reason": "access_denied",
-            "scope": "none"
+            "portee_donnees": "none"
         })
         return False, context
     
@@ -295,22 +295,22 @@ class PermissionManager:
         """Get data filtering context for database queries"""
         if not user:
             return {
-                "scope": DataScope.NONE,
+                "portee_donnees": PorteeDonnees.NONE,
                 "user_id": None,
-                "allowed_brands": [],
+                "marques_autorisees": [],
                 "allowed_ranges": [],
                 "organization": None,
                 "is_admin": False
             }
         
         return {
-            "scope": DataScope(user.data_scope or "own"),
+            "portee_donnees": PorteeDonnees(user.portee_donnees or "own"),
             "user_id": user.id,
-            "allowed_brands": user.allowed_brands or [],
-            "allowed_ranges": user.allowed_imei_ranges or [],
+            "marques_autorisees": user.marques_autorisees or [],
+            "allowed_ranges": user.plages_imei_autorisees or [],
             "organization": user.organization,
             "is_admin": user.type_utilisateur == "administrateur",
-            "access_level": AccessLevel(user.access_level or "basic")
+            "niveau_acces": AccessLevel(user.niveau_acces or "basic")
         }
     
     @staticmethod
@@ -321,8 +321,8 @@ class PermissionManager:
             if data_type == "imei":
                 return {
                     "imei": data.get("imei"),
-                    "found": data.get("found"),
-                    "status": data.get("status"),
+                    "trouve": data.get("trouve"),
+                    "statut": data.get("statut"),
                     "message": data.get("message")
                 }
             elif data_type == "device":
@@ -336,13 +336,13 @@ class PermissionManager:
             return data
         
         # Filter based on access level
-        user_level = AccessLevel(user.access_level or "basic") if user else AccessLevel.VISITOR
+        user_level = AccessLevel(user.niveau_acces or "basic") if user else AccessLevel.VISITOR
         
         if data_type == "imei":
             base_data = {
                 "imei": data.get("imei"),
-                "found": data.get("found"),
-                "status": data.get("status"),
+                "trouve": data.get("trouve"),
+                "statut": data.get("statut"),
                 "message": data.get("message")
             }
             
@@ -393,24 +393,24 @@ class PermissionManager:
     def get_user_permissions_summary(user: Utilisateur) -> dict:
         """Get comprehensive summary of user permissions"""
         if not user:
-            return {"access_level": "visitor", "permissions": [], "restrictions": []}
+            return {"niveau_acces": "visitor", "permissions": [], "restrictions": []}
         
-        user_level = AccessLevel(user.access_level or "basic")
+        user_level = AccessLevel(user.niveau_acces or "basic")
         default_permissions = PermissionManager.ACCESS_PERMISSIONS[user_level]
         
         return {
             "user_id": str(user.id),
-            "access_level": user_level.value,
-            "data_scope": user.data_scope or "own",
+            "niveau_acces": user_level.value,
+            "portee_donnees": user.portee_donnees or "own",
             "organization": user.organization,
-            "is_active": getattr(user, 'is_active', True),
+            "est_actif": getattr(user, 'est_actif', True),
             "permissions": {
                 "default": [op.value for op in default_permissions],
                 "effective": [op.value for op in default_permissions]
             },
             "restrictions": {
-                "allowed_brands": user.allowed_brands or [],
-                "allowed_imei_ranges": user.allowed_imei_ranges or []
+                "marques_autorisees": user.marques_autorisees or [],
+                "plages_imei_autorisees": user.plages_imei_autorisees or []
             }
         }
 
@@ -426,13 +426,13 @@ def require_permission(operation: Operation):
     
     return permission_dependency
 
-def require_access_level(min_level: AccessLevel):
+def require_niveau_acces(min_level: AccessLevel):
     """Dependency factory for access level checking"""
     def level_dependency(user: Optional[Utilisateur] = None):
         if not user:
             current_level = AccessLevel.VISITOR
         else:
-            current_level = AccessLevel(user.access_level or "basic")
+            current_level = AccessLevel(user.niveau_acces or "basic")
         
         # Check if current level meets minimum requirement
         level_hierarchy = [

@@ -130,7 +130,7 @@ class AuditService:
             user_id=user_id,
             entity_type="imei",
             entity_id=imei,
-            details={"search_result": "found" if found else "not_found"}
+            details={"search_result": "trouve" if found else "non_trouve"}
         )
     
     def log_device_creation(self, device_id: str, user_id: str, device_data: Dict[str, Any]):
@@ -190,15 +190,15 @@ class AuditService:
             new_values=safe_user_data
         )
     
-    def log_imei_status_change(self, imei_id: str, imei_number: str, old_status: str, new_status: str, user_id: str):
+    def log_imei_status_change(self, imei_id: str, numero_imei: str, old_status: str, new_status: str, user_id: str):
         """Log IMEI status change"""
         return self.log_action(
             action=f"IMEI status changed",
             user_id=user_id,
             entity_type="imei",
             entity_id=imei_id,
-            old_values={"status": old_status, "imei_number": imei_number},
-            new_values={"status": new_status, "imei_number": imei_number}
+            old_values={"statut": old_status, "numero_imei": numero_imei},
+            new_values={"statut": new_status, "numero_imei": numero_imei}
         )
     
     def log_bulk_import(self, user_id: str, imported_count: int, errors: list):
@@ -292,7 +292,7 @@ class AuditService:
                        filter_applied: bool, record_count: int):
         """Log data access patterns for analytics"""
         return self.log_action(
-            action=f"Data access: {data_type} with scope {access_scope}",
+            action=f"Data access: {data_type} with portee_donnees {access_scope}",
             user_id=user_id,
             entity_type="data_access",
             details={
