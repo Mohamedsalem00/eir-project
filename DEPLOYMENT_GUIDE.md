@@ -42,9 +42,12 @@ PORT=8000
 4. Choose your `eir-project` repository
 
 #### Step 2: Configuration
+- **Root Directory**: `./` (repository root)
 - **Build Command**: `docker build -f backend/Dockerfile.prod -t eir-app .`
 - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - **Environment**: Docker
+- **Docker Context**: `.` (root directory)
+- **Dockerfile Path**: `backend/Dockerfile.prod`
 
 #### Step 3: Add PostgreSQL
 1. Create "New PostgreSQL"
@@ -202,3 +205,38 @@ Once deployed, you can test your API at:
 5. **Configure backups** for production data
 
 Your EIR project is now ready for public deployment! 🚀
+
+## 🔧 Troubleshooting Common Issues
+
+### Docker Build Context Issues
+**Problem**: "COPY failed: no such file or directory"
+**Solution**: Ensure Docker Build Context Directory is set to `.` (root)
+
+**Correct Settings for Deployment Platforms:**
+```bash
+Root Directory: ./
+Dockerfile Path: backend/Dockerfile.prod
+Docker Build Context: .
+Build Command: docker build -f backend/Dockerfile.prod -t eir-app .
+```
+
+### Environment Variables Issues
+**Problem**: Database connection errors
+**Solution**: Set these required environment variables:
+```bash
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+SECRET_KEY=your-secret-key-min-32-chars
+DEBUG=false
+PORT=8000
+```
+
+### Port Issues
+**Problem**: App not accessible after deployment
+**Solution**: Ensure your app binds to `0.0.0.0:$PORT`, not `localhost`
+
+### Build Failures
+**Problem**: Docker build fails
+**Solution**: 
+1. Check Dockerfile path: `backend/Dockerfile.prod`
+2. Verify build context is root directory (`.`)
+3. Ensure all files are committed to git
