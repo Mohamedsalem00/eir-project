@@ -387,18 +387,15 @@ async def verification_etat(
     "/languages",
     tags=["Système"],
     summary="Langues Supportées",
-    description="Obtenir la liste des langues supportées et informations de locale"
+    description="""## Langues Supportées
+
+Obtenir des informations sur toutes les langues supportées incluant :
+- Codes et noms des langues
+- Noms natifs des langues
+- Support RTL (Droite-vers-Gauche)
+- Paramètres de langue par défaut"""
 )
 def obtenir_langues_supportees(translator = Depends(get_current_translator)):
-    """
-    ## Langues Supportées
-    
-    Obtenir des informations sur toutes les langues supportées incluant :
-    - Codes et noms des langues
-    - Noms natifs des langues
-    - Support RTL (Droite-vers-Gauche)
-    - Paramètres de langue par défaut
-    """
     return {
         "langues_supportees": SUPPORTED_LANGUAGES,
         "langue_par_defaut": "fr",
@@ -2374,14 +2371,7 @@ def rechercher_tac(
     "/admin/tac/stats",
     tags=["TAC", "Admin"],
     summary="Statistiques TAC",
-    description="Obtenir les statistiques de la base de données TAC"
-)
-def statistiques_tac(
-    db: Session = Depends(get_db),
-    current_user: Utilisateur = Depends(get_admin_user),
-    translator = Depends(get_current_translator)
-):
-    """
+    description="""
     ## Statistiques de la Base TAC
     
     Obtenir des statistiques détaillées sur la base de données TAC.
@@ -2393,6 +2383,13 @@ def statistiques_tac(
     - Répartition par statuts
     - Top 10 des marques
     """
+)
+def statistiques_tac(
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user),
+    translator = Depends(get_current_translator)
+):
+    
     try:
         # Statistiques générales
         total_tacs = db.execute(text("SELECT COUNT(*) FROM tac_database")).scalar()
@@ -2460,7 +2457,20 @@ def statistiques_tac(
     "/admin/tac/sync",
     tags=["TAC", "Admin"],
     summary="Synchronisation TAC",
-    description="Synchroniser la base TAC depuis les sources externes"
+    description="""## Synchronisation Base TAC
+
+Synchroniser la base de données TAC depuis les sources externes configurées.
+
+### Sources disponibles :
+- **osmocom_csv** : API CSV Osmocom (par défaut)
+- **osmocom_json** : API JSON Osmocom
+- **local_file** : Fichier local
+
+### Processus :
+1. Téléchargement depuis la source
+2. Validation des données
+3. Import avec gestion des conflits
+4. Journalisation des résultats"""
 )
 def synchroniser_tac(
     source: str = Query(default="osmocom_csv", description="Source de synchronisation"),
@@ -2469,22 +2479,6 @@ def synchroniser_tac(
     audit_service: AuditService = Depends(get_audit_service),
     translator = Depends(get_current_translator)
 ):
-    """
-    ## Synchronisation Base TAC
-    
-    Synchroniser la base de données TAC depuis les sources externes configurées.
-    
-    ### Sources disponibles :
-    - **osmocom_csv** : API CSV Osmocom (par défaut)
-    - **osmocom_json** : API JSON Osmocom
-    - **local_file** : Fichier local
-    
-    ### Processus :
-    1. Téléchargement depuis la source
-    2. Validation des données
-    3. Import avec gestion des conflits
-    4. Journalisation des résultats
-    """
     try:
         if source == "osmocom_csv":
             # Synchronisation depuis l'API CSV Osmocom
