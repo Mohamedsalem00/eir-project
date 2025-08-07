@@ -44,10 +44,13 @@ PORT=8000
 #### Step 2: Configuration
 - **Root Directory**: `./` (repository root)
 - **Build Command**: `docker build -f backend/Dockerfile.prod -t eir-app .`
-- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2`
 - **Environment**: Docker
 - **Docker Context**: `.` (root directory)
 - **Dockerfile Path**: `backend/Dockerfile.prod`
+- **Auto-Deploy**: Yes (connects to GitHub)
+
+**Important**: Do NOT set a custom run command - let Render use the CMD from the Dockerfile
 
 #### Step 3: Add PostgreSQL
 1. Create "New PostgreSQL"
@@ -221,14 +224,19 @@ Build Command: docker build -f backend/Dockerfile.prod -t eir-app .
 ```
 
 ### Environment Variables Issues
-**Problem**: Database connection errors
-**Solution**: Set these required environment variables:
+**Problem**: Database connection errors (`sqlalchemy.exc.ArgumentError: Expected string or URL object, got None`)
+**Solution**: 
+1. **For Render**: Use the updated `render.yaml` configuration that automatically links the database
+2. **For Railway**: Add PostgreSQL plugin and it will auto-set DATABASE_URL
+3. **Manual setup**: Set these required environment variables:
 ```bash
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
 SECRET_KEY=your-secret-key-min-32-chars
 DEBUG=false
 PORT=8000
 ```
+
+**Note**: The application now includes a fallback to a development database if DATABASE_URL is missing, but this should only be used for testing.
 
 ### Port Issues
 **Problem**: App not accessible after deployment

@@ -107,6 +107,20 @@ app.include_router(access_router, tags=["Gestion d'Accès"])
 # Stocker l'heure de démarrage de l'application pour le calcul du temps de fonctionnement
 app_start_time = datetime.now()
 
+# Database initialization on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on application startup"""
+    try:
+        import sys
+        sys.path.append('/app')
+        from init_db import init_database
+        print("🚀 Initializing database on startup...")
+        init_database()
+    except Exception as e:
+        print(f"⚠️  Database initialization warning: {e}")
+        print("🔄 Application will continue starting...")
+
 # Fonction utilitaire pour le formatage des dates
 def format_datetime(dt):
     """Formate la datetime en chaîne lisible"""

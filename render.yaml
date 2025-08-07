@@ -11,7 +11,9 @@ services:
     healthCheckPath: /verification-etat
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: eir-database
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
