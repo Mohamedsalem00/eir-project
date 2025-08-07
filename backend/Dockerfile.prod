@@ -21,7 +21,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY backend/schema_postgres.sql /app/
 COPY backend/test_data.sql /app/
 COPY backend/init-db.sh /app/
-COPY backend/init_db.py /app/
 
 # Copy application code
 COPY backend/app ./app
