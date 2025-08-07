@@ -7,8 +7,9 @@ set -e
 # Navigate to project root
 cd "$(dirname "$0")/.."
 
-# Source Docker utilities
-source scripts/docker-utils.sh
+# Load Docker utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../docker-utils.sh"
 
 # Colors for better output
 RED='\033[0;31m'
