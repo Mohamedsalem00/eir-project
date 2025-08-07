@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "last_updated": "2025-08-04",
+    "version": "1.0",
+    "total_entries": 15,
+    "source": "Manual compilation"
+  },
+  "tac_entries": {
+    "35274508": {
+      "brand": "Samsung",
+      "model": "Galaxy S21",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35412345": {
+      "brand": "Apple", 
+      "model": "iPhone 13",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "86753090": {
+      "brand": "Huawei",
+      "model": "P50 Pro", 
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35123456": {
+      "brand": "Xiaomi",
+      "model": "Mi 11",
+      "status": "valid",
+      "type": "smartphone", 
+      "release_year": 2021
+    },
+    "35987654": {
+      "brand": "OnePlus",
+      "model": "9 Pro",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35456789": {
+      "brand": "Google",
+      "model": "Pixel 6",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35789012": {
+      "brand": "Sony",
+      "model": "Xperia 1 III",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35234567": {
+      "brand": "Nokia",
+      "model": "X20",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35876543": {
+      "brand": "Motorola",
+      "model": "Edge 20",
+      "status": "valid", 
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35345678": {
+      "brand": "Oppo",
+      "model": "Find X3",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35654321": {
+      "brand": "Vivo",
+      "model": "X70 Pro",
+      "status": "valid",
+      "type": "smartphone",
+      "release_year": 2021
+    },
+    "35111111": {
+      "brand": "Unknown",
+      "model": "Unknown Model",
+      "status": "blacklisted",
+      "type": "smartphone",
+      "reason": "Reported stolen"
+    },
+    "35999999": {
+      "brand": "Fake Brand",
+      "model": "Counterfeit Device",
+      "status": "invalid",
+      "type": "smartphone",
+      "reason": "Counterfeit device"
+    },
+    "35000000": {
+      "brand": "Test Brand",
+      "model": "Test Model",
+      "status": "test",
+      "type": "test_device",
+      "reason": "Test TAC for development"
+    },
+    "35888888": {
+      "brand": "Legacy Brand",
+      "model": "Old Model",
+      "status": "deprecated",
+      "type": "feature_phone",
+      "reason": "Obsolete model"
+    }
+  }
+}

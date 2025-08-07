@@ -1,13 +1,14 @@
-# Environment variables
-.env
-.env.local
-.env.production
+# 🔒 EIR PROJECT - COMPREHENSIVE GITIGNORE
+# Production-ready .gitignore for EIR API project
 
-# Python
+# ===== PYTHON =====
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -21,35 +22,96 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# IDE
-.vscode/
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ===== ENVIRONMENT & CONFIG =====
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Configuration files with secrets
+config/secrets.yml
+config/production.yml
+backend/app/core/config_secrets.py
+*.secret
+*.private
+
+# ===== DATABASE =====
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Database dumps and backups (keep structure, exclude data)
+backups/*.sql
+backups/*.dump
+backups/*.tar.gz
+backups/backup_*.sql
+
+# ===== DOCKER =====
+# Docker override files
+docker-compose.override.yml
+docker-compose.prod.yml
+docker-compose.local.yml
+.docker/
+
+# ===== LOGS =====
+# Log files
+logs/
+*.log
+*.log.*
+log_*.txt
+
+# Application logs
+backend/logs/
+frontend/logs/
+test/logs/
+
+# ===== DEVELOPMENT =====
+# IDE files
+.vscode/settings.json
+.vscode/launch.json
 .idea/
 *.swp
 *.swo
+*~
 
-# Docker
-.docker/
-
-# Logs
-*.log
-logs/
-
-# Database backups
-backups/
-*.sql
-*.dump
-
-# Temporary files
-*.tmp
-*.temp
-temp/
-tmp/
-
-# OS generated files
+# OS files
 .DS_Store
 .DS_Store?
 ._*
@@ -58,22 +120,88 @@ tmp/
 ehthumbs.db
 Thumbs.db
 
-# Documentation temporaire
+# ===== TEST FILES & REPORTS =====
+# Test reports and temporary data
+test/api_test_report_*.json
+test/test_results_*.json
+test/coverage_*.xml
+test/performance_*.json
+
+# Temporary test files
+test/temp/
+test/tmp/
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ===== SECURITY =====
+# SSL certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+certs/
+ssl/
+
+# JWT secrets
+jwt_secret.txt
+private_key.pem
+public_key.pem
+
+# API keys and tokens
+api_keys.txt
+access_tokens.txt
+*.token
+
+# ===== DOCUMENTATION TEMP FILES =====
+# Temporary documentation (keep main docs)
 *_TEMP.md
 *_TEMPORAIRE.md
 FRANCISATION_*.md
 ENDPOINTS_*.md
 PLAN_*.md
 RAPPORT_*.md
+NIGHT_TEST_REPORT.md
+ISSUES_FIXED_REPORT.md
+FINAL_VICTORY_REPORT.md
+JSON_VS_PYTHON_ANALYSIS.md
 
-# Scripts de test temporaires
+# ===== TEMPORARY SCRIPTS =====
+# Development and test scripts (keep main scripts)
 test_*.py
 franciser_*.py
 *_test_*.py
-
-# Fichiers de validation temporaires
 validation_*.py
 test_validation_*.py
 
-# test 
-test
+# ===== PROJECT SPECIFIC =====
+# Large data files (keep samples)
+data/large_datasets/
+data/*.csv.backup
+data/*.json.backup
+data/tac_database_backup_*.json
+
+# Upload directories
+uploads/
+media/
+static/uploaded/
+
+# ===== KEEP THESE IMPORTANT FILES =====
+# Force include important files even if they match patterns above
+!backend/requirements.txt
+!frontend/package.json
+!docker-compose.yml
+!README.md
+!config/protocols.yml
+!config/external_apis.yml
+!config/external_apis_working.yml
+!test/api_endpoints.json
+!test/api_endpoints_config_v2.py
+!test/test_api_v2.py
+!docs/architecture_*.tex
+!scripts/README.md
+!scripts/*.sh
+!backend/init-db.sh
+!backend/schema_postgres.sql

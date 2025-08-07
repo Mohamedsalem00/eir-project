@@ -1,0 +1,54 @@
+@startuml
+!theme plain
+title Architecture EIR Multi-Protocoles (Vue Simplifiée)
+
+package "Interfaces" {
+    [REST API] as REST
+    [SS7] as SS7
+    [Diameter] as DIAMETER
+    [DMS Sync] as DMS
+}
+
+package "Core" {
+    [Protocol Dispatcher] as DISPATCHER
+    [IMEI Validator] as VALIDATOR
+    [Config Manager] as CONFIG
+    [Audit Service] as AUDIT
+}
+
+package "Data" {
+    database "PostgreSQL" as DB
+}
+
+package "External" {
+    [GSMA API] as GSMA
+}
+
+' Connexions principales
+REST --> DISPATCHER
+SS7 --> DISPATCHER 
+DIAMETER --> DISPATCHER
+DMS --> DISPATCHER
+
+DISPATCHER --> VALIDATOR
+DISPATCHER --> CONFIG
+DISPATCHER --> AUDIT
+
+VALIDATOR --> DB
+VALIDATOR --> GSMA
+
+AUDIT --> DB
+
+note top of DISPATCHER
+Routes vers handlers
+selon config/protocols.yml
+end note
+
+note right of CONFIG
+Configuration dynamique
+• enabled_protocols
+• timeouts
+• endpoints
+end note
+
+@enduml

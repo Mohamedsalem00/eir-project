@@ -1,14 +1,8 @@
 #!/bin/bash
 # scripts/reset-database.sh
-# Quick database reset script (keeps structure, reloads data)
+# Script pour réinitialiser rapidement la base de données EIR
 
 set -e
-
-echo "🔄 Réinitialisation rapide de la base de données EIR"
-echo "=================================================="
-
-# Navigate to project root
-cd "$(dirname "$0")/.."
 
 # Colors for better output
 RED='\033[0;31m'
@@ -33,203 +27,209 @@ log_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# Function to check if Docker is running
-check_docker() {
-    if ! docker info > /dev/null 2>&1; then
-        log_error "Docker n'est pas en cours d'exécution. Veuillez démarrer Docker."
-        exit 1
-    fi
-    log_success "Docker est opérationnel"
-}
+echo "🔄 Réinitialisation rapide de la base de données EIR"
+echo "=================================================="
+echo "Début de la réinitialisation rapide..."
 
-# Function to check if database is accessible
-check_database() {
-    log_info "Vérification de l'accès à la base de données..."
-    
-    if ! docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
-        log_error "Base de données non accessible. Utilisez rebuild-database.sh pour une reconstruction complète."
-        exit 1
-    fi
-    
-    log_success "Base de données accessible"
-}
+# Navigate to project root
+cd "$(dirname "$0")/.."
 
-# Function to clear existing data
-clear_data() {
-    log_info "Suppression des données existantes..."
-    
-    # Clear tables in proper order (respecting foreign keys)
-    docker compose exec -T db psql -U postgres -d imei_db << 'EOF'
--- Disable foreign key checks temporarily
+# Check if Docker is running
+if ! docker info > /dev/null 2>&1; then
+    log_error "Docker n'est pas en cours d'exécution. Veuillez démarrer Docker."
+    exit 1
+fi
+
+log_success "Docker est opérationnel"
+
+# Check if containers are running
+if ! docker compose ps | grep -q "Up"; then
+    log_warning "Les conteneurs ne sont pas démarrés. Démarrage..."
+    docker compose up -d
+    sleep 10
+fi
+
+# Wait for database to be ready
+log_info "Vérification de l'accès à la base de données..."
+for i in {1..30}; do
+    if docker compose exec -T db pg_isready -U postgres > /dev/null 2>&1; then
+        break
+    fi
+    echo -n "."
+    sleep 1
+done
+
+if ! docker compose exec -T db pg_isready -U postgres > /dev/null 2>&1; then
+    log_error "Impossible de se connecter à la base de données"
+    exit 1
+fi
+
+log_success "Base de données accessible"
+
+# Create clear data script
+log_info "Suppression des données existantes..."
+cat > /tmp/clear_data.sql << 'EOF'
+-- Disable triggers temporarily to avoid constraint issues
 SET session_replication_role = replica;
 
--- Clear data from all tables
-TRUNCATE TABLE Journal_Audit CASCADE;
-TRUNCATE TABLE Notification CASCADE;
-TRUNCATE TABLE Recherche CASCADE;
-TRUNCATE TABLE IMEI CASCADE;
-TRUNCATE TABLE SIM CASCADE;
-TRUNCATE TABLE Appareil CASCADE;
-TRUNCATE TABLE ImportExport CASCADE;
-TRUNCATE TABLE Utilisateur CASCADE;
+-- Clear all data from tables (order matters due to foreign keys)
+TRUNCATE TABLE importexport RESTART IDENTITY CASCADE;
+TRUNCATE TABLE journal_audit RESTART IDENTITY CASCADE;
+TRUNCATE TABLE notification RESTART IDENTITY CASCADE;
+TRUNCATE TABLE recherche RESTART IDENTITY CASCADE;
+TRUNCATE TABLE sim RESTART IDENTITY CASCADE;
+TRUNCATE TABLE imei RESTART IDENTITY CASCADE;
+TRUNCATE TABLE appareil RESTART IDENTITY CASCADE;
+TRUNCATE TABLE tac_database RESTART IDENTITY CASCADE;
+TRUNCATE TABLE utilisateur RESTART IDENTITY CASCADE;
 
--- Re-enable foreign key checks
+-- Re-enable triggers
 SET session_replication_role = DEFAULT;
 
--- Reset sequences
-ALTER SEQUENCE IF EXISTS utilisateur_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS appareil_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS imei_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS sim_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS recherche_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS notification_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS journal_audit_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS importexport_id_seq RESTART WITH 1;
+SELECT 'Données supprimées avec succès!' as status;
 EOF
 
-    if [[ $? -eq 0 ]]; then
-        log_success "Données supprimées"
-    else
-        log_error "Échec de la suppression des données"
-        exit 1
-    fi
-}
+# Copy and execute clear script
+docker compose cp /tmp/clear_data.sql db:/tmp/clear_data.sql
+docker compose exec -T db psql -U postgres -d imei_db -f /tmp/clear_data.sql
 
-# Function to reload test data
-reload_test_data() {
-    log_info "Rechargement des données de test..."
-    
-    # Check if test data file exists
-    if [[ ! -f "backend/test_data.sql" ]]; then
-        log_error "Fichier de données de test non trouvé : backend/test_data.sql"
-        exit 1
-    fi
-    
-    # Load test data
-    if docker compose exec -T db psql -U postgres -d imei_db -f /docker-entrypoint-initdb.d/03-test-data.sql; then
-        log_success "Données de test rechargées"
-    else
-        log_error "Échec du rechargement des données de test"
-        exit 1
-    fi
-}
+log_success "Données supprimées"
 
-# Function to create custom test data
-create_custom_data() {
-    log_info "Création de données personnalisées..."
-    
-    docker compose exec -T db psql -U postgres -d imei_db << 'EOF'
--- Insert additional test users
-INSERT INTO Utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, est_actif)
-VALUES 
-    (gen_random_uuid(), 'Testeur API', 'tester@eir-project.com', '$2b$12$LQv3c7yD8ED8YzLwq2T7vu7C6YXCX3STj6yzGHdRLgIZDQzjfHI8C', 'utilisateur_authentifie', 'standard', 'own', true),
-    (gen_random_uuid(), 'Support Technique', 'support@eir-project.com', '$2b$12$LQv3c7yD8ED8YzLwq2T7vu7C6YXCX3STj6yzGHdRLgIZDQzjfHI8C', 'utilisateur_authentifie', 'limited', 'tout', true);
+# Create test data if it doesn't exist
+if [[ ! -f "backend/test_data.sql" ]]; then
+    log_info "Création du fichier de données de test..."
+    mkdir -p backend
+    cat > backend/test_data.sql << 'EOF'
+-- Test data for EIR system
+-- Insert test users
+INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, organisation, est_actif) VALUES
+('00000000-0000-0000-0000-000000000001', 'Admin System', 'admin@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'administrateur', 'admin', 'tout', 'ANRT', true),
+('00000000-0000-0000-0000-000000000002', 'Operateur Orange', 'orange@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'operateur', 'standard', 'organisation', 'Orange Maroc', true),
+('00000000-0000-0000-0000-000000000003', 'Operateur Inwi', 'inwi@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'operateur', 'standard', 'organisation', 'Inwi', true),
+('00000000-0000-0000-0000-000000000004', 'Utilisateur Test', 'user@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'utilisateur_authentifie', 'basique', 'personnel', 'Test Corp', true);
 
--- Insert some additional test devices
-WITH new_user AS (
-    SELECT id FROM Utilisateur WHERE email = 'tester@eir-project.com'
-)
-INSERT INTO Appareil (id, marque, modele, emmc, utilisateur_id)
+-- Insert test TAC data
+INSERT INTO tac_database (tac, marque, modele, type_appareil, statut) VALUES
+('35326005', 'Samsung', 'Galaxy S23', 'smartphone', 'valide'),
+('35692005', 'Apple', 'iPhone 14', 'smartphone', 'valide'),
+('86234567', 'Huawei', 'P50 Pro', 'smartphone', 'valide'),
+('35847200', 'Xiaomi', 'Mi 12', 'smartphone', 'valide'),
+('35404806', 'OnePlus', '10 Pro', 'smartphone', 'valide'),
+('35404807', 'OnePlus', 'Nord 2', 'smartphone', 'valide'),
+('99000000', 'TestDevice', 'Test Model', 'test_device', 'test'),
+('01194800', 'Apple', 'iPhone 3GS', 'smartphone', 'obsolete'),
+('35060680', 'Nokia', '3310', 'feature_phone', 'obsolete');
+
+-- Insert test devices
+INSERT INTO appareil (id, marque, modele, emmc, utilisateur_id) VALUES
+('10000000-0000-0000-0000-000000000001', 'Samsung', 'Galaxy S23', '256GB', '00000000-0000-0000-0000-000000000002'),
+('10000000-0000-0000-0000-000000000002', 'Apple', 'iPhone 14', '128GB', '00000000-0000-0000-0000-000000000003'),
+('10000000-0000-0000-0000-000000000003', 'Huawei', 'P50 Pro', '512GB', '00000000-0000-0000-0000-000000000004'),
+('10000000-0000-0000-0000-000000000004', 'Xiaomi', 'Mi 12', '256GB', '00000000-0000-0000-0000-000000000002'),
+('10000000-0000-0000-0000-000000000005', 'OnePlus', '10 Pro', '128GB', '00000000-0000-0000-0000-000000000003');
+
+-- Insert test IMEIs
+INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id) VALUES
+('20000000-0000-0000-0000-000000000001', '353260051234567', 1, 'actif', '10000000-0000-0000-0000-000000000001'),
+('20000000-0000-0000-0000-000000000002', '353260051234568', 2, 'actif', '10000000-0000-0000-0000-000000000001'),
+('20000000-0000-0000-0000-000000000003', '356920051234567', 1, 'actif', '10000000-0000-0000-0000-000000000002'),
+('20000000-0000-0000-0000-000000000004', '862345671234567', 1, 'actif', '10000000-0000-0000-0000-000000000003'),
+('20000000-0000-0000-0000-000000000005', '358472001234567', 1, 'actif', '10000000-0000-0000-0000-000000000004'),
+('20000000-0000-0000-0000-000000000006', '354048061234567', 1, 'actif', '10000000-0000-0000-0000-000000000005'),
+('20000000-0000-0000-0000-000000000007', '990000001234567', 1, 'suspect', '10000000-0000-0000-0000-000000000005'),
+('20000000-0000-0000-0000-000000000008', '011948001234567', 1, 'bloque', '10000000-0000-0000-0000-000000000004');
+
+-- Insert test SIM cards
+INSERT INTO sim (id, iccid, operateur, utilisateur_id) VALUES
+('30000000-0000-0000-0000-000000000001', '89212070000000001234', 'Orange', '00000000-0000-0000-0000-000000000002'),
+('30000000-0000-0000-0000-000000000002', '89212040000000001234', 'Inwi', '00000000-0000-0000-0000-000000000003'),
+('30000000-0000-0000-0000-000000000003', '89212010000000001234', 'Maroc Telecom', '00000000-0000-0000-0000-000000000004'),
+('30000000-0000-0000-0000-000000000004', '89212070000000005678', 'Orange', '00000000-0000-0000-0000-000000000002'),
+('30000000-0000-0000-0000-000000000005', '89212040000000005678', 'Inwi', '00000000-0000-0000-0000-000000000003');
+
+-- Insert test searches
+INSERT INTO recherche (id, date_recherche, imei_recherche, utilisateur_id) VALUES
+('40000000-0000-0000-0000-000000000001', NOW() - INTERVAL '1 day', '353260051234567', '00000000-0000-0000-0000-000000000002'),
+('40000000-0000-0000-0000-000000000002', NOW() - INTERVAL '2 hours', '356920051234567', '00000000-0000-0000-0000-000000000003'),
+('40000000-0000-0000-0000-000000000003', NOW() - INTERVAL '30 minutes', '862345671234567', '00000000-0000-0000-0000-000000000004'),
+('40000000-0000-0000-0000-000000000004', NOW() - INTERVAL '5 minutes', '990000001234567', '00000000-0000-0000-0000-000000000001'),
+('40000000-0000-0000-0000-000000000005', NOW(), '011948001234567', '00000000-0000-0000-0000-000000000001');
+
+-- Insert test notifications
+INSERT INTO notification (id, type, contenu, statut, utilisateur_id) VALUES
+('50000000-0000-0000-0000-000000000001', 'alerte', 'IMEI suspect détecté: 990000001234567', 'non_lu', '00000000-0000-0000-0000-000000000001'),
+('50000000-0000-0000-0000-000000000002', 'info', 'Nouveau dispositif enregistré: Samsung Galaxy S23', 'lu', '00000000-0000-0000-0000-000000000002'),
+('50000000-0000-0000-0000-000000000003', 'alerte', 'IMEI bloqué utilisé: 011948001234567', 'non_lu', '00000000-0000-0000-0000-000000000001'),
+('50000000-0000-0000-0000-000000000004', 'info', 'Recherche effectuée pour IMEI: 356920051234567', 'lu', '00000000-0000-0000-0000-000000000003');
+
+-- Insert test audit logs
+INSERT INTO journal_audit (id, action, date, utilisateur_id) VALUES
+('60000000-0000-0000-0000-000000000001', 'LOGIN: Connexion utilisateur admin@eir.ma', NOW() - INTERVAL '1 hour', '00000000-0000-0000-0000-000000000001'),
+('60000000-0000-0000-0000-000000000002', 'SEARCH: Recherche IMEI 353260051234567', NOW() - INTERVAL '45 minutes', '00000000-0000-0000-0000-000000000002'),
+('60000000-0000-0000-0000-000000000003', 'CREATE: Nouveau dispositif ajouté', NOW() - INTERVAL '30 minutes', '00000000-0000-0000-0000-000000000003'),
+('60000000-0000-0000-0000-000000000004', 'UPDATE: Statut IMEI modifié', NOW() - INTERVAL '15 minutes', '00000000-0000-0000-0000-000000000001'),
+('60000000-0000-0000-0000-000000000005', 'EXPORT: Export de données effectué', NOW() - INTERVAL '5 minutes', '00000000-0000-0000-0000-000000000001');
+
+-- Insert test import/export records
+INSERT INTO importexport (id, type_operation, fichier, date, utilisateur_id) VALUES
+('70000000-0000-0000-0000-000000000001', 'import', 'devices_batch_001.csv', NOW() - INTERVAL '2 days', '00000000-0000-0000-0000-000000000001'),
+('70000000-0000-0000-0000-000000000002', 'export', 'imei_report_2024.csv', NOW() - INTERVAL '1 day', '00000000-0000-0000-0000-000000000002'),
+('70000000-0000-0000-0000-000000000003', 'import', 'tac_database_update.csv', NOW() - INTERVAL '6 hours', '00000000-0000-0000-0000-000000000001'),
+('70000000-0000-0000-0000-000000000004', 'export', 'monthly_stats.xlsx', NOW() - INTERVAL '1 hour', '00000000-0000-0000-0000-000000000003');
+
+-- Display summary
+SELECT 'Données de test insérées avec succès!' as message;
 SELECT 
-    gen_random_uuid(),
-    'Xiaomi',
-    'Mi 11',
-    '128GB',
-    new_user.id
-FROM new_user;
-
--- Insert corresponding IMEI
-WITH device_info AS (
-    SELECT a.id as device_id 
-    FROM Appareil a 
-    JOIN Utilisateur u ON a.utilisateur_id = u.id 
-    WHERE u.email = 'tester@eir-project.com' AND a.marque = 'Xiaomi'
-)
-INSERT INTO IMEI (id, imei_number, slot_number, status, appareil_id)
-SELECT 
-    gen_random_uuid(),
-    '351234567890123',
-    1,
-    'active',
-    device_info.device_id
-FROM device_info;
-
+    'Utilisateurs: ' || (SELECT COUNT(*) FROM utilisateur) ||
+    ', Appareils: ' || (SELECT COUNT(*) FROM appareil) ||
+    ', IMEIs: ' || (SELECT COUNT(*) FROM imei) ||
+    ', TACs: ' || (SELECT COUNT(*) FROM tac_database) as resume;
 EOF
+fi
 
-    if [[ $? -eq 0 ]]; then
-        log_success "Données personnalisées créées"
-    else
-        log_warning "Problème avec la création des données personnalisées"
-    fi
-}
+# Load test data
+log_info "Rechargement des données de test..."
+docker compose cp backend/test_data.sql db:/tmp/test_data.sql
+if docker compose exec -T db psql -U postgres -d imei_db -f /tmp/test_data.sql; then
+    log_success "Données de test chargées"
+else
+    log_error "Échec du rechargement des données de test"
+    exit 1
+fi
 
-# Function to verify reset
-verify_reset() {
-    log_info "Vérification de la réinitialisation..."
-    
-    # Count records
-    local counts
-    counts=$(docker compose exec -T db psql -U postgres -d imei_db -t << 'EOF'
+# Display statistics
+log_info "Affichage des statistiques..."
+docker compose exec -T db psql -U postgres -d imei_db -c "
+SELECT 'Base de données réinitialisée avec succès!' as status;
 SELECT 
-    'Utilisateurs: ' || COUNT(*) FROM Utilisateur
-UNION ALL
-SELECT 
-    'Appareils: ' || COUNT(*) FROM Appareil
-UNION ALL
-SELECT 
-    'IMEIs: ' || COUNT(*) FROM IMEI
-UNION ALL
-SELECT 
-    'SIMs: ' || COUNT(*) FROM SIM;
-EOF
-)
+    'Statistiques' as info,
+    (SELECT COUNT(*) FROM utilisateur) as utilisateurs,
+    (SELECT COUNT(*) FROM appareil) as appareils,
+    (SELECT COUNT(*) FROM imei) as imeis,
+    (SELECT COUNT(*) FROM sim) as cartes_sim,
+    (SELECT COUNT(*) FROM recherche) as recherches,
+    (SELECT COUNT(*) FROM tac_database) as tac_entries;
+"
 
-    echo "$counts" | while read -r line; do
-        log_success "$line"
-    done
-}
+# Clean up temporary files
+rm -f /tmp/clear_data.sql
 
-# Function to restart web service if needed
-restart_web_if_needed() {
-    log_info "Vérification du service web..."
-    
-    if curl -s -f http://localhost:8000/verification-etat > /dev/null 2>&1; then
-        log_success "Service web opérationnel"
-    else
-        log_info "Redémarrage du service web..."
-        docker compose restart web
-        
-        # Wait for API
-        local max_attempts=10
-        local attempt=1
-        
-        sleep 3
-        
-        while [ $attempt -le $max_attempts ]; do
-            if curl -s -f http://localhost:8000/verification-etat > /dev/null 2>&1; then
-                log_success "Service web redémarré avec succès"
-                break
-            fi
-            
-            log_info "Tentative $attempt/$max_attempts - Service web non prêt"
-            sleep 2
-            ((attempt++))
-        done
-        
-        if [ $attempt -gt $max_attempts ]; then
-            log_warning "Service web prend plus de temps que prévu"
-        fi
-    fi
-}
-
-# Function to show final status
-show_status() {
-    echo ""
-    echo "🎉 Réinitialisation de la base de données terminée !"
-    echo ""
-    echo "📊 Statut :"
-    docker compose ps
-    echo ""
+log_success "Réinitialisation terminée avec succès!"
+echo ""
+echo "📊 Comptes de test disponibles:"
+echo "   Admin: admin@eir.ma / password123"
+echo "   Orange: orange@eir.ma / password123"
+echo "   Inwi: inwi@eir.ma / password123"
+echo "   User: user@eir.ma / password123"
+echo ""
+echo "🌐 Interface web: http://localhost:8000"
+echo "🔧 Admin: http://localhost:8000/admin"
+echo ""
+echo "🔧 Pour importer votre base TAC Osmocom:"
+echo "   ./scripts/alimenter-base-donnees.sh --osmocom-tac data/tacdb.csv"
+echo ""
+echo "🧪 Test TAC validation:"
+echo "   curl http://localhost:8000/imei/353260051234567/validate"
     echo "🔑 Utilisateurs de test disponibles (mot de passe: admin123) :"
     echo "   👑 admin@eir-project.com (Administrateur)"
     echo "   👤 user@example.com (Utilisateur Standard)"

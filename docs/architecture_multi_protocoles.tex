@@ -1,0 +1,392 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\geometry{margin=2.5cm}
+
+% Configuration pour les listings de code
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+    language=bash,
+    showstringspaces=false
+}
+
+% En-tête personnalisé
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Application EIR - Architecture Multi-Protocoles}
+\lhead{Mohamed Salem Khyarhoum}
+\cfoot{\thepage}
+
+\title{Application EIR : Architecture de Vérification IMEI Multi-Protocoles}
+\author{Mohamed Salem Khyarhoum \\ Stage chez Moov Mauritel}
+\date{Août 2025}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Contexte du projet}
+
+Dans le cadre du développement d'une application EIR (Equipment Identity Register), ce projet vise à implémenter un service avancé de vérification des terminaux mobiles (IMEI) avec support multi-protocoles. L'objectif est de s'assurer qu'un équipement est autorisé à se connecter au réseau mobile via différents protocoles de communication selon les besoins d'intégration.
+
+Ce projet consiste plus précisément à concevoir et implémenter une application de type EIR sous forme de service web moderne, permettant de vérifier en temps réel l'état des équipements mobiles lors de leur tentative d'attachement au réseau, tout en supportant les protocoles standards des télécommunications.
+
+\subsection{Évolution du Projet}
+
+Le projet a évolué d'une simple API REST vers un système d'intégration multi-protocoles complet supportant :
+\begin{itemize}
+    \item \textbf{REST/HTTP} : Pour intégrations web et applications mobiles
+    \item \textbf{SS7/MAP} : Pour intégration avec MSC/VLR/HLR (réseaux 2G/3G)
+    \item \textbf{Diameter} : Pour intégration avec MME/SGSN/HSS (réseaux 4G/LTE)
+\end{itemize}
+
+\section{Objectif}
+
+Permettre à différents nœuds du réseau de télécommunications de vérifier, via leurs protocoles natifs, si un terminal est autorisé à se connecter au réseau, sur la base de son IMEI. Le système doit être suffisamment flexible pour s'adapter aux différents environnements de déploiement.
+
+\section{Architecture Multi-Protocoles}
+
+\begin{center}
+    \includegraphics[width=0.9\textwidth]{architecture_multi_protocoles.png} 
+\end{center}
+
+\subsection{Composants Principaux}
+
+\textbf{Couche de Présentation :}
+\begin{itemize}
+    \item \textbf{API REST} : Interface HTTP/JSON pour applications web et mobiles
+    \item \textbf{Interface SS7} : Handler pour messages MAP via SIGTRAN
+    \item \textbf{Interface Diameter} : Gestionnaire des sessions et AVPs Diameter
+\end{itemize}
+
+\textbf{Couche de Logique Métier :}
+\begin{itemize}
+    \item \textbf{Dispatcher Central} : Routage intelligent des requêtes selon le protocole
+    \item \textbf{Gestionnaire de Configuration} : Configuration dynamique des protocoles
+    \item \textbf{Service d'Audit} : Journalisation unifiée de toutes les interactions
+\end{itemize}
+
+\textbf{Couche de Données :}
+\begin{itemize}
+    \item \textbf{Base PostgreSQL} : Stockage des IMEI et métadonnées
+    \item \textbf{Cache Redis} : Mise en cache des réponses pour performance
+    \item \textbf{APIs Externes} : Intégration GSMA et services tiers
+\end{itemize}
+
+\subsection{Équipements d'Intégration}
+
+\textbf{Réseau 2G/3G :}
+\begin{itemize}
+    \item \textbf{MSC (Mobile Switching Center)} : Centre de commutation mobile
+    \item \textbf{VLR (Visitor Location Register)} : Registre des visiteurs
+    \item \textbf{HLR (Home Location Register)} : Registre des abonnés nominaux
+\end{itemize}
+
+\textbf{Réseau 4G/LTE :}
+\begin{itemize}
+    \item \textbf{MME (Mobility Management Entity)} : Entité de gestion de mobilité
+    \item \textbf{SGSN (Serving GPRS Support Node)} : Nœud de support GPRS
+    \item \textbf{HSS (Home Subscriber Server)} : Serveur d'abonnés nominaux
+\end{itemize}
+
+\section{Configuration Multi-Protocoles}
+
+\subsection{Fichier de Configuration}
+
+Le système utilise un fichier YAML pour la configuration dynamique :
+
+\begin{lstlisting}[language=yaml,caption=config/protocols.yml]
+# Configuration des protocoles d'intégration
+enabled_protocols:
+  rest: true      # API REST/HTTP
+  ss7: true       # Signaling System 7  
+  diameter: true  # Protocole Diameter
+
+# Timeouts par protocole (secondes)
+timeouts:
+  rest: 30        # Requêtes web
+  ss7: 10         # Messages temps réel
+  diameter: 60    # Sessions longues
+
+# Configuration réseau
+endpoints:
+  ss7:
+    sccp_address: "1234"        # Point Code SCCP
+    gt: "33123456789"           # Global Title E.164
+  diameter:
+    host: "0.0.0.0"
+    port: 3868                  # Port standard IANA
+    realm: "eir.domain.com"     # Diameter Realm
+\end{lstlisting}
+
+\subsection{Activation/Désactivation Dynamique}
+
+Les protocoles peuvent être activés ou désactivés sans redémarrage :
+
+\begin{lstlisting}[caption=Vérification du statut]
+curl http://localhost:8000/protocols/status
+{
+  "protocols": {
+    "rest": true,
+    "ss7": true, 
+    "diameter": true
+  },
+  "active_protocols": 3
+}
+\end{lstlisting}
+
+\section{Scénarios de Communication}
+
+\subsection{Protocole REST (Applications Web/Mobile)}
+
+\begin{enumerate}
+    \item L'application mobile fait une requête HTTP
+    \item L'API valide l'authentification JWT
+    \item Le dispatcher route vers le handler REST
+    \item Recherche dans la base PostgreSQL
+    \item Retour de la réponse JSON enrichie
+\end{enumerate}
+
+\begin{lstlisting}[caption=Exemple REST]
+POST /verify_imei?protocol=rest
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{"imei": "123456789012345"}
+
+# Réponse
+{
+  "status": "success",
+  "imei": "123456789012345",
+  "imei_status": "whitelisted",
+  "action": "allow",
+  "processing_time_ms": 245.67
+}
+\end{lstlisting}
+
+\subsection{Protocole SS7 (Intégration MSC/VLR)}
+
+\begin{enumerate}
+    \item Le MSC envoie un message MAP CHECK-IMEI-REQ
+    \item L'interface SS7 décode le message SCCP
+    \item Le dispatcher route vers le handler SS7
+    \item Traitement en mode fire-and-forget
+    \item Logging pour audit sans réponse
+\end{enumerate}
+
+\begin{lstlisting}[caption=Exemple SS7]
+POST /verify_imei?protocol=ss7
+Content-Type: application/json
+
+{
+  "imei": "123456789012345",
+  "msisdn": "33123456789",
+  "imsi": "208011234567890"
+}
+
+# Réponse (confirmation)
+{
+  "status": "accepted",
+  "message": "Requête SS7 acceptée",
+  "processing_mode": "fire_and_forget",
+  "request_id": "uuid-12345"
+}
+\end{lstlisting}
+
+\subsection{Protocole Diameter (Intégration MME/SGSN)}
+
+\begin{enumerate}
+    \item Le MME initie une session Diameter
+    \item Envoi d'un Equipment-Status-Request avec AVPs
+    \item Le dispatcher route vers le handler Diameter
+    \item Génération d'une réponse avec AVPs standards
+    \item Retour d'un Equipment-Status-Answer
+\end{enumerate}
+
+\begin{lstlisting}[caption=Exemple Diameter]
+POST /verify_imei?protocol=diameter
+Content-Type: application/json
+
+{
+  "imei": "123456789012345",
+  "session_id": "eir.domain.com;1234567890;abc123",
+  "origin_host": "mme.operator.com"
+}
+
+# Réponse
+{
+  "message_type": "Equipment-Status-Answer",
+  "avps": {
+    "Session-Id": "eir.domain.com;1234567890;abc123",
+    "Result-Code": 2001,
+    "Equipment-Status": 0,
+    "User-Name": "123456789012345"
+  }
+}
+\end{lstlisting}
+
+\subsection{Synchronisation DMS (Device Management System)}
+
+\begin{enumerate}
+    \item Le système DMS externe initie une synchronisation
+    \item Envoi des données d'appareils via l'endpoint dédié
+    \item Validation et traitement des données par lots
+    \item Création ou mise à jour des appareils en base
+    \item Retour des statistiques de synchronisation
+\end{enumerate}
+
+\begin{lstlisting}[caption=Exemple Synchronisation DMS]
+POST /sync-device
+Content-Type: application/json
+
+{
+  "appareils": [
+    {
+      "imei": "123456789012345",
+      "marque": "Samsung",
+      "modele": "Galaxy S21",
+      "statut": "actif",
+      "emmc": "128GB"
+    }
+  ],
+  "sync_mode": "upsert",
+  "source_system": "DMS_External"
+}
+
+# Réponse
+{
+  "statut": "succès",
+  "appareils_synchronisés": 1,
+  "créés": 1,
+  "mis_à_jour": 0,
+  "erreurs": 0,
+  "id_sync": "uuid-12345",
+  "durée_ms": 62.56
+}
+\end{lstlisting}
+
+\section{Intégration avec les Systèmes Existants}
+
+\subsection{Synchronisation DMS}
+
+L'endpoint \texttt{/sync-device} permet l'intégration avec des systèmes DMS externes :
+
+\begin{itemize}
+    \item \textbf{Modes de synchronisation} : upsert, insert\_only, update\_only
+    \item \textbf{Traitement par lots} : Support de multiples appareils
+    \item \textbf{Validation automatique} : Contrôle des formats IMEI
+    \item \textbf{Gestion d'erreurs} : Rapports détaillés par appareil
+    \item \textbf{Audit complet} : Journalisation de toutes les opérations
+\end{itemize}
+
+\subsection{APIs Externes}
+
+\textbf{GSMA Device Check :}
+\begin{itemize}
+    \item Validation globale des IMEI
+    \item Vérification des listes noires internationales
+    \item Mise en cache locale des résultats
+\end{itemize}
+
+\section{Sécurité et Conformité}
+
+\subsection{Authentification et Autorisation}
+
+\begin{itemize}
+    \item \textbf{JWT Bearer Tokens} : Pour APIs REST
+    \item \textbf{Mutual TLS} : Pour protocoles SS7/Diameter
+    \item \textbf{API Keys} : Pour intégrations système
+    \item \textbf{RBAC} : Contrôle d'accès basé sur les rôles
+\end{itemize}
+
+\subsection{Audit et Conformité}
+
+\begin{itemize}
+    \item \textbf{Journalisation complète} : Toutes les interactions protocolaires
+    \item \textbf{Traçabilité} : Suivi des requêtes end-to-end
+    \item \textbf{Conformité RGPD} : Protection des données personnelles
+    \item \textbf{Normes Télécom} : Respect des standards GSMA
+\end{itemize}
+
+\section{Déploiement et Configuration}
+
+\subsection{Architecture Docker}
+
+\begin{lstlisting}[caption=Services Docker]
+# Services principaux
+- eir_web: Application FastAPI multi-protocoles
+- eir_db: Base PostgreSQL
+- config: Volume pour configuration dynamique
+
+# Démarrage
+docker-compose up -d
+
+# Vérification
+curl http://localhost:8000/protocols/status
+\end{lstlisting}
+
+\subsection{Configuration Dynamique}
+
+Les protocoles peuvent être activés/désactivés en temps réel via le fichier \texttt{config/protocols.yml} sans redémarrage du système.
+
+\section{Avantages de l'Architecture}
+
+\begin{itemize}
+    \item \textbf{Flexibilité} : Support de différents équipements réseau (2G/3G/4G)
+    \item \textbf{Évolutivité} : Ajout facile de nouveaux protocoles
+    \item \textbf{Configuration unifiée} : Gestion centralisée via YAML
+    \item \textbf{Synchronisation DMS} : Intégration avec systèmes externes
+    \item \textbf{Audit complet} : Traçabilité de toutes les opérations
+\end{itemize}
+
+\section{Conclusion}
+
+L'architecture multi-protocoles développée offre une solution moderne et flexible pour la vérification IMEI dans les réseaux de télécommunications. En supportant simultanément REST, SS7, Diameter et la synchronisation DMS, le système peut s'intégrer avec tous les types d'équipements réseau.
+
+Cette approche unifiée permet aux opérateurs de centraliser leur logique métier EIR tout en conservant la compatibilité avec leur infrastructure existante.
+
+\section{Annexes}
+
+\subsection{Tests et Vérifications}
+
+\begin{lstlisting}[caption=Commandes de Test]
+# Statut des protocoles
+curl http://localhost:8000/protocols/status
+
+# Test vérification IMEI REST
+curl -X POST "http://localhost:8000/verify_imei?protocol=rest" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345"}'
+
+# Test synchronisation DMS
+curl -X POST "http://localhost:8000/sync-device" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "appareils": [{"imei": "123456789012345", "marque": "Samsung", "modele": "Galaxy S21"}],
+       "sync_mode": "upsert",
+       "source_system": "DMS_Test"
+     }'
+\end{lstlisting}
+
+\subsection{Références}
+
+\begin{itemize}
+    \item \textbf{GSMA} : Standards IMEI et Device Check
+    \item \textbf{3GPP} : Spécifications SS7 MAP et Diameter
+    \item \textbf{ITU-T} : Recommandations pour les télécommunications
+    \item \textbf{IANA} : Ports et protocoles standards
+\end{itemize}
+
+\end{document}

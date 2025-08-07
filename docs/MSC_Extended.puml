@@ -1,53 +1,66 @@
 @startuml
 !theme plain
-title Processus de Vérification IMEI - Options d'Intégration Réseau
+title EIR Multi-Protocoles - Scénarios d'Intégration
 
 actor "Utilisateur" as U
-participant "Téléphone mobile" as T
-participant "Station de base (BTS)" as BTS
-participant "Contrôleur BSC" as BSC
-participant "Centre de commutation (MSC)" as MSC
-participant "HLR/VLR" as HLR
-participant "Service EIR" as IMEI_Checker
+participant "Téléphone" as T
+participant "App Web" as WEB
+participant "MSC" as MSC
+participant "MME" as MME
 participant "DMS" as DMS
-participant "GSMA API" as GSMA
+participant "EIR" as EIR
+participant "DB" as DB
 
-U -> T : Allume le téléphone
-T -> BTS : Demande d'accès au réseau
-BTS -> BSC : Transmission du signal
-BSC -> MSC : Requête d'attachement
+note over EIR : Protocoles Actifs:\nREST • SS7 • Diameter • DMS
 
-MSC -> HLR : Vérification IMSI/MSISDN
-HLR --> MSC : Résultat d'abonnement (OK)
-
-alt Protocole REST (Par défaut)
-    MSC -> IMEI_Checker : GET /imei/{imei_number}
-    note right : Authentication: Bearer token
-else Protocole MAP (Production)
-    MSC -> IMEI_Checker : MAP-CHECK-IMEI-REQ
-    note right : SS7/SIGTRAN
-else Intégration DMS
-    MSC -> IMEI_Checker : POST /msc/check-imei
-    IMEI_Checker -> DMS : SOAP sync-device
-    DMS --> IMEI_Checker : Device status
+group REST (Web/Mobile)
+    U -> T : Ouvre application
+    T -> WEB : Demande vérification IMEI
+    WEB -> EIR : POST /verify_imei?protocol=rest
+    note right : {"imei": "123456789012345"}
+    
+    EIR -> DB : Recherche IMEI
+    EIR --> WEB : {"status": "success", "imei_status": "whitelisted"}
+    WEB --> T : Résultat affiché
+    T --> U : IMEI validé
 end
 
-alt Base de données locale
-    IMEI_Checker -> IMEI_Checker : Recherche en base PostgreSQL
-    IMEI_Checker --> MSC : {"statut": "allowed", "trouve": true}
-else API externe (GSMA)
-    IMEI_Checker -> GSMA : GET /validate-imei/{imei}
-    GSMA --> IMEI_Checker : Device validation result
-    IMEI_Checker -> IMEI_Checker : Mise en cache locale
-    IMEI_Checker --> MSC : {"statut": "bloqué", "trouve": true}
+group SS7 (MSC/VLR)
+    U -> T : Allume téléphone
+    T -> MSC : Demande attachement réseau
+    MSC -> EIR : POST /verify_imei?protocol=ss7
+    note right : {"imei": "123456789012345", "msisdn": "33123456789"}
+    
+    EIR -> DB : Log requête
+    EIR --> MSC : {"status": "accepted", "processing_mode": "fire_and_forget"}
+    
+    alt IMEI autorisé
+        MSC -> T : Connexion autorisée
+        T --> U : Réseau disponible
+    else IMEI bloqué
+        MSC -> T : Connexion refusée
+        T --> U : Pas de réseau
+    end
 end
 
-alt IMEI autorisé
-    MSC -> T : Autoriser l'accès réseau
-    note right : Connexion établie
-else IMEI bloqué
-    MSC -> T : Rejeter la connexion
-    note right : Accès refusé
+group Diameter (MME/SGSN)
+    U -> T : Active données LTE
+    T -> MME : Attach Request
+    MME -> EIR : POST /verify_imei?protocol=diameter
+    note right : {"imei": "123456789012345", "session_id": "abc123"}
+    
+    EIR -> DB : Recherche IMEI
+    EIR --> MME : {"message_type": "Equipment-Status-Answer", "Result-Code": 2001}
+    MME -> T : Attach Accept/Reject
+    T --> U : Données LTE activées
+end
+
+group DMS Sync
+    DMS -> EIR : POST /sync-device
+    note right : {"appareils": [{"imei": "123456789012345", "marque": "Samsung"}]}
+    
+    EIR -> DB : UPDATE/INSERT appareils
+    EIR --> DMS : {"statut": "succès", "créés": 1, "durée_ms": 62.56}
 end
 
 @enduml

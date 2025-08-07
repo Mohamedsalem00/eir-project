@@ -1,0 +1,157 @@
+# Configuration des APIs externes pour vérification IMEI - PRODUCTION READY
+# Configuration optimisée pour base TAC locale + APIs externes désactivées (prêtes à activer)
+external_apis:
+  enabled: true
+  fallback_enabled: true
+  cache_duration_hours: 24
+  
+  providers:
+    # Osmocom TAC Database - Source officielle gratuite (priorité 0 - ACTIVE)
+    osmocom_tac:
+      enabled: true
+      type: "tac_json"
+      url: "https://tacdb.osmocom.org/export/tacdb.json"
+      priority: 0
+      description: "Base TAC officielle Osmocom - JSON format"
+      update_frequency: "weekly"
+      
+    # Osmocom TAC Database CSV - Alternative format (priorité 1 - ACTIVE)
+    imeidb_csv:
+      enabled: true
+      type: "tac_csv"
+      url: "https://tacdb.osmocom.org/export/tacdb.csv"
+      priority: 1
+      description: "Base TAC officielle Osmocom - CSV format"
+      update_frequency: "weekly"
+    
+    # Base de données TAC locale (priorité 2 - ACTIVE)
+    local_tac_db:
+      enabled: true
+      type: "local_database"
+      priority: 2
+      description: "Base de données TAC locale gratuite - 16,000+ modèles"
+      
+    # Validation algorithmique Luhn (priorité 3 - ACTIVE)
+    luhn_validator:
+      enabled: true
+      type: "algorithmic"
+      priority: 3
+      description: "Validation IMEI par algorithme Luhn (détection erreurs saisie)"
+      
+    # === APIs EXTERNES (DÉSACTIVÉES - PRÊTES À ACTIVER) ===
+    
+    # NumVerify API - Freemium fiable (1000 req/mois gratuit)
+    numverify:
+      enabled: false  # À activer quand vous aurez une clé
+      url: "http://apilayer.net/api/validate"
+      api_key: "${NUMVERIFY_API_KEY}"
+      daily_limit: 1000
+      priority: 4
+      description: "API fiable - 1000 req/mois gratuit sur numverify.com"
+      method: "GET"
+      params_format: "?access_key={api_key}&number={imei}"
+      
+    # CheckIMEI.com - Vos clés API (prêtes mais documentation requise)
+    checkimei_user:
+      enabled: false  # À activer quand endpoint API confirmé
+      url: "https://api.checkimei.com/v1/check"  # URL à confirmer via doc
+      api_key: "${CHECKIMEI_API_KEY}"
+      username: "${CHECKIMEI_USERNAME}"
+      daily_limit: 1000
+      priority: 5
+      description: "Vos clés CheckIMEI - Documentation API requise"
+      method: "POST"
+      
+    # IMEI.org - Vos clés API (prêtes mais documentation requise)
+    imei_org_user:
+      enabled: false  # À activer quand endpoint API confirmé
+      url: "https://api-client.imei.org/api/dhru"  # URL à confirmer via doc
+      api_key: "${IMEI_ORG_API_KEY}"
+      daily_limit: 1000
+      priority: 6
+      description: "Vos clés IMEI.org - Documentation API requise"
+      method: "POST"
+      
+    # IMEI24 - Site actif mais pas d'API publique confirmée
+    imei24:
+      enabled: false  # Pas d'API publique connue
+      url: "https://imei24.com/api/check"  # URL hypothétique
+      api_key: null
+      daily_limit: 500
+      priority: 7
+      description: "Site actif - API publique non confirmée"
+      
+    # Twilio Lookup - API premium officielle
+    twilio_lookup:
+      enabled: false  # API payante (0.05€/requête)
+      url: "https://lookups.twilio.com/v1/PhoneNumbers/{imei}"
+      api_key: "${TWILIO_API_KEY}"
+      daily_limit: 10000
+      priority: 8
+      description: "API officielle Twilio - 0.05€/requête"
+      
+  rate_limiting:
+    max_requests_per_minute: 10
+    max_requests_per_hour: 100
+    burst_limit: 20
+    
+  cache:
+    enabled: true
+    redis_url: "${REDIS_URL:-redis://localhost:6379}"
+    default_ttl: 86400  # 24 heures
+    max_cache_size: 10000  # Nombre maximum d'entrées en cache
+    
+  timeouts:
+    connection_timeout: 5
+    read_timeout: 10
+    total_timeout: 15
+    
+  logging:
+    level: "INFO"
+    log_requests: true
+    log_cache_hits: true
+    log_external_calls: true
+
+# Configuration de la base de données TAC locale
+tac_database:
+  enabled: true
+  update_frequency: "weekly"
+  auto_sync: true
+  sources:
+    - name: "osmocom_json_api"
+      url: "https://tacdb.osmocom.org/export/tacdb.json"
+      format: "json"
+      enabled: true
+      priority: 0
+      description: "API JSON officielle Osmocom"
+    - name: "osmocom_csv_api"
+      url: "https://tacdb.osmocom.org/export/tacdb.csv"
+      format: "csv"
+      enabled: true
+      priority: 1
+      description: "API CSV officielle Osmocom"
+    - name: "local_backup"
+      file: "data/tac_database_backup.json"
+      format: "json"
+      enabled: true
+      priority: 2
+      description: "Sauvegarde locale JSON"
+    - name: "manual_updates"
+      file: "data/manual_tac_updates.json"
+      format: "json"
+      enabled: true
+      priority: 3
+      description: "Mises à jour manuelles"
+
+# Configuration des tâches automatiques
+scheduled_tasks:
+  tac_sync:
+    enabled: true
+    cron: "0 2 * * 0"  # Dimanche à 2h du matin
+    sources: ["osmocom_json_api", "osmocom_csv_api"]
+    fallback_on_error: true
+    
+  cleanup_old_logs:
+    enabled: true
+    cron: "0 3 1 * *"  # Premier du mois à 3h
+    retention_days: 90

@@ -1,0 +1,345 @@
+{
+  "api_config": {
+    "info": {
+      "title": "API Projet EIR",
+      "version": "1.0.0",
+      "description": "API du Registre d'Identité des Équipements (EIR) pour la gestion professionnelle d'appareils mobiles",
+      "contact": {
+        "name": "Équipe de Développement EIR",
+        "email": "contact@eir-project.com",
+        "url": "https://eir-project.com"
+      },
+      "license": {
+        "name": "Licence Propriétaire"
+      },
+      "terms_of_service": "https://eir-project.com/terms"
+    },
+    "servers": [
+      {
+        "url": "http://localhost:8000",
+        "description": "Serveur de développement local"
+      },
+      {
+        "url": "https://api.eir-project.com",
+        "description": "Serveur de production"
+      }
+    ],
+    "tags": [
+      {
+        "name": "Système",
+        "description": "Informations système et vérifications d'état"
+      },
+      {
+        "name": "Public",
+        "description": "Points de terminaison publics disponibles pour tous les utilisateurs"
+      },
+      {
+        "name": "Authentification",
+        "description": "Authentification et autorisation des utilisateurs"
+      },
+      {
+        "name": "IMEI",
+        "description": "Services de validation et recherche d'IMEI"
+      },
+      {
+        "name": "Appareils",
+        "description": "Opérations de gestion des appareils"
+      },
+      {
+        "name": "Cartes SIM",
+        "description": "Opérations de gestion des cartes SIM"
+      },
+      {
+        "name": "Utilisateurs",
+        "description": "Opérations de gestion des utilisateurs"
+      },
+      {
+        "name": "Historique de Recherche",
+        "description": "Points de terminaison d'historique et suivi des recherches"
+      },
+      {
+        "name": "Notifications",
+        "description": "Points de terminaison de gestion des notifications"
+      },
+      {
+        "name": "Analyses",
+        "description": "Points de terminaison d'analyses et rapports"
+      },
+      {
+        "name": "Admin",
+        "description": "Opérations administratives"
+      },
+      {
+        "name": "TAC",
+        "description": "Gestion de la base de données TAC (Type Allocation Code)"
+      },
+      {
+        "name": "Gestion d'Accès",
+        "description": "Contrôle d'accès granulaire et permissions"
+      }
+    ]
+  },
+  "endpoints": {
+    "system": {
+      "welcome": {
+        "path": "/",
+        "method": "GET",
+        "summary": "Bienvenue API",
+        "description": "Point d'entrée principal de l'API avec informations générales",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["nom_service", "version", "description"],
+        "test_data": null
+      },
+      "health": {
+        "path": "/health",
+        "method": "GET",
+        "summary": "Vérification d'État",
+        "description": "Vérification de l'état de santé du système",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["status", "timestamp"],
+        "test_data": null
+      },
+      "health_french": {
+        "path": "/verification-etat",
+        "method": "GET",
+        "summary": "Vérification d'État (Francisé)",
+        "description": "Vérification de l'état de santé du système (version française)",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["statut", "base_donnees", "horodatage"],
+        "test_data": null
+      },
+      "languages": {
+        "path": "/languages",
+        "method": "GET",
+        "summary": "Langues Supportées",
+        "description": "Liste des langues supportées par l'API",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["langues_supportees"],
+        "test_data": null
+      }
+    },
+    "public": {
+      "imei_lookup": {
+        "path": "/imei/{imei}",
+        "method": "GET",
+        "summary": "Recherche IMEI Améliorée avec Contrôle d'Accès",
+        "description": "Recherche d'informations sur un IMEI avec contrôle d'accès",
+        "tags": ["Public", "IMEI"],
+        "auth_required": false,
+        "test_priority": "high",
+        "path_params": {"imei": "352745080123456"},
+        "expected_fields": ["numero_imei", "statut"],
+        "test_data": null
+      },
+      "public_stats": {
+        "path": "/public/statistiques",
+        "method": "GET",
+        "summary": "Statistiques Publiques",
+        "description": "Statistiques publiques du système",
+        "tags": ["Public", "Analyses"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["total_appareils", "total_recherches"],
+        "test_data": null
+      }
+    },
+    "auth": {
+      "register": {
+        "path": "/authentification/inscription",
+        "method": "POST",
+        "summary": "Inscription",
+        "description": "Créer un nouveau compte utilisateur",
+        "tags": ["Authentification"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["message", "user_id"],
+        "test_data": {
+          "nom": "Test User",
+          "email": "test_user@example.com",
+          "mot_de_passe": "test123456",
+          "type_utilisateur": "utilisateur_authentifie"
+        }
+      },
+      "login": {
+        "path": "/authentification/connexion",
+        "method": "POST",
+        "summary": "Connexion",
+        "description": "Authentification utilisateur et obtention du token",
+        "tags": ["Authentification"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["access_token", "token_type"],
+        "test_data": {
+          "email": "admin@eir-project.com",
+          "mot_de_passe": "admin123"
+        }
+      },
+      "profile": {
+        "path": "/authentification/profile",
+        "method": "GET",
+        "summary": "Profil Utilisateur",
+        "description": "Obtenir les informations du profil utilisateur connecté",
+        "tags": ["Authentification"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["id", "nom", "email"],
+        "test_data": null
+      },
+      "logout": {
+        "path": "/authentification/deconnexion",
+        "method": "POST",
+        "summary": "Déconnexion",
+        "description": "Déconnexion utilisateur",
+        "tags": ["Authentification"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["message"],
+        "test_data": null
+      }
+    },
+    "tac": {
+      "tac_search": {
+        "path": "/tac/{tac}",
+        "method": "GET",
+        "summary": "Recherche TAC",
+        "description": "Rechercher les informations d'un code TAC",
+        "tags": ["TAC"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "path_params": {"tac": "35274508"},
+        "expected_fields": ["tac", "marque", "modele", "trouve"],
+        "test_data": null
+      },
+      "tac_stats": {
+        "path": "/admin/tac/stats",
+        "method": "GET",
+        "summary": "Statistiques TAC",
+        "description": "Obtenir les statistiques de la base TAC",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["statistiques_generales", "repartition_statuts"],
+        "test_data": null
+      },
+      "tac_sync": {
+        "path": "/admin/tac/sync",
+        "method": "POST",
+        "summary": "Synchronisation TAC",
+        "description": "Synchroniser la base TAC depuis sources externes",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "high",
+        "expected_fields": ["message", "source", "result"],
+        "test_data": null
+      },
+      "tac_sync_logs": {
+        "path": "/admin/tac/sync/logs",
+        "method": "GET",
+        "summary": "Logs Synchronisation TAC",
+        "description": "Obtenir l'historique des synchronisations TAC",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["statistiques", "logs_recents"],
+        "test_data": null
+      },
+      "tac_import": {
+        "path": "/admin/tac/import",
+        "method": "POST",
+        "summary": "Import TAC",
+        "description": "Importer des données TAC depuis fichier",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["message", "filename", "result"],
+        "test_data": null,
+        "content_type": "multipart/form-data"
+      },
+      "imei_validate_tac": {
+        "path": "/imei/{imei}/validate",
+        "method": "GET",
+        "summary": "Validation IMEI avec TAC",
+        "description": "Valider IMEI avec base TAC et algorithme Luhn",
+        "tags": ["IMEI", "TAC"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "path_params": {"imei": "352745080123456"},
+        "expected_fields": ["valide", "luhn_valide", "tac_info"],
+        "test_data": null
+      },
+      "imei_details": {
+        "path": "/imei/{imei}/details",
+        "method": "GET",
+        "summary": "Détails complets IMEI",
+        "description": "Détails complets IMEI avec validation TAC",
+        "tags": ["IMEI", "TAC"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "path_params": {"imei": "352745080123456"},
+        "expected_fields": ["imei", "recherche_locale", "validation_tac", "resume"],
+        "test_data": null
+      }
+    }
+  },
+  "test_groups": {
+    "smoke": [
+      "system.welcome",
+      "system.health_french",
+      "auth.login",
+      "public.imei_lookup"
+    ],
+    "core": [
+      "system.welcome",
+      "system.health_french",
+      "system.languages",
+      "auth.login",
+      "auth.profile",
+      "public.imei_lookup",
+      "public.public_stats",
+      "tac.tac_search",
+      "tac.imei_validate_tac"
+    ],
+    "tac": [
+      "tac.tac_search",
+      "tac.tac_stats",
+      "tac.tac_sync",
+      "tac.tac_sync_logs",
+      "tac.tac_import",
+      "tac.imei_validate_tac",
+      "tac.imei_details"
+    ]
+  },
+  "test_config": {
+    "default_timeout": 10,
+    "retry_attempts": 3,
+    "base_url": "http://localhost:8000",
+    "auth_endpoints": {
+      "login": "/authentification/connexion",
+      "logout": "/authentification/deconnexion"
+    },
+    "test_users": {
+      "admin": {
+        "email": "admin@eir-project.com",
+        "mot_de_passe": "admin123"
+      },
+      "regular": {
+        "email": "user@example.com",
+        "mot_de_passe": "admin123"
+      }
+    },
+    "test_data": {
+      "test_imei": "352745080123456",
+      "test_iccid": "8934051234567890123",
+      "test_device_id": "test-device-id",
+      "test_user_id": "test-user-id"
+    }
+  }
+}

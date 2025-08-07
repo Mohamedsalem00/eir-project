@@ -316,3 +316,66 @@ class AuditService:
                 **(details or {})
             }
         )
+    
+    def log_device_sync(self, user_id: Optional[str], sync_id: str, source_system: str, 
+                       stats: Dict[str, Any], processing_time_ms: float):
+        """Log device synchronization from external DMS systems"""
+        return self.log_action(
+            action=f"Synchronisation d'appareils depuis {source_system}",
+            user_id=user_id,
+            entity_type="device_sync",
+            entity_id=sync_id,
+            details={
+                "source_system": source_system,
+                "sync_id": sync_id,
+                "appareils_traités": stats.get("traités", 0),
+                "appareils_créés": stats.get("créés", 0),
+                "appareils_mis_à_jour": stats.get("mis_à_jour", 0),
+                "appareils_ignorés": stats.get("ignorés", 0),
+                "erreurs": stats.get("erreurs", 0),
+                "processing_time_ms": processing_time_ms,
+                "success_rate": round((stats.get("traités", 0) - stats.get("erreurs", 0)) / max(stats.get("traités", 1), 1) * 100, 2)
+            }
+        )
+
+    def log_tac_sync(self, user_id: str, source: str, result: Dict[str, Any]):
+        """Log TAC database synchronization operations"""
+        return self.log_action(
+            action=f"Synchronisation TAC depuis {source}",
+            user_id=user_id,
+            entity_type="tac_sync",
+            entity_id=result.get("sync_id", "unknown"),
+            details={
+                "source": source,
+                "sync_id": result.get("sync_id"),
+                "records_imported": result.get("imported", 0),
+                "records_updated": result.get("updated", 0),
+                "records_errors": result.get("errors", 0),
+                "format": result.get("format"),
+                "status": "partial" if result.get("note") else "completed",
+                "error_message": result.get("error_message"),
+                "note": result.get("note")
+            }
+        )
+
+    def log_tac_import(self, user_id: str, filename: str, format_source: str, result: Dict[str, Any]):
+        """Log TAC database import operations from uploaded files"""
+        return self.log_action(
+            action=f"Import TAC depuis fichier {filename} (format: {format_source})",
+            user_id=user_id,
+            entity_type="tac_import",
+            entity_id=result.get("import_id", f"file_{filename}"),
+            details={
+                "filename": filename,
+                "format_source": format_source,
+                "import_id": result.get("import_id"),
+                "records_imported": result.get("imported", 0),
+                "records_updated": result.get("updated", 0),
+                "records_errors": result.get("errors", 0),
+                "file_size": result.get("file_size"),
+                "processing_time_ms": result.get("processing_time_ms"),
+                "status": result.get("status", "completed"),
+                "error_message": result.get("error_message"),
+                "validation_errors": result.get("validation_errors", [])
+            }
+        )

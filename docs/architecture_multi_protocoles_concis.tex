@@ -1,0 +1,210 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\geometry{margin=2cm}
+
+% Configuration des liens hypertexte
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={EIR Multi-Protocoles : Architecture Technique},
+    pdfauthor={Mohamed Salem Khyarhoum},
+    pdfsubject={Documentation technique EIR},
+    pdfkeywords={EIR, Multi-protocoles, SS7, Diameter, REST, DMS},
+    bookmarks=true,
+    bookmarksopen=true,
+    bookmarksnumbered=true
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true
+}
+
+\title{EIR Multi-Protocoles : Architecture Technique}
+\author{Mohamed Salem Khyarhoum}
+\date{Août 2025}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Vue d'ensemble}
+
+Application EIR (Equipment Identity Register) avec support multi-protocoles pour la vérification IMEI :
+\begin{itemize}
+    \item \textbf{REST/HTTP} : Applications web/mobile
+    \item \textbf{SS7/MAP} : Réseaux 2G/3G (MSC/VLR)
+    \item \textbf{Diameter} : Réseaux 4G/LTE (MME/SGSN)
+    \item \textbf{DMS Sync} : Synchronisation systèmes externes
+\end{itemize}
+
+\section{Architecture}
+
+\textbf{Composants principaux :}
+\begin{itemize}
+    \item \textbf{Protocol Dispatcher} : Routage des requêtes
+    \item \textbf{Handlers spécialisés} : REST, SS7, Diameter, DMS
+    \item \textbf{Configuration dynamique} : YAML rechargeable
+    \item \textbf{Base PostgreSQL} : Stockage IMEI
+    \item \textbf{Service d'audit} : Journalisation complète
+\end{itemize}
+
+\subsection{Diagramme de Séquence}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{MSC_Extended.png}
+\caption{Diagramme de séquence des interactions multi-protocoles}
+\label{fig:msc_sequence}
+\end{figure}
+
+\subsection{Architecture Système}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{architecture_simple.png}
+\caption{Architecture générale du système EIR multi-protocoles}
+\label{fig:architecture_system}
+\end{figure}
+
+\textbf{Flux de traitement :}
+\begin{enumerate}
+    \item Réception de la requête (protocole spécifique)
+    \item Routage par le dispatcher central
+    \item Traitement par le handler approprié
+    \item Validation IMEI en base de données
+    \item Retour de la réponse (format protocole)
+\end{enumerate}
+
+\section{Configuration}
+
+\begin{lstlisting}[language=yaml,caption=config/protocols.yml]
+enabled_protocols:
+  rest: true
+  ss7: true  
+  diameter: true
+
+timeouts:
+  rest: 30
+  ss7: 10
+  diameter: 60
+
+endpoints:
+  ss7:
+    sccp_address: "1234"    # Point Code SCCP
+    gt: "33123456789"       # Global Title
+  diameter:
+    host: "0.0.0.0"
+    port: 3868              # Port IANA standard
+    realm: "eir.domain.com"
+\end{lstlisting}
+
+\section{Utilisation}
+
+\subsection{Vérification IMEI}
+\begin{lstlisting}[caption=Requêtes par protocole]
+# REST
+curl -X POST "http://localhost:8000/verify_imei?protocol=rest" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345"}'
+
+# SS7 (simulation)
+curl -X POST "http://localhost:8000/verify_imei?protocol=ss7" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345", "msisdn": "33123456789"}'
+
+# Diameter (simulation)
+curl -X POST "http://localhost:8000/verify_imei?protocol=diameter" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345", "session_id": "abc123"}'
+\end{lstlisting}
+
+\subsection{Synchronisation DMS}
+\begin{lstlisting}[caption=Synchronisation d'appareils]
+curl -X POST "http://localhost:8000/sync-device" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "appareils": [
+         {
+           "imei": "123456789012345",
+           "marque": "Samsung",
+           "modele": "Galaxy S21",
+           "statut": "actif"
+         }
+       ],
+       "sync_mode": "upsert",
+       "source_system": "DMS_External"
+     }'
+
+# Réponse
+{
+  "statut": "succès",
+  "appareils_synchronisés": 1,
+  "créés": 1,
+  "mis_à_jour": 0,
+  "erreurs": 0,
+  "id_sync": "uuid-12345",
+  "durée_ms": 62.56
+}
+\end{lstlisting}
+
+\section{Déploiement}
+
+\begin{lstlisting}[caption=Docker Compose]
+# Démarrage complet
+docker-compose up -d
+
+# Vérification des protocoles
+curl http://localhost:8000/protocols/status
+
+# Logs en temps réel
+docker logs eir_web -f
+\end{lstlisting}
+
+\section{Avantages}
+
+\begin{itemize}
+    \item \textbf{Flexibilité} : Support de tous types d'équipements réseau
+    \item \textbf{Configuration dynamique} : Pas de redémarrage nécessaire
+    \item \textbf{Synchronisation DMS} : Intégration systèmes externes
+    \item \textbf{Audit complet} : Traçabilité de toutes les opérations
+    \item \textbf{Performance} : Architecture optimisée
+\end{itemize}
+
+\section{Tests}
+
+\begin{lstlisting}[caption=Script de test complet]
+#!/bin/bash
+# Statut global
+curl http://localhost:8000/protocols/status
+
+# Test vérification IMEI
+curl -X POST "http://localhost:8000/verify_imei?protocol=rest" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345"}'
+
+# Test synchronisation
+curl -X POST "http://localhost:8000/sync-device" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "appareils": [{"imei": "987654321098765", "marque": "Apple", "modele": "iPhone 14"}],
+       "sync_mode": "upsert",
+       "source_system": "DMS_Test"
+     }'
+\end{lstlisting}
+
+\end{document}

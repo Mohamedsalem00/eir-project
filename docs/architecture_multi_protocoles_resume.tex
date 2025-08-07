@@ -1,0 +1,152 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\geometry{margin=2cm}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true
+}
+
+\title{EIR Multi-Protocoles : Guide Technique}
+\author{Mohamed Salem Khyarhoum}
+\date{Août 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Vue d'ensemble}
+
+Application EIR (Equipment Identity Register) avec support multi-protocoles pour la vérification IMEI :
+\begin{itemize}
+    \item \textbf{REST/HTTP} : Applications web/mobile
+    \item \textbf{SS7/MAP} : Réseaux 2G/3G (MSC/VLR)
+    \item \textbf{Diameter} : Réseaux 4G/LTE (MME/SGSN)
+\end{itemize}
+
+\section{Configuration}
+
+\begin{lstlisting}[language=yaml,caption=config/protocols.yml]
+enabled_protocols:
+  rest: true
+  ss7: true  
+  diameter: true
+
+timeouts:
+  rest: 30
+  ss7: 10
+  diameter: 60
+
+endpoints:
+  ss7:
+    sccp_address: "1234"    # Point Code SCCP
+    gt: "33123456789"       # Global Title
+  diameter:
+    host: "0.0.0.0"
+    port: 3868              # Port IANA standard
+    realm: "eir.domain.com"
+\end{lstlisting}
+
+\section{Utilisation}
+
+\subsection{Test REST}
+\begin{lstlisting}[caption=Requête REST]
+curl -X POST "http://localhost:8000/verify_imei?protocol=rest" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345"}'
+\end{lstlisting}
+
+\subsection{Test SS7 (simulation)}
+\begin{lstlisting}[caption=Requête SS7]
+curl -X POST "http://localhost:8000/verify_imei?protocol=ss7" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345", "msisdn": "33123456789"}'
+\end{lstlisting}
+
+\subsection{Test Diameter (simulation)}
+\begin{lstlisting}[caption=Requête Diameter]
+curl -X POST "http://localhost:8000/verify_imei?protocol=diameter" \
+     -H "Content-Type: application/json" \
+     -d '{"imei": "123456789012345", "session_id": "abc123"}'
+\end{lstlisting}
+
+\section{Architecture}
+
+\textbf{Composants principaux :}
+\begin{itemize}
+    \item \textbf{Protocol Dispatcher} : Routage des requêtes
+    \item \textbf{Handlers spécialisés} : REST, SS7, Diameter
+    \item \textbf{Configuration dynamique} : YAML rechargeable
+    \item \textbf{Base PostgreSQL} : Stockage IMEI
+    \item \textbf{Cache Redis} : Performance
+\end{itemize}
+
+\textbf{Flux de traitement :}
+\begin{enumerate}
+    \item Réception de la requête (protocole spécifique)
+    \item Routage par le dispatcher central
+    \item Traitement par le handler approprié
+    \item Validation IMEI en base de données
+    \item Retour de la réponse (format protocole)
+\end{enumerate}
+
+\section{Déploiement}
+
+\begin{lstlisting}[caption=Docker Compose]
+# Démarrage complet
+docker-compose up -d
+
+# Vérification des protocoles
+curl http://localhost:8000/protocols/status
+
+# Logs en temps réel
+docker-compose logs -f eir_web
+\end{lstlisting}
+
+\section{Avantages}
+
+\begin{itemize}
+    \item \textbf{Flexibilité} : Support de tous types d'équipements réseau
+    \item \textbf{Évolutivité} : Ajout facile de nouveaux protocoles
+    \item \textbf{Performance} : Cache Redis et optimisations
+    \item \textbf{Monitoring} : Journalisation complète et métriques
+    \item \textbf{Sécurité} : Authentification par protocole
+\end{itemize}
+
+\section{Configuration Avancée}
+
+\subsection{Activation/Désactivation}
+Modifier \texttt{config/protocols.yml} et recharger :
+\begin{lstlisting}
+# Les changements sont automatiques !
+# Aucun redémarrage nécessaire
+\end{lstlisting}
+
+\subsection{Monitoring}
+\begin{lstlisting}
+# Statut des protocoles
+GET /protocols/status
+
+# Métriques de performance  
+GET /metrics
+
+# Logs d'audit
+docker-compose logs eir_web | grep "AUDIT"
+\end{lstlisting}
+
+\section{Références}
+
+\begin{itemize}
+    \item Documentation complète : \texttt{docs/architecture\_multi\_protocoles.tex}
+    \item Diagrammes UML : \texttt{docs/uml/}
+    \item Tests API : \texttt{test/}
+    \item Scripts de gestion : \texttt{scripts/}
+\end{itemize}
+
+\end{document}
