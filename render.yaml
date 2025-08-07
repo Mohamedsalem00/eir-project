@@ -1,0 +1,28 @@
+# render.yaml - Render Deployment Configuration
+services:
+  - type: web
+    name: eir-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile.prod
+    dockerContext: ./
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /verification-etat
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: false
+      - key: PORT
+        value: 8000
+      - key: CORS_ORIGINS
+        value: "*"
+
+databases:
+  - name: eir-database
+    databaseName: imei_db
+    user: postgres
+    plan: free
