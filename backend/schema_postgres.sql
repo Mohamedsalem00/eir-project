@@ -9,6 +9,7 @@ CREATE TABLE utilisateur (
     niveau_acces VARCHAR(50) DEFAULT 'basique',
     portee_donnees VARCHAR(50) DEFAULT 'personnel',
     organisation VARCHAR(100),
+    date_creation TIMESTAMP DEFAULT NOW(),
     est_actif BOOLEAN DEFAULT TRUE,
     marques_autorisees JSONB DEFAULT '[]',
     plages_imei_autorisees JSONB DEFAULT '[]'
@@ -51,9 +52,15 @@ CREATE TABLE recherche (
 -- Table : notification
 CREATE TABLE notification (
     id UUID PRIMARY KEY,
-    type VARCHAR(50),
+    type VARCHAR(50), -- email, sms
+    destinataire VARCHAR(255), -- numéro de téléphone ou adresse email
+    sujet VARCHAR(255), -- pour email
     contenu TEXT,
-    statut VARCHAR(20),
+    statut VARCHAR(20) DEFAULT 'en_attente', -- en_attente, envoyé, échoué
+    tentative INT DEFAULT 0,
+    erreur TEXT,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_envoi TIMESTAMP,
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
 

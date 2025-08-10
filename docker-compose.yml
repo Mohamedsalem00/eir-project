@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: imei_db
+      POSTGRES_DB: eir_project
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Mount SQL files for easy access
@@ -34,12 +34,12 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - ./backend/.env
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/imei_db
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/eir_project
 
 volumes:
   postgres_data:

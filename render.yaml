@@ -25,6 +25,6 @@ services:
 
 databases:
   - name: eir-database
-    databaseName: imei_db
+    databaseName: eir_project
     user: postgres
     plan: free

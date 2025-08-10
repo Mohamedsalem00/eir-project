@@ -57,7 +57,7 @@ load_test_data() {
     docker compose cp backend/test_data.sql db:/tmp/test_data.sql
     
     # Execute the SQL file
-    docker compose exec db psql -U postgres -d imei_db -f /tmp/test_data.sql
+    docker compose exec db psql -U postgres -d eir_project -f /tmp/test_data.sql
     
     log_success "Données de test chargées avec succès"
 }
@@ -87,7 +87,7 @@ from sqlalchemy import create_engine
 df = pd.read_csv('/tmp/data.csv')
 
 # Connect to database
-engine = create_engine('postgresql://postgres:postgres@db:5432/imei_db')
+engine = create_engine('postgresql://postgres:postgres@db:5432/eir_project')
 
 # Process each row
 for index, row in df.iterrows():
@@ -167,7 +167,7 @@ from datetime import datetime
 df = pd.read_csv('/tmp/tac_data.csv')
 
 # Connect to database
-engine = create_engine('postgresql://postgres:postgres@db:5432/imei_db')
+engine = create_engine('postgresql://postgres:postgres@db:5432/eir_project')
 
 # Process each row
 imported_count = 0
@@ -343,7 +343,7 @@ DROP TABLE temp_csv_data;
 EOSQL
 
         # Execute the SQL script
-        PGPASSWORD=postgres psql -h db -U postgres -d imei_db -f /tmp/import_tac.sql
+        PGPASSWORD=postgres psql -h db -U postgres -d eir_project -f /tmp/import_tac.sql
         
         # Clean up temporary files
         rm -f /tmp/import_tac.sql /tmp/osmocom_clean.csv /tmp/osmocom_data_only.csv
@@ -354,7 +354,7 @@ EOSQL
         
         # Show import statistics
         log_info "Affichage des statistiques d'import..."
-        docker compose exec -T db psql -U postgres -d imei_db -c "
+        docker compose exec -T db psql -U postgres -d eir_project -c "
             SELECT 
                 'Statistiques TAC' as info,
                 COUNT(*) as total_entries,
@@ -471,7 +471,7 @@ SELECT '"'"'CSV API import completed'"'"' as status;
 DROP TABLE temp_csv_api_data;
 EOSQL
         
-        PGPASSWORD=postgres psql -h db -U postgres -d imei_db -f /tmp/import_csv_api.sql
+        PGPASSWORD=postgres psql -h db -U postgres -d eir_project -f /tmp/import_csv_api.sql
         
         # Clean up
         rm -f /tmp/osmocom_tac_api.csv /tmp/osmocom_api_clean.csv /tmp/osmocom_api_data.csv /tmp/import_csv_api.sql
@@ -489,7 +489,7 @@ EOSQL
 show_tac_sync_stats() {
     log_info "Statistiques de synchronisation TAC..."
     
-    docker compose exec -T db psql -U postgres -d imei_db -c "
+    docker compose exec -T db psql -U postgres -d eir_project -c "
         SELECT obtenir_stats_sync_tac() as stats;
         
         SELECT 'Synchronisations récentes:' as title;
@@ -531,7 +531,7 @@ load_tac_database() {
             docker compose exec -T web bash -c "
                 CSV_CONTENT=\$(cat /tmp/tac_data.csv)
                 
-                PGPASSWORD=postgres psql -h db -U postgres -d imei_db -c \"
+                PGPASSWORD=postgres psql -h db -U postgres -d eir_project -c \"
                     SELECT importer_tac_avec_mapping('\$CSV_CONTENT', 'standard');
                 \"
             "
@@ -568,7 +568,7 @@ EOF
 analyze_tac_coverage() {
     log_info "Analyse de la couverture de la base de données TAC..."
     
-    docker compose exec db psql -U postgres -d imei_db -c "
+    docker compose exec db psql -U postgres -d eir_project -c "
     SELECT 'Statistiques TAC' as info;
     
     SELECT 
@@ -600,7 +600,7 @@ analyze_tac_coverage() {
 validate_existing_imeis() {
     log_info "Validation des IMEIs existants avec la base TAC..."
     
-    docker compose exec db psql -U postgres -d imei_db -c "
+    docker compose exec db psql -U postgres -d eir_project -c "
     WITH imei_validation AS (
         SELECT 
             i.numero_imei,
@@ -674,7 +674,7 @@ sync_devices_via_api() {
 show_database_stats() {
     log_info "Statistiques actuelles de la base de données..."
     
-    docker compose exec db psql -U postgres -d imei_db -c "
+    docker compose exec db psql -U postgres -d eir_project -c "
     SELECT 
         'Statistiques EIR' as info,
         (SELECT COUNT(*) FROM utilisateur) as utilisateurs,

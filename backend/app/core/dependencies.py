@@ -203,7 +203,7 @@ def require_niveau_acces(min_level: AccessLevel):
         current_level_str = contexte_acces["niveau_acces"]
         
         try:
-            current_level = AccessLevel(current_level_str)
+            current_level = AccessLevel.from_french(current_level_str)
         except ValueError:
             current_level = AccessLevel.VISITOR
         

@@ -5,7 +5,7 @@ Provides granular access control for concerned parties and data management
 
 from enum import Enum
 from typing import Dict, List, Optional, Any
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from ..models.utilisateur import Utilisateur
 from ..models.appareil import Appareil
@@ -20,6 +20,19 @@ class AccessLevel(Enum):
     STANDARD = "standard"       # Regular users - full personal data access
     ELEVATED = "elevated"       # Enhanced users - organizational data access
     ADMIN = "admin"            # Administrators - full system access
+
+    @classmethod
+    def from_french(cls, french_level: str) -> 'AccessLevel':
+        """Convert French access level names to English AccessLevel enum values"""
+        french_to_english = {
+            "visiteur": cls.VISITOR,
+            "basique": cls.BASIC,
+            "limite": cls.LIMITED,
+            "standard": cls.STANDARD,
+            "eleve": cls.ELEVATED,
+            "admin": cls.ADMIN
+        }
+        return french_to_english.get(french_level.lower(), cls.BASIC)
 
 class Operation(Enum):
     """Available operations in the system"""
@@ -134,16 +147,17 @@ class PermissionManager:
             return operation in PermissionManager.ACCESS_PERMISSIONS[AccessLevel.VISITOR]
         
         # Get user's access level
-        user_level = AccessLevel(user.niveau_acces or "basic")
+        user_level = AccessLevel.from_french(user.niveau_acces or "basique")
         
         # Check if user is active
         if hasattr(user, 'est_actif') and not user.est_actif:
             return False
         
-        # Check custom permissions first
-        custom_operations = user.permissions.get("operations", [])
-        if custom_operations:
-            return operation.value in custom_operations
+        # Check custom permissions first (if permissions attribute exists)
+        if hasattr(user, 'permissions') and user.permissions:
+            custom_operations = user.permissions.get("operations", [])
+            if custom_operations:
+                return operation.value in custom_operations
         
         # Check default permissions for access level
         default_permissions = PermissionManager.ACCESS_PERMISSIONS[user_level]
@@ -275,7 +289,7 @@ class PermissionManager:
                 return False, context
         
         # Check organization access
-        if user.portee_donnees == "organization" and user.organization:
+        if user.portee_donnees == "organization" and getattr(user, 'organisation', None):
             # This would require organization field on devices - placeholder logic
             context.update({
                 "reason": "organization_access",
@@ -308,9 +322,9 @@ class PermissionManager:
             "user_id": user.id,
             "marques_autorisees": user.marques_autorisees or [],
             "allowed_ranges": user.plages_imei_autorisees or [],
-            "organization": user.organization,
+            "organization": getattr(user, 'organisation', None),
             "is_admin": user.type_utilisateur == "administrateur",
-            "niveau_acces": AccessLevel(user.niveau_acces or "basic")
+            "niveau_acces": AccessLevel.from_french(user.niveau_acces or "basique")
         }
     
     @staticmethod
@@ -336,7 +350,7 @@ class PermissionManager:
             return data
         
         # Filter based on access level
-        user_level = AccessLevel(user.niveau_acces or "basic") if user else AccessLevel.VISITOR
+        user_level = AccessLevel.from_french(user.niveau_acces or "basique") if user else AccessLevel.VISITOR
         
         if data_type == "imei":
             base_data = {
@@ -395,14 +409,14 @@ class PermissionManager:
         if not user:
             return {"niveau_acces": "visitor", "permissions": [], "restrictions": []}
         
-        user_level = AccessLevel(user.niveau_acces or "basic")
+        user_level = AccessLevel.from_french(user.niveau_acces or "basique")
         default_permissions = PermissionManager.ACCESS_PERMISSIONS[user_level]
         
         return {
             "user_id": str(user.id),
             "niveau_acces": user_level.value,
             "portee_donnees": user.portee_donnees or "own",
-            "organization": user.organization,
+            "organization": getattr(user, 'organisation', None),
             "est_actif": getattr(user, 'est_actif', True),
             "permissions": {
                 "default": [op.value for op in default_permissions],
@@ -432,7 +446,7 @@ def require_niveau_acces(min_level: AccessLevel):
         if not user:
             current_level = AccessLevel.VISITOR
         else:
-            current_level = AccessLevel(user.niveau_acces or "basic")
+            current_level = AccessLevel.from_french(user.niveau_acces or "basique")
         
         # Check if current level meets minimum requirement
         level_hierarchy = [
@@ -450,6 +464,10 @@ def require_niveau_acces(min_level: AccessLevel):
                 detail=f"Minimum access level required: {min_level.value}"
             )
         
-        return user
+        return {
+            "user": user,
+            "access_level": current_level.value,
+            "permissions": PermissionManager.get_user_permissions_summary(user) if user else {}
+        }
     
     return level_dependency

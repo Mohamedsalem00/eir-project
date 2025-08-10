@@ -9,7 +9,7 @@ echo "=========================="
 # Configuration base Docker
 DB_HOST="localhost"
 DB_PORT="5432"
-DB_NAME="imei_db"
+DB_NAME="eir_project"
 DB_USER="postgres"
 DB_PASSWORD="postgres"
 

@@ -40,16 +40,19 @@ external_apis:
       
     # === APIs EXTERNES (DÉSACTIVÉES - PRÊTES À ACTIVER) ===
     
-    # NumVerify API - Freemium fiable (1000 req/mois gratuit)
-    numverify:
+    # imei-checker4 API - Freemium fiable (1000 req/mois gratuit)
+    imei-checker4:
       enabled: false  # À activer quand vous aurez une clé
-      url: "http://apilayer.net/api/validate"
-      api_key: "${NUMVERIFY_API_KEY}"
-      daily_limit: 1000
+      url: "https://imei-checker4.p.rapidapi.com/imei"
+      api_key: "4921001f5emsh89212bc17aa5d26p10b2dcjsncbb81085c6b8"
+      daily_limit: 50
       priority: 4
+      headers:
+        'x-rapidapi-host': "imei-checker4.p.rapidapi.com"
+        'x-rapidapi-key': "4921001f5emsh89212bc17aa5d26p10b2dcjsncbb81085c6b8"
       description: "API fiable - 1000 req/mois gratuit sur numverify.com"
-      method: "GET"
-      params_format: "?access_key={api_key}&number={imei}"
+      method: "POST"
+      body: '{"imei": "{imei}"}'
       
     # CheckIMEI.com - Vos clés API (prêtes mais documentation requise)
     checkimei_user:

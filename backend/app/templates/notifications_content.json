@@ -1,0 +1,83 @@
+{
+  "notifications": {
+    "bienvenue": {
+      "email": {
+        "subject": "🎉 Bienvenue sur EIR Project !",
+        "content": "Bonjour {nom_utilisateur},\n\n🎉 **Bienvenue sur EIR Project !** 🎉\n\nNous sommes ravis de vous accueillir dans notre système de gestion des équipements mobiles.\n\n📱 **Avec votre compte, vous pouvez maintenant :**\n• Vérifier la validité de vos appareils mobiles\n• Enregistrer et gérer vos équipements\n• Consulter l'historique de vos recherches\n• Recevoir des alertes de sécurité importantes\n\n🔐 **Votre compte est maintenant actif :**\n• Vous pouvez vous connecter avec votre adresse email\n• Vos données sont protégées et sécurisées\n• Vous recevrez des notifications importantes par email\n\nMerci de nous faire confiance !\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      },
+      "sms": {
+        "content": "🎉 Bienvenue {nom_utilisateur} sur EIR Project! Votre compte est actif."
+      }
+    },
+    
+    "verification_imei_valide": {
+      "email": {
+        "subject": "✅ IMEI Valide - {imei}",
+        "content": "Bonjour {nom_utilisateur},\n\n✅ **Résultat de vérification IMEI : VALIDE**\n\n📱 **Détails de l'appareil vérifié :**\n• IMEI : {imei}\n• Marque : {marque}\n• Modèle : {modele}\n• Date de vérification : {date_verification}\n• Statut : ✅ VALIDE\n\n🎉 **Excellente nouvelle !**\nVotre IMEI est valide et reconnu dans nos bases de données.\nL'appareil peut être utilisé normalement sur les réseaux mobiles.\n\nMerci d'utiliser EIR Project !\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      },
+      "sms": {
+        "content": "EIR Project: ✅ IMEI {imei} - Statut: VALIDE. Consultez votre email pour plus de détails."
+      }
+    },
+    
+    "verification_imei_invalide": {
+      "email": {
+        "subject": "❌ IMEI Invalide - {imei}",
+        "content": "Bonjour {nom_utilisateur},\n\n❌ **Résultat de vérification IMEI : INVALIDE**\n\n📱 **Détails de la vérification :**\n• IMEI vérifié : {imei}\n• Date de vérification : {date_verification}\n• Statut : ❌ INVALIDE\n• Raison : {raison}\n\n⚠️ **Attention - IMEI non valide**\nCet IMEI ne respecte pas les standards ou est inconnu de nos bases de données.\n\nSi vous pensez qu'il y a une erreur, contactez notre support technique.\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      },
+      "sms": {
+        "content": "EIR Project: ❌ IMEI {imei} - Statut: INVALIDE. Consultez votre email pour plus de détails."
+      }
+    },
+    
+    "verification_imei_blackliste": {
+      "email": {
+        "subject": "🚫 IMEI Blacklisté - {imei}",
+        "content": "Bonjour {nom_utilisateur},\n\n🚫 **Résultat de vérification IMEI : BLACKLISTÉ**\n\n📱 **Détails de la vérification :**\n• IMEI vérifié : {imei}\n• Date de vérification : {date_verification}\n• Statut : 🚫 BLACKLISTÉ\n• Raison : {raison}\n\n⚠️ **ATTENTION - APPAREIL BLACKLISTÉ**\nCet IMEI figure sur la liste noire et ne peut pas être utilisé sur les réseaux mobiles.\n\nCela peut indiquer un appareil volé, perdu ou signalé par les autorités.\n\nContactez immédiatement notre support si vous pensez qu'il y a une erreur.\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      },
+      "sms": {
+        "content": "EIR Project: 🚫 IMEI {imei} - Statut: BLACKLISTÉ. URGENT: Consultez votre email."
+      }
+    },
+    
+    "reset_password": {
+      "email": {
+        "subject": "🔑 Réinitialisation de votre mot de passe",
+        "content": "Bonjour {nom_utilisateur},\n\n🔑 **Demande de réinitialisation de mot de passe**\n\nVous avez demandé à réinitialiser votre mot de passe pour votre compte EIR Project.\n\n**Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :**\n{lien_reset}\n\n⏰ **Important :**\n• Ce lien est valide pendant 30 minutes\n• Si vous n'avez pas demandé cette réinitialisation, ignorez cet email\n• Pour votre sécurité, ne partagez jamais ce lien\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      }
+    },
+    
+    "alerte_securite": {
+      "email": {
+        "subject": "🚨 Alerte de Sécurité - Connexion détectée",
+        "content": "Bonjour {nom_utilisateur},\n\n🚨 **Alerte de Sécurité**\n\nUne nouvelle connexion à votre compte a été détectée :\n\n📊 **Détails de la connexion :**\n• Date : {date_connexion}\n• Adresse IP : {adresse_ip}\n• Localisation : {localisation}\n• Navigateur : {navigateur}\n\n✅ **Si c'était vous :**\nAucune action n'est requise.\n\n❌ **Si ce n'était pas vous :**\n• Changez immédiatement votre mot de passe\n• Vérifiez vos paramètres de sécurité\n• Contactez notre support si nécessaire\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      },
+      "sms": {
+        "content": "🚨 EIR Project: Nouvelle connexion détectée sur votre compte le {date_connexion}. Si ce n'était pas vous, changez votre mot de passe immédiatement."
+      }
+    },
+    
+    "nouvel_appareil": {
+      "email": {
+        "subject": "📱 Nouvel appareil enregistré - {marque} {modele}",
+        "content": "Bonjour {nom_utilisateur},\n\n📱 **Nouvel appareil ajouté à votre compte EIR Project**\n\n🔧 **Détails de l'appareil :**\n• Marque : {marque}\n• Modèle : {modele}\n• EMMC : {emmc}\n• Date d'ajout : {date_verification}\n\n🔢 **IMEI(s) associé(s) :**\n{imeis}\n\n🛡️ **Sécurité :**\nSi vous n'avez pas ajouté cet appareil, contactez immédiatement notre support.\n\n🌐 Gérer vos appareils : {website_url}/appareils\n📞 Support : {support_email}\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      },
+      "sms": {
+        "content": "📱 EIR Project: Nouvel appareil {marque} {modele} ajouté à votre compte. Consultez votre email pour plus de détails."
+      }
+    }
+  },
+  
+  "variables_globales": {
+    "company_name": "EIR Project",
+    "support_email": "support@eir-project.com",
+    "website_url": "https://eir-project.com",
+    "footer_signature": "---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+  },
+  
+  "config": {
+    "default_language": "fr",
+    "supported_languages": ["fr", "en", "ar"],
+    "cache_ttl": 3600
+  }
+}

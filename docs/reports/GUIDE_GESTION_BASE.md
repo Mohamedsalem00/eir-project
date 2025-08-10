@@ -94,7 +94,7 @@
 - **importexport**
 
 ### 👥 Utilisateurs Types
-- **admin@eir-project.com** - Administrateur
+- **eirrproject@gmail.com** - Administrateur
 - **user@example.com** - Utilisateur standard
 - **police@cybercrime.gov** - Forces de l'ordre
 - **insurance@company.com** - Assurance
@@ -145,7 +145,7 @@
 ### Connexion Automatique
 - **Host:** Container `eir_db`
 - **User:** `postgres`
-- **Database:** `imei_db`
+- **Database:** `eir_project`
 - **Port:** 5432 (exposé)
 
 ### Prérequis

@@ -13,7 +13,7 @@
 1. Your `render.yaml` already defines the database
 2. Render should automatically create:
    - Database name: `eir-database`
-   - Database: `imei_db`
+   - Database: `eir_project`
    - User: `postgres`
 
 **Option B: Manual Creation**
@@ -21,7 +21,7 @@
 2. Click "New +" → "PostgreSQL"
 3. Configure:
    - Name: `eir-database`
-   - Database Name: `imei_db`
+   - Database Name: `eir_project`
    - Region: Same as your web service
    - Plan: Free
 
@@ -60,7 +60,7 @@
 ### 4. 🔑 Test Authentication
 
 **Default Test Users** (password: `admin123`):
-- `admin@eir-project.com` (Admin)
+- `eirrproject@gmail.com` (Admin)
 - `user@example.com` (Regular User)
 - `insurance@company.com` (Insurance)
 - `police@agency.gov` (Police)

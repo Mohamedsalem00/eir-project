@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 # Configuration de la base de données Docker
 DB_HOST="localhost"
 DB_PORT="5432"
-DB_NAME="imei_db"
+DB_NAME="eir_project"
 DB_USER="postgres"
 DB_PASSWORD="postgres"
 

@@ -23,7 +23,7 @@ cd /home/mohamed/Documents/projects/eir-project
 
 ### Contenu des données de test :
 - ✅ **5 utilisateurs** avec différents niveaux d'accès :
-  - `admin@eir-project.com` (Administrateur)
+  - `eirrproject@gmail.com` (Administrateur)
   - `user@example.com` (Utilisateur standard)
   - `insurance@company.com` (Compagnie d'assurance)
   - `police@cybercrime.gov` (Forces de l'ordre)
@@ -120,7 +120,7 @@ curl -X POST "http://localhost:8000/sync-device" \
 docker compose cp mon_fichier.sql db:/tmp/mon_fichier.sql
 
 # Exécuter le script
-docker compose exec db psql -U postgres -d imei_db -f /tmp/mon_fichier.sql
+docker compose exec db psql -U postgres -d eir_project -f /tmp/mon_fichier.sql
 ```
 
 ### Format SQL recommandé :

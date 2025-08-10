@@ -1,6 +1,7 @@
-from sqlalchemy import Column, String, Text, JSON, Boolean
+from sqlalchemy import Column, String, Text, JSON, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from ..core.database import Base
 import uuid
 
@@ -13,6 +14,7 @@ class Utilisateur(Base):
     email = Column(String(100), unique=True, index=True)
     mot_de_passe = Column(Text)
     type_utilisateur = Column(String(50))
+    date_creation = Column(DateTime, default=datetime.now, nullable=False)
     
     # Champs essentiels de contrôle d'accès (noms français correspondant au schéma DB)
     niveau_acces = Column(String(50), default="basique")  # basique, limite, standard, eleve, admin
@@ -29,3 +31,4 @@ class Utilisateur(Base):
     notifications = relationship("Notification", back_populates="utilisateur")
     audit_logs = relationship("JournalAudit", back_populates="utilisateur")
     import_exports = relationship("ImportExport", back_populates="utilisateur")
+    password_resets = relationship("PasswordReset", back_populates="utilisateur")

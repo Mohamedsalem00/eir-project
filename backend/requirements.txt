@@ -1,6 +1,6 @@
 # backend/requirements.txt
 # Core FastAPI and web framework
-fastapi>=0.104.0
+fastapi>=0.104.0,<0.115.0
 uvicorn[standard]>=0.24.0
 
 # Database and ORM
@@ -14,7 +14,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 
 # Data validation and parsing
-pydantic>=2.0.0
+pydantic>=2.0.0,<2.5.0
 pydantic[email]
 
 # Environment and configuration
@@ -32,6 +32,20 @@ python-dateutil>=2.8.0
 
 # YAML configuration support for multi-protocol integration
 PyYAML>=6.0.0
+
 # APIs externes
 aiohttp>=3.8.0
-pyyaml>=6.0
+
+# Notifications system dependencies
+# APScheduler for background task scheduling
+APScheduler>=3.10.0
+
+# Email support
+# Built-in smtplib is used, no additional packages needed for basic SMTP
+
+# SMS support (optional providers)
+# twilio>=8.5.0  # Uncomment for Twilio SMS support
+# boto3>=1.28.0  # Uncomment for AWS SNS SMS support
+
+# Additional utilities for notifications
+pytz>=2023.3  # Timezone support for scheduler

@@ -61,7 +61,7 @@ backup_database() {
     # Check if database exists and is accessible
     if docker compose ps | grep -q "db.*Up"; then
         if docker compose exec -T db pg_isready -U postgres > /dev/null 2>&1; then
-            if docker compose exec -T db pg_dump -U postgres imei_db > "$backup_dir/$backup_file" 2>/dev/null; then
+            if docker compose exec -T db pg_dump -U postgres eir_project > "$backup_dir/$backup_file" 2>/dev/null; then
                 log_success "Sauvegarde créée : $backup_dir/$backup_file"
                 return 0
             else
@@ -151,12 +151,12 @@ create_database() {
     
     # The database should already be created by the Docker init process
     # But let's ensure it exists
-    if docker compose exec -T db psql -U postgres -lqt | cut -d \| -f 1 | grep -qw imei_db; then
-        log_success "Base de données 'imei_db' existe déjà"
+    if docker compose exec -T db psql -U postgres -lqt | cut -d \| -f 1 | grep -qw eir_project; then
+        log_success "Base de données 'eir_project' existe déjà"
     else
         # Create database if it doesn't exist
-        if docker compose exec -T db psql -U postgres -c "CREATE DATABASE imei_db;" 2>/dev/null; then
-            log_success "Base de données 'imei_db' créée"
+        if docker compose exec -T db psql -U postgres -c "CREATE DATABASE eir_project;" 2>/dev/null; then
+            log_success "Base de données 'eir_project' créée"
         else
             log_error "Échec de la création de la base de données"
             exit 1
@@ -177,7 +177,7 @@ apply_schema() {
     # Copy schema file to container and apply it
     docker compose cp backend/schema_postgres.sql db:/tmp/schema.sql
     
-    if docker compose exec -T db psql -U postgres -d imei_db -f /tmp/schema.sql; then
+    if docker compose exec -T db psql -U postgres -d eir_project -f /tmp/schema.sql; then
         log_success "Schéma appliqué avec succès"
     else
         log_error "Échec de l'application du schéma"
@@ -197,7 +197,7 @@ load_test_data() {
             # Copy test data file to container and apply it
             docker compose cp backend/test_data.sql db:/tmp/test_data.sql
             
-            if docker compose exec -T db psql -U postgres -d imei_db -f /tmp/test_data.sql; then
+            if docker compose exec -T db psql -U postgres -d eir_project -f /tmp/test_data.sql; then
                 log_success "Données de test chargées"
             else
                 log_error "Échec du chargement des données de test"
@@ -217,7 +217,7 @@ load_test_data() {
 create_basic_test_data() {
     log_info "Création de données de test de base..."
     
-    docker compose exec -T db psql -U postgres -d imei_db << 'EOF'
+    docker compose exec -T db psql -U postgres -d eir_project << 'EOF'
 -- Create basic admin user
 INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, est_actif)
 VALUES (
@@ -236,7 +236,7 @@ INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_
 VALUES (
     gen_random_uuid(),
     'Test User',
-    'user@eir.ma',
+    'sidis9828@gmail.com',
     '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO',
     'utilisateur_authentifie',
     'standard',
@@ -251,7 +251,7 @@ DECLARE
     device_id UUID := gen_random_uuid();
 BEGIN
     -- Get a user ID for the device
-    SELECT id INTO user_id FROM utilisateur WHERE email = 'user@eir.ma' LIMIT 1;
+    SELECT id INTO user_id FROM utilisateur WHERE email = 'sidis9828@gmail.com' LIMIT 1;
     
     -- Create test device
     INSERT INTO appareil (id, marque, modele, emmc, utilisateur_id)
@@ -279,13 +279,13 @@ verify_database() {
     
     # Count tables
     local table_count
-    table_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d ' \n')
+    table_count=$(docker compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d ' \n')
     
     log_success "Tables créées : $table_count"
     
     # Count users
     local user_count
-    user_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM utilisateur;" 2>/dev/null | tr -d ' \n' || echo "0")
+    user_count=$(docker compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM utilisateur;" 2>/dev/null | tr -d ' \n' || echo "0")
     
     if [[ "$user_count" -gt "0" ]]; then
         log_success "Utilisateurs de test : $user_count"
@@ -295,7 +295,7 @@ verify_database() {
     
     # Count devices
     local device_count
-    device_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM appareil;" 2>/dev/null | tr -d ' \n' || echo "0")
+    device_count=$(docker compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM appareil;" 2>/dev/null | tr -d ' \n' || echo "0")
     
     if [[ "$device_count" -gt "0" ]]; then
         log_success "Appareils de test : $device_count"
@@ -305,7 +305,7 @@ verify_database() {
     
     # Check TAC database
     local tac_count
-    tac_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM tac_database;" 2>/dev/null | tr -d ' \n' || echo "0")
+    tac_count=$(docker compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM tac_database;" 2>/dev/null | tr -d ' \n' || echo "0")
     
     if [[ "$tac_count" -gt "0" ]]; then
         log_success "Entrées TAC : $tac_count"
@@ -368,7 +368,7 @@ show_status() {
     echo ""
     echo "🔑 Utilisateurs de test (mot de passe: password123) :"
     echo "   👑 admin@eir.ma (Administrateur)"
-    echo "   👤 user@eir.ma (Utilisateur Standard)"
+    echo "   👤 sidis9828@gmail.com (Utilisateur Standard)"
     echo ""
     echo "🧪 Test rapide de la base de données :"
     echo "   curl http://localhost:8000/verification-etat"
@@ -383,8 +383,8 @@ show_status() {
     echo "   ./scripts/reset-database.sh  # Réinitialisation rapide"
     echo ""
     echo "🗃️ Administration de la base :"
-    echo "   docker compose exec db psql -U postgres -d imei_db -c \"\\dt\""
-    echo "   docker compose exec db psql -U postgres -d imei_db -c \"SELECT COUNT(*) FROM utilisateur;\""
+    echo "   docker compose exec db psql -U postgres -d eir_project -c \"\\dt\""
+    echo "   docker compose exec db psql -U postgres -d eir_project -c \"SELECT COUNT(*) FROM utilisateur;\""
 }
 
 # Main execution

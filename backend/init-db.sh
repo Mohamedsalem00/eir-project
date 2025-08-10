@@ -17,16 +17,16 @@ echo "✅ PostgreSQL is ready!"
 
 # Create the main schema
 echo "📋 Creating main database schema..."
-PGPASSWORD=postgres psql -h db -U postgres -d imei_db -f /app/schema_postgres.sql
+PGPASSWORD=postgres psql -h db -U postgres -d eir_project -f /app/schema_postgres.sql
 
 # Insert test data
 echo "📊 Inserting test data..."
-PGPASSWORD=postgres psql -h db -U postgres -d imei_db -f /app/test_data.sql
+PGPASSWORD=postgres psql -h db -U postgres -d eir_project -f /app/test_data.sql
 
 echo "✅ Database initialization completed!"
 echo ""
 echo "🔑 Test Users (password: admin123):"
-echo "   👑 admin@eir-project.com (Admin)"
+echo "   👑 eirrproject@gmail.com (Admin)"
 echo "   👤 user@example.com (Regular User)"
 echo "   🏢 insurance@company.com (Insurance)"
 echo "   👮 police@agency.gov (Police)"

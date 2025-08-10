@@ -19,7 +19,7 @@ INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_
 VALUES (
     gen_random_uuid(),
     'System Administrator',
-    'admin@eir-project.com',
+    'eirrproject@gmail.com',
     '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK', -- admin123
     'administrateur',
     'admin',
@@ -32,7 +32,7 @@ INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_
 VALUES (
     gen_random_uuid(),
     'Regular User',
-    'user@eir.ma',
+    'sidis9828@gmail.com',
     '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK', -- admin123
     'utilisateur_authentifie',
     'standard',
@@ -46,7 +46,7 @@ VALUES
 (
     gen_random_uuid(),
     'Operateur Orange',
-    'orange@eir.ma',
+    'devvmrr@gmail.com',
     '$2b$12$8o8ZiuHJ8JP7QLLiKFrQUuyfErAhYSVFnuHgRnOkkvougjj1ST6yK',
     'operateur',
     'standard',
@@ -91,9 +91,9 @@ DECLARE
     device_id UUID;
 BEGIN
     -- Get user IDs
-    SELECT id INTO admin_user_id FROM utilisateur WHERE email = 'admin@eir.ma';
-    SELECT id INTO regular_user_id FROM utilisateur WHERE email = 'user@eir.ma';
-    SELECT id INTO orange_user_id FROM utilisateur WHERE email = 'orange@eir.ma';
+    SELECT id INTO admin_user_id FROM utilisateur WHERE email = 'eirrproject@gmail.com';
+    SELECT id INTO regular_user_id FROM utilisateur WHERE email = 'sidis9828@gmail.com';
+    SELECT id INTO orange_user_id FROM utilisateur WHERE email = 'devvmrr@gmail.com';
     
     -- Insert Samsung device for regular user
     device_id := gen_random_uuid();
@@ -147,7 +147,7 @@ SELECT
     '89212070000000001234',
     'Orange',
     u.id
-FROM utilisateur u WHERE u.email = 'orange@eir.ma';
+FROM utilisateur u WHERE u.email = 'devvmrr@gmail.com';
 
 INSERT INTO sim (id, iccid, operateur, utilisateur_id)
 SELECT 
@@ -164,7 +164,7 @@ SELECT
     NOW() - INTERVAL '1 hour',
     '353260051234567',
     u.id
-FROM utilisateur u WHERE u.email = 'user@eir.ma';
+FROM utilisateur u WHERE u.email = 'sidis9828@gmail.com';
 
 INSERT INTO recherche (id, date_recherche, imei_recherche, utilisateur_id)
 SELECT 
@@ -172,26 +172,149 @@ SELECT
     NOW() - INTERVAL '30 minutes',
     '356920051234567',
     u.id
-FROM utilisateur u WHERE u.email = 'orange@eir.ma';
+FROM utilisateur u WHERE u.email = 'devvmrr@gmail.com';
 
--- Insert sample notifications
-INSERT INTO notification (id, type, contenu, statut, utilisateur_id)
+-- Insert sample notifications using new notification system structure
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation)
 SELECT 
     gen_random_uuid(),
-    'system',
-    'Base de données EIR initialisée avec succès',
-    'non_lu',
-    u.id
-FROM utilisateur u WHERE u.email = 'admin@eir.ma';
+    'email',
+    'eirrproject@gmail.com',
+    '🔧 Système EIR - Base de données initialisée',
+    'Bonjour Administrator,
 
-INSERT INTO notification (id, type, contenu, statut, utilisateur_id)
+La base de données EIR a été initialisée avec succès.
+
+📊 RÉSUMÉ DE L''INITIALISATION:
+- Utilisateurs créés: 4
+- Appareils de test: 5
+- IMEI de test: 7
+- Données TAC: 7 entrées
+
+Le système est maintenant prêt à être utilisé.
+
+🔗 Accès: http://localhost:8000
+📚 Documentation: ./NOTIFICATIONS_QUICK_START.md
+
+---
+EIR Project - Système d''initialisation automatique',
+    'en_attente',
+    u.id,
+    NOW()
+FROM utilisateur u WHERE u.email = 'eirrproject@gmail.com';
+
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation)
 SELECT 
     gen_random_uuid(),
-    'info',
-    'Bienvenue dans le système EIR',
-    'non_lu',
-    u.id
-FROM utilisateur u WHERE u.email = 'user@eir.ma';
+    'email',
+    'sidis9828@gmail.com',
+    '🎉 Bienvenue dans EIR Project',
+    'Bonjour Regular User,
+
+Bienvenue dans le système EIR Project !
+
+📱 VOS APPAREILS:
+Vous avez 2 appareils enregistrés dans le système :
+- Samsung Galaxy S23 (IMEI: 353260051234567)
+- OnePlus 10 Pro (IMEI: 354048061234567, 354048061234568)
+
+🔍 FONCTIONNALITÉS DISPONIBLES:
+- Vérification d''IMEI en temps réel
+- Gestion de vos appareils
+- Historique des recherches
+- Notifications automatiques
+
+🌐 Portail: http://localhost:8000
+📞 Support: contact@eir-project.com
+
+---
+L''équipe EIR Project',
+    'en_attente',
+    u.id,
+    NOW()
+FROM utilisateur u WHERE u.email = 'sidis9828@gmail.com';
+
+-- Notification pour l'opérateur Orange
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation)
+SELECT 
+    gen_random_uuid(),
+    'email',
+    'devvmrr@gmail.com',
+    '📊 Rapport d''activité EIR - Orange Maroc',
+    'Bonjour Operateur Orange,
+
+Votre rapport d''activité EIR pour votre organisation Orange Maroc.
+
+📱 VOS APPAREILS ENREGISTRÉS:
+- Apple iPhone 14 (IMEI: 356920051234567)
+- Statut: Actif et validé
+
+🔍 ACTIVITÉ RÉCENTE:
+- 1 recherche IMEI effectuée
+- 1 appareil vérifié avec succès
+- Taux de validité: 100%
+
+📈 STATISTIQUES ORGANISATION:
+- Appareils total: 1
+- IMEI actifs: 1
+- Dernière activité: Il y a 30 minutes
+
+🔒 SÉCURITÉ:
+Aucune alerte de sécurité détectée.
+
+---
+EIR Project - Rapport automatique',
+    'en_attente',
+    u.id,
+    NOW() - INTERVAL '15 minutes'
+FROM utilisateur u WHERE u.email = 'devvmrr@gmail.com';
+
+-- Notification de test pour SMS (sera traitée en mode console)
+INSERT INTO notification (id, type, destinataire, contenu, statut, utilisateur_id, date_creation, tentative)
+SELECT 
+    gen_random_uuid(),
+    'sms',
+    '+33123456789',
+    '🔔 EIR Project: Votre IMEI 353260051234567 a été vérifié avec succès. Appareil: Samsung Galaxy S23. Plus d''infos: http://eir.ma/v/353260051234567',
+    'en_attente',
+    u.id,
+    NOW() - INTERVAL '5 minutes',
+    0
+FROM utilisateur u WHERE u.email = 'sidis9828@gmail.com';
+
+-- Notification d'alerte sécurité (exemple)
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation, tentative)
+SELECT 
+    gen_random_uuid(),
+    'email',
+    'eirrproject@gmail.com',
+    '🚨 ALERTE SÉCURITÉ EIR - IMEI Suspect Détecté',
+    'ALERTE SÉCURITÉ URGENTE
+
+Un IMEI suspect a été détecté dans le système.
+
+🚨 DÉTAILS DE L''INCIDENT:
+- IMEI: 990000001234567
+- Statut: Suspect
+- TAC: 99000000 (Code de test)
+- Appareil: TestDevice Test Model
+- Utilisateur: System Administrator
+- Détection: Validation automatique
+
+⚠️ ACTIONS REQUISES:
+1. Vérifier l''origine de cet IMEI
+2. Confirmer qu''il s''agit d''un appareil de test
+3. Mettre à jour le statut si nécessaire
+
+🔍 Ce message a été généré automatiquement par le système de détection EIR.
+
+---
+EIR Project - Système d''alerte automatique',
+    'en_attente',
+    u.id,
+    NOW() - INTERVAL '1 hour',
+    0
+FROM utilisateur u WHERE u.email = 'eirrproject@gmail.com';
 
 -- Create audit log entries
 INSERT INTO journal_audit (id, action, date, utilisateur_id)
@@ -200,7 +323,7 @@ SELECT
     'SYSTEM: Initialisation de la base de données terminée',
     NOW(),
     u.id
-FROM utilisateur u WHERE u.email = 'admin@eir.ma';
+FROM utilisateur u WHERE u.email = 'eirrproject@gmail.com';
 
 -- Insert sample import/export record
 INSERT INTO importexport (id, type_operation, fichier, date, utilisateur_id)
@@ -210,7 +333,7 @@ SELECT
     'initial_data_setup.sql',
     NOW(),
     u.id
-FROM utilisateur u WHERE u.email = 'admin@eir.ma';
+FROM utilisateur u WHERE u.email = 'eirrproject@gmail.com';
 
 -- Verify the data and show summary
 SELECT 

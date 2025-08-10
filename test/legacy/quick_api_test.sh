@@ -47,7 +47,7 @@ test_endpoint "GET" "/imei/352745080123456/historique" "Historique IMEI"
 
 echo ""
 echo "🔐 Endpoints Authentification:"
-test_endpoint "POST" "/authentification/connexion" "Connexion admin" "200" '{"email":"admin@eir-project.com","mot_de_passe":"admin123"}'
+test_endpoint "POST" "/authentification/connexion" "Connexion admin" "200" '{"email":"eirrproject@gmail.com","mot_de_passe":"admin123"}'
 
 echo ""
 echo "📊 Endpoints Analyses:"

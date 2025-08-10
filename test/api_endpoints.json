@@ -178,7 +178,7 @@
         "test_priority": "high",
         "expected_fields": ["access_token", "token_type"],
         "test_data": {
-          "email": "admin@eir-project.com",
+          "email": "eirrproject@gmail.com",
           "mot_de_passe": "admin123"
         }
       },
@@ -327,7 +327,7 @@
     },
     "test_users": {
       "admin": {
-        "email": "admin@eir-project.com",
+        "email": "eirrproject@gmail.com",
         "mot_de_passe": "admin123"
       },
       "regular": {

@@ -1,0 +1,143 @@
+# Configuration du système de notifications
+# Utilisé pour activer/désactiver l'envoi d'email et de SMS
+
+notifications:
+  enabled: true  # Activer/désactiver tout le système de notifications
+  
+  email:
+    enabled: true  # Activer/désactiver l'envoi d'emails
+    provider: "smtp"  # smtp, gmail, sendgrid, mailgun, etc.
+    
+    # Configuration SMTP générique
+    smtp:
+      host: "${SMTP_SERVER:smtp.gmail.com}"
+      port: "${SMTP_PORT:587}"
+      use_tls: true
+      username: "${EMAIL_USER:}"
+      password: "${EMAIL_PASSWORD:}"
+      from_email: "${SMTP_FROM_EMAIL:noreply@eir-project.com}"
+      from_name: "${SMTP_FROM_NAME:EIR Project}"
+    
+    # Configuration spécifique Gmail
+    gmail:
+      username: "${GMAIL_USERNAME:}"
+      password: "${GMAIL_APP_PASSWORD:}"  # Utiliser un mot de passe d'application
+      from_email: "${GMAIL_FROM_EMAIL:}"
+      from_name: "${GMAIL_FROM_NAME:EIR Project}"
+    
+    # Paramètres d'envoi
+    retry:
+      max_attempts: 3
+      retry_delay_seconds: 300  # 5 minutes
+      exponential_backoff: true
+    
+    # Templates par défaut
+    templates:
+      default_subject: "Notification EIR Project"
+      footer: "\n\n---\nEIR Project - Système de gestion des équipements mobiles\nCet email a été généré automatiquement."
+
+  sms:
+    enabled: false  # Désactivé par défaut (mode développement)
+    provider: "console"  # console, twilio, aws_sns, etc.
+    
+    # Mode simulation pour développement
+    console:
+      enabled: true
+      log_to_file: true
+      log_file: "logs/sms_simulation.log"
+    
+    # Configuration Twilio (à activer en production)
+    twilio:
+      enabled: false
+      account_sid: "${TWILIO_ACCOUNT_SID:}"
+      auth_token: "${TWILIO_AUTH_TOKEN:}"
+      from_number: "${TWILIO_FROM_NUMBER:}"
+    
+    # Configuration AWS SNS (alternative)
+    aws_sns:
+      enabled: false
+      region: "${AWS_REGION:eu-west-1}"
+      access_key_id: "${AWS_ACCESS_KEY_ID:}"
+      secret_access_key: "${AWS_SECRET_ACCESS_KEY:}"
+    
+    # Paramètres d'envoi
+    retry:
+      max_attempts: 3
+      retry_delay_seconds: 180  # 3 minutes
+      exponential_backoff: true
+    
+    # Validation des numéros
+    validation:
+      enabled: true
+      min_length: 8
+      max_length: 15
+      international_format: true  # Forcer le format international (+33...)
+
+  # Configuration du planificateur de tâches
+  scheduler:
+    enabled: true
+    check_interval_seconds: 60  # Vérifier les notifications en attente toutes les minutes
+    batch_size: 50  # Traiter 50 notifications par lot
+    max_execution_time_seconds: 300  # 5 minutes max par cycle
+    
+    # Heures de fonctionnement (24h par défaut)
+    working_hours:
+      enabled: false  # Désactiver pour envoyer 24h/24
+      start_time: "08:00"
+      end_time: "20:00"
+      timezone: "Europe/Paris"
+
+  # Gestion des erreurs et logs
+  logging:
+    enabled: true
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    log_file: "logs/notifications.log"
+    max_file_size_mb: 10
+    backup_count: 5
+    
+    # Logs séparés par type
+    separate_logs:
+      email: "logs/email_notifications.log"
+      sms: "logs/sms_notifications.log"
+      errors: "logs/notification_errors.log"
+
+  # Limites et quotas
+  rate_limiting:
+    enabled: true
+    email:
+      per_user_per_hour: 10
+      per_user_per_day: 50
+      global_per_minute: 100
+    sms:
+      per_user_per_hour: 5
+      per_user_per_day: 20
+      global_per_minute: 50
+
+  # Nettoyage automatique
+  cleanup:
+    enabled: true
+    delete_sent_after_days: 30
+    delete_failed_after_days: 7
+    archive_before_delete: true
+    archive_path: "archives/notifications/"
+
+# Variables d'environnement pour Docker
+environment_variables:
+  - SMTP_HOST
+  - SMTP_PORT
+  - SMTP_USERNAME
+  - SMTP_PASSWORD
+  - SMTP_FROM_EMAIL
+  - SMTP_FROM_NAME
+  - GMAIL_USERNAME
+  - GMAIL_APP_PASSWORD
+  - GMAIL_FROM_EMAIL
+  - GMAIL_FROM_NAME
+  - TWILIO_ACCOUNT_SID
+  - TWILIO_AUTH_TOKEN
+  - TWILIO_FROM_NUMBER
+  - AWS_REGION
+  - AWS_ACCESS_KEY_ID
+  - AWS_SECRET_ACCESS_KEY
+  - NOTIFICATION_LOG_LEVEL
+  - NOTIFICATION_SCHEDULER_INTERVAL

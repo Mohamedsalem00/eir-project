@@ -91,7 +91,7 @@ EOF
 
 # Copy and execute clear script
 docker compose cp /tmp/clear_data.sql db:/tmp/clear_data.sql
-docker compose exec -T db psql -U postgres -d imei_db -f /tmp/clear_data.sql
+docker compose exec -T db psql -U postgres -d eir_project -f /tmp/clear_data.sql
 
 log_success "Données supprimées"
 
@@ -104,9 +104,9 @@ if [[ ! -f "backend/test_data.sql" ]]; then
 -- Insert test users
 INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, organisation, est_actif) VALUES
 ('00000000-0000-0000-0000-000000000001', 'Admin System', 'admin@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'administrateur', 'admin', 'tout', 'ANRT', true),
-('00000000-0000-0000-0000-000000000002', 'Operateur Orange', 'orange@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'operateur', 'standard', 'organisation', 'Orange Maroc', true),
+('00000000-0000-0000-0000-000000000002', 'Operateur Orange', 'devvmrr@gmail.com', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'operateur', 'standard', 'organisation', 'Orange Maroc', true),
 ('00000000-0000-0000-0000-000000000003', 'Operateur Inwi', 'inwi@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'operateur', 'standard', 'organisation', 'Inwi', true),
-('00000000-0000-0000-0000-000000000004', 'Utilisateur Test', 'user@eir.ma', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'utilisateur_authentifie', 'basique', 'personnel', 'Test Corp', true);
+('00000000-0000-0000-0000-000000000004', 'Utilisateur Test', 'sidis9828@gmail.com', '$2b$12$LQv3c1yqBwEHFwyDOSjR5.3yxSC..u3YGRKr5QOOXzKH8nYXn6mhO', 'utilisateur_authentifie', 'basique', 'personnel', 'Test Corp', true);
 
 -- Insert test TAC data
 INSERT INTO tac_database (tac, marque, modele, type_appareil, statut) VALUES
@@ -190,7 +190,7 @@ fi
 # Load test data
 log_info "Rechargement des données de test..."
 docker compose cp backend/test_data.sql db:/tmp/test_data.sql
-if docker compose exec -T db psql -U postgres -d imei_db -f /tmp/test_data.sql; then
+if docker compose exec -T db psql -U postgres -d eir_project -f /tmp/test_data.sql; then
     log_success "Données de test chargées"
 else
     log_error "Échec du rechargement des données de test"
@@ -199,7 +199,7 @@ fi
 
 # Display statistics
 log_info "Affichage des statistiques..."
-docker compose exec -T db psql -U postgres -d imei_db -c "
+docker compose exec -T db psql -U postgres -d eir_project -c "
 SELECT 'Base de données réinitialisée avec succès!' as status;
 SELECT 
     'Statistiques' as info,
@@ -218,9 +218,9 @@ log_success "Réinitialisation terminée avec succès!"
 echo ""
 echo "📊 Comptes de test disponibles:"
 echo "   Admin: admin@eir.ma / password123"
-echo "   Orange: orange@eir.ma / password123"
+echo "   Orange: devvmrr@gmail.com / password123"
 echo "   Inwi: inwi@eir.ma / password123"
-echo "   User: user@eir.ma / password123"
+echo "   User: sidis9828@gmail.com / password123"
 echo ""
 echo "🌐 Interface web: http://localhost:8000"
 echo "🔧 Admin: http://localhost:8000/admin"
@@ -231,7 +231,7 @@ echo ""
 echo "🧪 Test TAC validation:"
 echo "   curl http://localhost:8000/imei/353260051234567/validate"
     echo "🔑 Utilisateurs de test disponibles (mot de passe: admin123) :"
-    echo "   👑 admin@eir-project.com (Administrateur)"
+    echo "   👑 eirrproject@gmail.com (Administrateur)"
     echo "   👤 user@example.com (Utilisateur Standard)"
     echo "   🏢 insurance@company.com (Assurance)"
     echo "   👮 police@agency.gov (Police)"

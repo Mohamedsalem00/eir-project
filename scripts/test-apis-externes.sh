@@ -138,5 +138,5 @@ EOF
 
 echo ""
 echo "🚀 Pour appliquer cette configuration:"
-echo "cp config/external_apis_working.yml config/external_apis.yml"
+echo "cp config/external_apis.yml"
 echo "docker compose restart web"

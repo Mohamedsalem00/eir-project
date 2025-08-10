@@ -301,7 +301,7 @@ test_database_connectivity() {
         
         # Test database content
         local table_count
-        table_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
+        table_count=$(docker compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
         
         if [[ "$table_count" -gt 0 ]]; then
             log_info "Base de données contient $table_count tables"

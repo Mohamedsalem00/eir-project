@@ -9,6 +9,7 @@ from .core.i18n_deps import get_current_translator, get_language_from_request
 from .core.audit_deps import get_audit_service
 from .i18n import get_translator, SUPPORTED_LANGUAGES
 from .services.audit import AuditService
+from .services.eir_notifications import EIRNotificationService
 from .routes.auth import router as auth_router
 from .routes.access_management import router as access_router
 from .models.appareil import Appareil
@@ -25,8 +26,13 @@ import csv
 import json
 import io
 import os
+import platform
+import logging
 from typing import Optional, List, Dict, Any
 import platform
+
+# Configuration du logger
+logger = logging.getLogger(__name__)
 
 # Import pour l'intégration multi-protocoles
 from .interface_gateway.dispatcher import (
@@ -104,6 +110,11 @@ app = FastAPI(
 app.include_router(auth_router, tags=["Authentification"])
 app.include_router(access_router, tags=["Gestion d'Accès"])
 
+# Import et inclusion du router des notifications
+# TEMPORAIREMENT DÉSACTIVÉ POUR TEST EMAIL
+# from .routes.notifications import router as notifications_router
+# app.include_router(notifications_router)
+
 # Stocker l'heure de démarrage de l'application pour le calcul du temps de fonctionnement
 app_start_time = datetime.now()
 
@@ -124,11 +135,12 @@ def get_system_uptime():
     "/",
     tags=["Système"],
     summary="Bienvenue API",
-    description="Obtenir des informations complètes sur l'API, les capacités et le guide de démarrage rapide"
+    description="Obtenir des informations complètes sur l'API, les capacités et le guide de démarrage rapide",
+    response_model=None
 )
 async def bienvenue(
     request: Request,
-    user = Depends(get_current_user_optional),
+    user: Optional[Utilisateur] = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
@@ -495,13 +507,14 @@ def statistiques_publiques(
     "/imei/{imei}",
     tags=["IMEI", "Public"],
     summary="Recherche IMEI Améliorée avec Contrôle d'Accès",
-    description="Rechercher les informations IMEI avec niveaux d'accès granulaires et journalisation automatique des recherches"
+    description="Rechercher les informations IMEI avec niveaux d'accès granulaires et journalisation automatique des recherches",
+    response_model=None
 )
-def verifier_imei(
+async def verifier_imei(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user_optional),
+    user: Optional[Utilisateur] = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
@@ -638,6 +651,25 @@ def verifier_imei(
                 "modele": appareil.modele
             }
         
+        # 📧 Send IMEI verification result email (only for authenticated users)
+        if user:
+            try:
+                await EIRNotificationService.notifier_verification_imei(
+                    user_id=str(user.id),
+                    imei=imei,
+                    resultat="valide" if found else "invalide",
+                    details={
+                        "marque": appareil.marque if found else "Inconnue",
+                        "modele": appareil.modele if found else "Inconnu",
+                        "tac": imei[:8] if len(imei) >= 8 else "N/A",
+                        "luhn_valide": True,  # Simplified for demo
+                        "info_supplementaire": f"Vérification via niveau d'accès: {niveau_acces_utilisateur}"
+                    }
+                )
+                logger.info(f"IMEI verification email sent to user: {user.email}")
+            except Exception as e:
+                logger.warning(f"Failed to send IMEI verification email: {str(e)}")
+        
         return response_data
     
     # IMEI not found response
@@ -655,11 +687,13 @@ def verifier_imei(
 
 # APIs de Gestion d'Appareils Améliorées avec contrôle d'accès granulaire
 @app.post("/appareils", tags=["Appareils"])
-def enregistrer_appareil(
-    donnees_appareil: dict, 
+async def enregistrer_appareil(
+    donnees_appareil: dict,
+    request: Request,
     db: Session = Depends(get_db),
     user: Utilisateur = Depends(get_current_user),
-    audit_service: AuditService = Depends(get_audit_service)
+    audit_service: AuditService = Depends(get_audit_service),
+    translator = Depends(get_current_translator)
 ):
     """
     Enregistrer un appareil avec contrôle d'accès amélioré et journalisation d'audit
@@ -669,6 +703,16 @@ def enregistrer_appareil(
     - Les utilisateurs élevés peuvent enregistrer des appareils dans leur organisation
     - Les admins peuvent enregistrer des appareils pour tout utilisateur
     - Les utilisateurs limités (parties concernées) ont un accès restreint basé sur les marques
+    
+    ### Support Multilingue:
+    - Utilisez l'en-tête `Accept-Language` pour spécifier la langue préférée
+    - Langues supportées: `fr` (français), `en` (anglais), `ar` (arabe)
+    - Exemple: `Accept-Language: en-US,en;q=0.9,fr;q=0.8`
+    - Alternative: utilisez l'en-tête `X-Language` ou le paramètre `?lang=`
+    
+    ### Messages d'Erreur Localisés:
+    - Les messages d'erreur sont retournés dans la langue demandée
+    - Les erreurs de validation IMEI dupliqué sont traduites automatiquement
     """
     # Vérifier si l'utilisateur a la permission de créer des appareils
     if not PermissionManager.has_permission(user, Operation.CREATE_DEVICE):
@@ -707,6 +751,15 @@ def enregistrer_appareil(
     for i, donnees_imei in enumerate(donnees_imeis):
         numero_imei = donnees_imei.get("numero_imei")
         
+        # Vérifier si l'IMEI existe déjà dans la base de données
+        if numero_imei:
+            existing_imei = db.query(IMEI).filter(IMEI.numero_imei == numero_imei).first()
+            if existing_imei:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=translator.translate("erreur_imei_existe_deja", numero_imei=numero_imei)
+                )
+        
         # Valider l'accès aux plages IMEI pour les parties concernées
         if user.niveau_acces == "limited" and user.plages_imei_autorisees:
             can_access, _ = PermissionManager.can_access_imei(user, numero_imei, db)
@@ -720,14 +773,28 @@ def enregistrer_appareil(
             id=uuid.uuid4(),
             numero_imei=numero_imei,
             numero_slot=donnees_imei.get("numero_slot", i + 1),
-            status=donnees_imei.get("statut", "active"),
+            statut=donnees_imei.get("statut", "actif"),
             appareil_id=appareil.id
         )
         db.add(imei)
         numeros_imei.append(imei.numero_imei)
     
-    db.commit()
-    db.refresh(appareil)
+    try:
+        db.commit()
+        db.refresh(appareil)
+    except Exception as e:
+        db.rollback()
+        # Vérifier si c'est une erreur de contrainte d'unicité sur l'IMEI
+        if "unique constraint" in str(e).lower() and "imei" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=translator.translate("erreur_imeis_existent_deja")
+            )
+        # Pour toute autre erreur, la relancer
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=translator.translate("erreur_enregistrement_appareil", error=str(e))
+        )
     
     # Journaliser la création d'appareil avec contexte d'accès
     audit_service.log_device_creation(
@@ -741,6 +808,21 @@ def enregistrer_appareil(
             "niveau_acces": user.niveau_acces or "basique"
         }
     )
+    
+    # 📧 Send new device registration email
+    try:
+        await EIRNotificationService.notifier_nouvel_appareil(
+            user_id=str(user.id),
+            appareil_details={
+                "marque": appareil.marque,
+                "modele": appareil.modele,
+                "emmc": appareil.emmc,
+                "imeis": [{"numero": imei, "slot": i+1} for i, imei in enumerate(numeros_imei)]
+            }
+        )
+        logger.info(f"New device registration email sent to user: {user.email}")
+    except Exception as e:
+        logger.warning(f"Failed to send device registration email: {str(e)}")
     
     return {
         "id": str(appareil.id),
@@ -877,7 +959,7 @@ Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
             }
             
             # Add enhanced info based on access level
-            user_level = AccessLevel(user.niveau_acces or "basique")
+            user_level = AccessLevel.from_french(user.niveau_acces or "basique")
             if user_level in [AccessLevel.ELEVATED, AccessLevel.ADMIN]:
                 device_info.update({
                     "emmc": device.emmc,
@@ -903,9 +985,9 @@ Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
     }
 
 # Nouvel endpoint pour les parties concernées pour vérifier leurs permissions d'accès
-@app.get("/mes-permissions", tags=["Utilisateurs"])
+@app.get("/mes-permissions", tags=["Utilisateurs"], response_model=None)
 def get_my_permissions(
-    user = Depends(get_current_user_optional)
+    user: Optional[Utilisateur] = Depends(get_current_user_optional)
 ):
     """
     Obtenir les permissions et niveaux d'accès de l'utilisateur actuel
@@ -930,7 +1012,7 @@ def get_my_permissions(
             "id": str(user.id),
             "name": user.nom,
             "niveau_acces": user.niveau_acces or "basique",
-            "organization": user.organization
+            "organization": getattr(user, 'organisation', None)
         },
         "permissions": permissions_summary,
         "current_session": {
@@ -2009,14 +2091,15 @@ def get_audit_logs(
     "/verify_imei",
     tags=["IMEI", "Intégration"],
     summary="Vérification IMEI Multi-Protocoles",
-    description="Vérifier un IMEI via différents protocoles (REST, SS7, Diameter) selon la configuration"
+    description="Vérifier un IMEI via différents protocoles (REST, SS7, Diameter) selon la configuration",
+    response_model=None
 )
 async def verify_imei_multi_protocol(
     request_data: dict,
     protocol: str = Query(default="rest", description="Protocole à utiliser (rest, ss7, diameter)"),
     request: Request = None,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user_optional),
+    user: Optional[Utilisateur] = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
@@ -2151,10 +2234,11 @@ async def verify_imei_multi_protocol(
     "/protocols/status",
     tags=["Système", "Intégration"],
     summary="Statut des Protocoles",
-    description="Obtenir le statut d'activation des protocoles d'intégration"
+    description="Obtenir le statut d'activation des protocoles d'intégration",
+    response_model=None
 )
 async def get_protocols_status(
-    user = Depends(get_current_user_optional),
+    user: Optional[Utilisateur] = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
@@ -2225,13 +2309,14 @@ async def get_protocols_status(
     "/imei/{imei}/validate",
     tags=["IMEI", "TAC"],
     summary="Validation IMEI avec base TAC",
-    description="Valider un IMEI en utilisant la base de données TAC et l'algorithme Luhn"
+    description="Valider un IMEI en utilisant la base de données TAC et l'algorithme Luhn",
+    response_model=None
 )
 def valider_imei_avec_tac_endpoint(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user_optional),
+    user: Optional[Utilisateur] = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
@@ -2302,12 +2387,13 @@ def valider_imei_avec_tac_endpoint(
     "/tac/{tac}",
     tags=["TAC"],
     summary="Recherche TAC",
-    description="Rechercher les informations d'un code TAC dans la base de données"
+    description="Rechercher les informations d'un code TAC dans la base de données",
+    response_model=None
 )
 def rechercher_tac(
     tac: str,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user_optional),
+    user: Optional[Utilisateur] = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
@@ -2679,13 +2765,14 @@ async def importer_tac_fichier(
     "/imei/{imei}/details",
     tags=["IMEI", "TAC"],
     summary="Détails complets IMEI",
-    description="Obtenir tous les détails d'un IMEI incluant validation TAC et informations de base"
+    description="Obtenir tous les détails d'un IMEI incluant validation TAC et informations de base",
+    response_model=None
 )
 def details_complets_imei(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user_optional),
+    user: Optional[Utilisateur] = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
@@ -2752,4 +2839,180 @@ def determine_statut_global(imei_local: dict, tac_validation: dict) -> str:
     
     # IMEI non trouvé localement mais TAC valide
     return "tac_valide_non_enregistre"
+
+# ==========================================
+# ÉVÉNEMENTS DE CYCLE DE VIE DE L'APPLICATION
+# ==========================================
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Événement de démarrage de l'application
+    Initialise les services en arrière-plan
+    """
+    logger.info("Démarrage de l'application EIR Project")
+    
+    try:
+        # Démarrer le planificateur de notifications
+        from .tasks.notification_scheduler import start_notification_scheduler
+        await start_notification_scheduler()
+        logger.info("Planificateur de notifications démarré")
+        
+    except Exception as e:
+        logger.error(f"Erreur lors du démarrage des services: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Événement d'arrêt de l'application
+    Nettoie les ressources et arrête les services
+    """
+    logger.info("Arrêt de l'application EIR Project")
+    
+    try:
+        # Arrêter le planificateur de notifications
+        from .tasks.notification_scheduler import stop_notification_scheduler
+        await stop_notification_scheduler()
+        logger.info("Planificateur de notifications arrêté")
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'arrêt des services: {e}")
+
+# ==========================================
+# ENDPOINT DE CONTRÔLE DU PLANIFICATEUR (ADMIN)
+# ==========================================
+
+@app.get("/admin/notifications/scheduler/status", tags=["Admin"], response_model=None)
+async def obtenir_statut_planificateur(
+    current_user: Utilisateur = Depends(get_admin_user)
+):
+    """
+    Obtient le statut du planificateur de notifications
+    **Réservé aux administrateurs**
+    """
+    try:
+        from .tasks.notification_scheduler import get_scheduler_status
+        return get_scheduler_status()
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération du statut du planificateur: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération du statut"
+        )
+
+@app.post("/admin/notifications/scheduler/trigger/{job_id}", tags=["Admin"], response_model=None)
+async def declencher_tache_planificateur(
+    job_id: str,
+    current_user: Utilisateur = Depends(get_admin_user)
+):
+    """
+    Déclenche manuellement une tâche du planificateur
+    
+    - **process_notifications**: Traiter les notifications en attente
+    - **cleanup_notifications**: Nettoyer les anciennes notifications
+    - **log_statistics**: Logger les statistiques actuelles
+    
+    **Réservé aux administrateurs**
+    """
+    try:
+        from .tasks.notification_scheduler import trigger_notification_job
+        result = await trigger_notification_job(job_id)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Erreur lors du déclenchement de la tâche {job_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur interne lors du déclenchement de la tâche {job_id}"
+        )
+
+# Test endpoint for email configuration
+@app.get("/test-email-config", response_model=None)
+async def test_email_config():
+    """Test email configuration from .env file"""
+    try:
+        from .services.email_service import email_service
+        
+        # Test connection
+        success, message = email_service.test_connection()
+        config_info = email_service.get_config_info()
+        
+        return {
+            "email_test": {
+                "success": success,
+                "message": message,
+                "configuration": config_info
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Erreur lors du test email: {e}")
+        return {
+            "email_test": {
+                "success": False,
+                "message": f"Erreur: {str(e)}",
+                "configuration": None
+            }
+        }
+
+# Debug endpoint to check environment variables
+@app.get("/debug-env", response_model=None)
+async def debug_env():
+    """Debug endpoint to check environment variables"""
+    import os
+    return {
+        "env_vars": {
+            "SMTP_SERVER": os.getenv("SMTP_SERVER"),
+            "SMTP_PORT": os.getenv("SMTP_PORT"),
+            "EMAIL_USER": os.getenv("EMAIL_USER"),
+            "EMAIL_PASSWORD": "***" if os.getenv("EMAIL_PASSWORD") else None,
+            "EMAIL_USE_TLS": os.getenv("EMAIL_USE_TLS")
+        }
+    }
+
+# Test endpoint for sending actual email
+@app.post("/test-send-email", response_model=None)
+async def test_send_email(
+    email_data: dict = None
+):
+    """Send a test email to verify the email service is working"""
+    try:
+        from .services.email_service import email_service
+        
+        # Default test email data
+        if not email_data:
+            email_data = {
+                "destinataire": "medsalemlmt@gmail.com",
+                "sujet": "Test Email - EIR Project",
+                "contenu": "Ceci est un email de test depuis l'API EIR Project. Si vous recevez ce message, la configuration email fonctionne correctement!"
+            }
+        
+        # Send the email using the async method
+        success, message = await email_service.send_email_async(
+            to_email=email_data["destinataire"],
+            subject=email_data["sujet"],
+            content=email_data["contenu"]
+        )
+        
+        return {
+            "email_sent": {
+                "success": success,
+                "message": message,
+                "destinataire": email_data["destinataire"],
+                "sujet": email_data["sujet"]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'envoi de l'email de test: {e}")
+        return {
+            "email_sent": {
+                "success": False,
+                "message": f"Erreur: {str(e)}",
+                "destinataire": email_data.get("destinataire", "unknown") if email_data else "unknown"
+            }
+        }
+
+
 

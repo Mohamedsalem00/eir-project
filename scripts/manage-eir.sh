@@ -106,8 +106,8 @@ show_status() {
             
             # Count tables and data
             local table_count user_count
-            table_count=$(run_docker_compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
-            user_count=$(run_docker_compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM Utilisateur;" 2>/dev/null | tr -d ' \n' || echo "0")
+            table_count=$(run_docker_compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
+            user_count=$(run_docker_compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM Utilisateur;" 2>/dev/null | tr -d ' \n' || echo "0")
             
             echo "  └─ Tables : $table_count"
             echo "  └─ Utilisateurs : $user_count"
@@ -234,7 +234,7 @@ backup_database() {
     mkdir -p "$backup_dir"
     
     log_info "Création de la sauvegarde..."
-    if run_docker_compose exec -T db pg_dump -U postgres imei_db > "$backup_dir/$backup_file"; then
+    if run_docker_compose exec -T db pg_dump -U postgres eir_project > "$backup_dir/$backup_file"; then
         log_success "Sauvegarde créée : $backup_dir/$backup_file"
         echo "Taille : $(du -h "$backup_dir/$backup_file" | cut -f1)"
     else
@@ -278,7 +278,7 @@ restore_database() {
         
         if [[ "$confirm" =~ ^[Oo]$ ]]; then
             log_info "Restauration en cours..."
-            if run_docker_compose exec -T db psql -U postgres -d imei_db < "$selected_backup"; then
+            if run_docker_compose exec -T db psql -U postgres -d eir_project < "$selected_backup"; then
                 log_success "Restauration terminée"
             else
                 log_error "Échec de la restauration"

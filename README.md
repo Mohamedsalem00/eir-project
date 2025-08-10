@@ -147,7 +147,7 @@ erDiagram
 ### Variables d'Environnement
 ```bash
 # Base de données
-POSTGRES_DB=imei_db
+POSTGRES_DB=eir_project
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=motdepasse_securise
 

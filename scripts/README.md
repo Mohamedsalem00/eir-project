@@ -192,7 +192,7 @@ docker volume prune -f
 ./scripts/manage-eir.sh
 
 # Sauvegarde manuelle
-docker compose exec db pg_dump -U postgres imei_db > backup.sql
+docker compose exec db pg_dump -U postgres eir_project > backup.sql
 ```
 
 ### Mises à Jour

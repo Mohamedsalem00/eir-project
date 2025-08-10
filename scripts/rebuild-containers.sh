@@ -134,7 +134,7 @@ initialize_database() {
     
     # Check if tables exist
     local table_count
-    table_count=$(docker compose exec -T db psql -U postgres -d imei_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
+    table_count=$(docker compose exec -T db psql -U postgres -d eir_project -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
     
     if [[ "$table_count" -eq "0" ]]; then
         log_warning "Base de données vide, initialisation manuelle..."
@@ -190,7 +190,7 @@ show_status() {
     echo "   🗄️  Base de données : localhost:5432 (postgres/postgres)"
     echo ""
     echo "🔑 Utilisateurs de test (mot de passe: admin123) :"
-    echo "   👑 admin@eir-project.com (Administrateur)"
+    echo "   👑 eirrproject@gmail.com (Administrateur)"
     echo "   👤 user@example.com (Utilisateur Standard)"
     echo "   🏢 insurance@company.com (Assurance)"
     echo "   👮 police@agency.gov (Police)"
