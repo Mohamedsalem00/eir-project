@@ -40,6 +40,7 @@ case "$1" in
         echo "Recherches: $(docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM recherche;" | tr -d ' ')"
         echo "Notifications: $(docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM notification;" | tr -d ' ')"
         echo "Tac Database: $(docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM tac_database;" | tr -d ' ')"
+        echo "Password Reset: $(docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM password_reset;" | tr -d ' ')"
         
         ;;
     
