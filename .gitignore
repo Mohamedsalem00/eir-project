@@ -127,13 +127,23 @@ test/test_results_*.json
 test/coverage_*.xml
 test/performance_*.json
 
-# Temporary test files
+# Temporary test files (add to root level patterns)
 test/temp/
 test/tmp/
 *.tmp
 *.temp
 temp/
 tmp/
+
+# Temporary test scripts and validation files
+test_*.py
+diagnostic_*.py
+*_test_*.py
+validation_*.py
+test_validation_*.py
+test_email_*.py
+test_admin_*.py
+test_fixed_*.py
 
 # ===== SECURITY =====
 # SSL certificates and keys
@@ -168,13 +178,30 @@ ISSUES_FIXED_REPORT.md
 FINAL_VICTORY_REPORT.md
 JSON_VS_PYTHON_ANALYSIS.md
 
-# ===== TEMPORARY SCRIPTS =====
-# Development and test scripts (keep main scripts)
+# ===== TESTING =====
+# Exclude entire test directory from Git (keep locally for development)
+test/
+tests/
+
+# But allow specific important test files (if needed)
+# !test/important_test.py
+
+# Temporary test files pattern
 test_*.py
 franciser_*.py
 *_test_*.py
 validation_*.py
 test_validation_*.py
+diagnostic_*.py
+test_email_*.py
+test_admin_*.py
+test_fixed_*.py
+
+# Temporary documentation and reports
+*_TEMP.md
+*_TEMPORAIRE.md
+*_SUCCESS*.md
+PROJECT_CLEANUP_*.md
 
 # ===== PROJECT SPECIFIC =====
 # Large data files (keep samples)
