@@ -772,7 +772,7 @@ async def enregistrer_appareil(
             id=uuid.uuid4(),
             numero_imei=numero_imei,
             numero_slot=donnees_imei.get("numero_slot", i + 1),
-            statut=donnees_imei.get("statut", "actif"),
+            statut=donnees_imei.get("statut", "active"),
             appareil_id=appareil.id
         )
         db.add(imei)
@@ -1309,7 +1309,7 @@ def bulk_import_devices(
                         id=uuid.uuid4(),
                         numero_imei=donnees_imei,
                         numero_slot=i + 1,
-                        status="active",
+                        statut="active",
                         appareil_id=appareil.id
                     )
                 else:
@@ -1318,7 +1318,7 @@ def bulk_import_devices(
                         id=uuid.uuid4(),
                         numero_imei=donnees_imei.get("numero_imei"),
                         numero_slot=donnees_imei.get("numero_slot", i + 1),
-                        status=donnees_imei.get("statut", "active"),
+                        statut=donnees_imei.get("statut", "active"),
                         appareil_id=appareil.id
                     )
                 db.add(imei)
@@ -1913,8 +1913,64 @@ def add_imei_to_device(
     translator = Depends(get_current_translator)
 ):
     """
-    Ajouter un IMEI à un appareil.
+    Ajouter un IMEI à un appareil existant.
+    
+    ### 📋 Paramètres requis
+    - **appareil_id** (path) : UUID de l'appareil
+    - **numero_imei** (body) : Numéro IMEI (14-15 chiffres)
+    
+    ### 🔧 Paramètres optionnels
+    - **numero_slot** : Slot SIM (1 ou 2, auto-assigné si omis)
+    - **statut** : Statut de l'IMEI (défaut: "actif")
+    
+    ### � Exemple de requête
+    ```json
+    {
+        "numero_imei": "123456789012345",
+        "numero_slot": 1,
+        "statut": "actif"
+    }
+    ```
+    
+    ### ✅ Validations
+    - IMEI unique dans le système
+    - Format numérique 14-15 chiffres
+    - Maximum 2 IMEIs par appareil
+    - Appareil existant requis
+    
+    ### ⚠️ Codes d'erreur
+    - **400** : Données invalides ou format IMEI incorrect
+    - **404** : Appareil non trouvé
+    - **409** : IMEI déjà existant
+    - **422** : Limite de 2 IMEIs atteinte
+    
+    ### 🌐 Support multilingue
+    Utilisez `Accept-Language: fr|en|ar` pour les messages localisés.
     """
+    # Validation des données requises
+    if not imei_data or not imei_data.get("numero_imei"):
+        raise HTTPException(
+            status_code=400,
+            detail=translator.translate("numero_imei_requis") if translator else "Numéro IMEI requis"
+        )
+    
+    numero_imei = imei_data.get("numero_imei").strip()
+    
+    # Validation du format IMEI
+    if not numero_imei.isdigit() or len(numero_imei) not in [14, 15]:
+        raise HTTPException(
+            status_code=400,
+            detail=translator.translate("format_imei_invalide") if translator else "Format IMEI invalide (14 ou 15 chiffres requis)"
+        )
+    
+    # Vérifier si l'IMEI existe déjà
+    existing_imei = db.query(IMEI).filter(IMEI.numero_imei == numero_imei).first()
+    if existing_imei:
+        raise HTTPException(
+            status_code=409,
+            detail=translator.translate("imei_deja_existe") if translator else "Cet IMEI existe déjà"
+        )
+    
     appareil = db.query(Appareil).filter(Appareil.id == appareil_id).first()
     if not appareil:
         raise HTTPException(
@@ -1931,9 +1987,9 @@ def add_imei_to_device(
     
     imei = IMEI(
         id=uuid.uuid4(),
-        numero_imei=imei_data.get("numero_imei"),
+        numero_imei=numero_imei,
         numero_slot=imei_data.get("numero_slot", len(appareil.imeis) + 1),
-        status=imei_data.get("statut", "active"),
+        statut=imei_data.get("statut", "actif"),
         appareil_id=appareil.id
     )
     
@@ -2876,7 +2932,7 @@ def determine_statut_global(imei_local: dict, tac_validation: dict) -> str:
         statut_local = imei_local.get("statut", "unknown")
         if statut_local == "bloque":
             return "bloque"
-        elif statut_local == "actif":
+        elif statut_local == "active":
             return "actif_valide"
         else:
             return f"local_{statut_local}"

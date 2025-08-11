@@ -10,13 +10,13 @@ state Nouveau {
     Nouveau : Aucune recherche
 }
 
-Nouveau --> Actif : Validation réussie
+Nouveau --> active : Validation réussie
 Nouveau --> Invalide : Format incorrect
 
-state Actif {
-    Actif : Statut = "active"
-    Actif : Autorisé sur réseau
-    Actif : Recherches possibles
+state active {
+    active : Statut = "active"
+    active : Autorisé sur réseau
+    active : Recherches possibles
 }
 
 state Invalide {
@@ -25,9 +25,9 @@ state Invalide {
     Invalide : Accès réseau refusé
 }
 
-Actif --> Bloqué : Signalement vol/fraude
-Actif --> Suspendu : Suspension temporaire
-Actif --> Inactif : Désactivation utilisateur
+active --> Bloqué : Signalement vol/fraude
+active --> Suspendu : Suspension temporaire
+active --> Inactif : Désactivation utilisateur
 
 state Bloqué {
     Bloqué : Statut = "blocked"
@@ -47,9 +47,9 @@ state Inactif {
     Inactif : Réactivation possible
 }
 
-Bloqué --> Actif : Déblocage administrateur
-Suspendu --> Actif : Fin de suspension
-Inactif --> Actif : Réactivation
+Bloqué --> active : Déblocage administrateur
+Suspendu --> active : Fin de suspension
+Inactif --> active : Réactivation
 
 Bloqué --> Archivé : Archivage définitif
 Invalide --> Archivé : Nettoyage base
@@ -62,7 +62,7 @@ state Archivé {
 
 Archivé --> [*] : Suppression définitive
 
-note right of Actif : État principal\npour utilisation normale
+note right of active : État principal\npour utilisation normale
 note right of Bloqué : Sécurité critique\nIntervention admin requise
 
 @enduml

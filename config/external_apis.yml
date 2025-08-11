@@ -75,14 +75,14 @@ external_apis:
       description: "Vos clés IMEI.org - Documentation API requise"
       method: "POST"
       
-    # IMEI24 - Site actif mais pas d'API publique confirmée
+    # IMEI24 - Site active mais pas d'API publique confirmée
     imei24:
       enabled: false  # Pas d'API publique connue
       url: "https://imei24.com/api/check"  # URL hypothétique
       api_key: null
       daily_limit: 500
       priority: 7
-      description: "Site actif - API publique non confirmée"
+      description: "Site active - API publique non confirmée"
       
     # Twilio Lookup - API premium officielle
     twilio_lookup:

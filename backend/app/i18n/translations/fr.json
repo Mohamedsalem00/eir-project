@@ -151,7 +151,7 @@
   "numero_imei": "Numéro IMEI",
   "numero_emplacement": "Numéro de Slot",
   "statut": "Statut",
-  "actif": "Actif",
+  "active": "active",
   "type": "Type",
   "contenu": "Contenu",
   "action": "Action",
@@ -303,7 +303,7 @@
   "latence_bonne": "< 10ms",
   "latence_na": "N/A",
   "statut_active": "activé",
-  "statut_actif": "actif",
+  "statut_actif": "active",
   "statut_defaillant": "non sain",
   "securite_tls": "chiffrement_tls",
   "securite_jwt": "validation_jwt",
@@ -312,5 +312,10 @@
   
   "usage_langue_en_tete": "Définir l'en-tête X-Language au code de langue souhaité",
   "usage_langue_requete": "Ajouter ?lang=code à toute URL de requête",
-  "usage_langue_accept": "L'en-tête Accept-Language du navigateur est automatiquement détecté"
+  "usage_langue_accept": "L'en-tête Accept-Language du navigateur est automatiquement détecté",
+  
+  "_validation_imei": "Messages de validation IMEI",
+  "numero_imei_requis": "Numéro IMEI requis",
+  "format_imei_invalide": "Format IMEI invalide (14 ou 15 chiffres requis)",
+  "imei_deja_existe": "Cet IMEI existe déjà"
 }

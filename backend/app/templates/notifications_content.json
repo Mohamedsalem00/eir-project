@@ -3,10 +3,10 @@
     "bienvenue": {
       "email": {
         "subject": "🎉 Bienvenue sur EIR Project !",
-        "content": "Bonjour {nom_utilisateur},\n\n🎉 **Bienvenue sur EIR Project !** 🎉\n\nNous sommes ravis de vous accueillir dans notre système de gestion des équipements mobiles.\n\n📱 **Avec votre compte, vous pouvez maintenant :**\n• Vérifier la validité de vos appareils mobiles\n• Enregistrer et gérer vos équipements\n• Consulter l'historique de vos recherches\n• Recevoir des alertes de sécurité importantes\n\n🔐 **Votre compte est maintenant actif :**\n• Vous pouvez vous connecter avec votre adresse email\n• Vos données sont protégées et sécurisées\n• Vous recevrez des notifications importantes par email\n\nMerci de nous faire confiance !\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+        "content": "Bonjour {nom_utilisateur},\n\n🎉 **Bienvenue sur EIR Project !** 🎉\n\nNous sommes ravis de vous accueillir dans notre système de gestion des équipements mobiles.\n\n📱 **Avec votre compte, vous pouvez maintenant :**\n• Vérifier la validité de vos appareils mobiles\n• Enregistrer et gérer vos équipements\n• Consulter l'historique de vos recherches\n• Recevoir des alertes de sécurité importantes\n\n🔐 **Votre compte est maintenant active :**\n• Vous pouvez vous connecter avec votre adresse email\n• Vos données sont protégées et sécurisées\n• Vous recevrez des notifications importantes par email\n\nMerci de nous faire confiance !\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
       },
       "sms": {
-        "content": "🎉 Bienvenue {nom_utilisateur} sur EIR Project! Votre compte est actif."
+        "content": "🎉 Bienvenue {nom_utilisateur} sur EIR Project! Votre compte est active."
       }
     },
     

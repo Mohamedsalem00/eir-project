@@ -151,7 +151,7 @@
   "numero_imei": "IMEI Number",
   "numero_emplacement": "Slot Number",
   "statut": "statut",
-  "actif": "Active",
+  "active": "Active",
   "type": "Type",
   "contenu": "Content",
   "action": "Action",
@@ -312,5 +312,10 @@
   
   "usage_langue_en_tete": "Set X-Language header to desired language code",
   "usage_langue_requete": "Add ?lang=code to any request URL",
-  "usage_langue_accept": "Browser Accept-Language header is automatically detected"
+  "usage_langue_accept": "Browser Accept-Language header is automatically detected",
+  
+  "_validation_imei": "IMEI validation messages",
+  "numero_imei_requis": "IMEI number required",
+  "format_imei_invalide": "Invalid IMEI format (14 or 15 digits required)",
+  "imei_deja_existe": "This IMEI already exists"
 }

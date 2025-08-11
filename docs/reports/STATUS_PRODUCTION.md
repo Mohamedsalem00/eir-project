@@ -6,7 +6,7 @@
 
 ## 📊 Configuration Actuelle
 
-### ✅ ACTIF - Validation Locale (GRATUITE)
+### ✅ active - Validation Locale (GRATUITE)
 - **Base TAC Locale:** 16,000+ modèles d'appareils
 - **Algorithme Luhn:** Validation mathématique des IMEI
 - **Coût:** 0€

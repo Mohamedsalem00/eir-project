@@ -151,7 +151,7 @@
   "numero_imei": "رقم IMEI",
   "numero_emplacement": "رقم الفتحة",
   "statut": "الحالة",
-  "actif": "نشط",
+  "active": "نشط",
   "type": "النوع",
   "contenu": "المحتوى",
   "action": "الإجراء",
@@ -312,5 +312,10 @@
   
   "usage_langue_en_tete": "تعيين رأس X-Language إلى رمز اللغة المطلوب",
   "usage_langue_requete": "إضافة ?lang=code إلى أي URL للطلب",
-  "usage_langue_accept": "يتم اكتشاف رأس Accept-Language للمتصفح تلقائيًا"
+  "usage_langue_accept": "يتم اكتشاف رأس Accept-Language للمتصفح تلقائيًا",
+  
+  "_validation_imei": "رسائل التحقق من IMEI",
+  "numero_imei_requis": "رقم IMEI مطلوب",
+  "format_imei_invalide": "تنسيق IMEI غير صالح (مطلوب 14 أو 15 رقم)",
+  "imei_deja_existe": "هذا IMEI موجود بالفعل"
 }

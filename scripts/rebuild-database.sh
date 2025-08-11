@@ -259,7 +259,7 @@ BEGIN
     
     -- Create test IMEI
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
-    VALUES (gen_random_uuid(), '353260051234567', 1, 'actif', device_id);
+    VALUES (gen_random_uuid(), '353260051234567', 1, 'active', device_id);
     
     -- Create basic TAC entry for testing
     INSERT INTO tac_database (tac, marque, modele, type_appareil, statut)

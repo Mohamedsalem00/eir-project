@@ -101,7 +101,7 @@ BEGIN
     VALUES (device_id, 'Samsung', 'Galaxy S23', '256GB', regular_user_id);
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
-    VALUES (gen_random_uuid(), '353260051234567', 1, 'actif', device_id);
+    VALUES (gen_random_uuid(), '353260051234567', 1, 'active', device_id);
     
     -- Insert Apple device for Orange operator
     device_id := gen_random_uuid();
@@ -109,7 +109,7 @@ BEGIN
     VALUES (device_id, 'Apple', 'iPhone 14', '128GB', orange_user_id);
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
-    VALUES (gen_random_uuid(), '356920051234567', 1, 'actif', device_id);
+    VALUES (gen_random_uuid(), '356920051234567', 1, 'active', device_id);
     
     -- Insert Huawei device for admin testing
     device_id := gen_random_uuid();
@@ -117,7 +117,7 @@ BEGIN
     VALUES (device_id, 'Huawei', 'P50 Pro', '512GB', admin_user_id);
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
-    VALUES (gen_random_uuid(), '862345671234567', 1, 'actif', device_id);
+    VALUES (gen_random_uuid(), '862345671234567', 1, 'active', device_id);
     
     -- Insert test device with multiple IMEIs
     device_id := gen_random_uuid();
@@ -126,8 +126,8 @@ BEGIN
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
     VALUES 
-    (gen_random_uuid(), '354048061234567', 1, 'actif', device_id),
-    (gen_random_uuid(), '354048061234568', 2, 'actif', device_id);
+    (gen_random_uuid(), '354048061234567', 1, 'active', device_id),
+    (gen_random_uuid(), '354048061234568', 2, 'active', device_id);
     
     -- Insert some test IMEIs for TAC validation testing
     device_id := gen_random_uuid();
@@ -249,7 +249,7 @@ Votre rapport d''activité EIR pour votre organisation Orange Maroc.
 
 📱 VOS APPAREILS ENREGISTRÉS:
 - Apple iPhone 14 (IMEI: 356920051234567)
-- Statut: Actif et validé
+- Statut: active et validé
 
 🔍 ACTIVITÉ RÉCENTE:
 - 1 recherche IMEI effectuée

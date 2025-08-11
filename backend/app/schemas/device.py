@@ -5,7 +5,7 @@ class CreationIMEI(BaseModel):
     """Schéma pour la création d'un IMEI"""
     numero_imei: str
     numero_slot: Optional[int] = 1
-    statut: Optional[str] = "actif"
+    statut: Optional[str] = "active"
 
 class ReponseIMEI(BaseModel):
     """Schéma de réponse pour un IMEI"""

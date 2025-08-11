@@ -14,7 +14,7 @@ response1=$(curl -s -X POST "http://localhost:8000/sync-device" \
            "imei": "111222333444555",
            "marque": "Xiaomi",
            "modele": "Mi 11",
-           "statut": "actif",
+           "statut": "active",
            "emmc": "128GB"
          }
        ],
@@ -35,7 +35,7 @@ response2=$(curl -s -X POST "http://localhost:8000/sync-device" \
            "imei": "111222333444555",
            "marque": "Xiaomi",
            "modele": "Mi 11 Pro",
-           "statut": "actif",
+           "statut": "active",
            "emmc": "256GB"
          }
        ],
@@ -56,13 +56,13 @@ response3=$(curl -s -X POST "http://localhost:8000/sync-device" \
            "imei": "666777888999000",
            "marque": "OnePlus",
            "modele": "Nord 3",
-           "statut": "actif"
+           "statut": "active"
          },
          {
            "imei": "555444333222111",
            "marque": "Google",
            "modele": "Pixel 7",
-           "statut": "actif"
+           "statut": "active"
          }
        ],
        "sync_mode": "upsert",

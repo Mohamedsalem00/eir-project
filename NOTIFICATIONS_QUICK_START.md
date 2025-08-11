@@ -357,7 +357,7 @@ grep "SMS_PROVIDER" backend/.env
 
 ### Notifications non traitées
 ```bash
-# 1. Scheduler actif ?
+# 1. Scheduler active ?
 curl http://localhost:8000/api/notifications/stats
 
 # 2. Traitement manuel

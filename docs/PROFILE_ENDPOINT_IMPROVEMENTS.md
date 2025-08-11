@@ -18,7 +18,7 @@
 #### 2. **Informations Temporelles**
 - `date_creation`: Date de création du compte
 - `derniere_connexion`: Dernière session de connexion
-- `statut_compte`: Statut actuel (actif/suspendu/etc.)
+- `statut_compte`: Statut actuel (active/suspendu/etc.)
 
 #### 3. **Permissions Dynamiques**
 **Pour Administrateur:**
@@ -78,7 +78,7 @@
   "type_utilisateur": "administrateur",
   "date_creation": null,
   "derniere_connexion": "2025-08-10T16:47:27.230283",
-  "statut_compte": "actif",
+  "statut_compte": "active",
   "permissions": [
     "gestion_utilisateurs",
     "gestion_appareils", 

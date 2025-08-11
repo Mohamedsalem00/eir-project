@@ -87,7 +87,7 @@ curl -X POST "http://localhost:8000/sync-device" \
         "imei": "123456789012345",
         "marque": "Samsung",
         "modele": "Galaxy S24",
-        "statut": "actif",
+        "statut": "active",
         "emmc": "256GB",
         "metadata": {
           "source_dms": "system_external",

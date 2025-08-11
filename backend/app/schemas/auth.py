@@ -32,7 +32,7 @@ class ProfilUtilisateurDetaille(BaseModel):
     type_utilisateur: str = Field(..., description="Type d'utilisateur (administrateur, utilisateur_authentifie)")
     date_creation: Optional[datetime] = Field(None, description="Date de création du compte")
     derniere_connexion: Optional[datetime] = Field(None, description="Date et heure de la dernière connexion")
-    statut_compte: str = Field(default="actif", description="Statut du compte (actif, suspendu, etc.)")
+    statut_compte: str = Field(default="active", description="Statut du compte (active, suspendu, etc.)")
     permissions: list[str] = Field(default_factory=list, description="Liste des permissions accordées")
     statistiques: dict = Field(default_factory=dict, description="Statistiques d'utilisation")
     

@@ -28,7 +28,7 @@ test_api() {
     http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout $timeout "$url" 2>/dev/null)
     
     if [ "$http_code" = "200" ] || [ "$http_code" = "302" ] || [ "$http_code" = "301" ]; then
-        echo -e "${GREEN}✅ ACTIF${NC} (HTTP $http_code)"
+        echo -e "${GREEN}✅ active${NC} (HTTP $http_code)"
         return 0
     elif [ "$http_code" = "404" ]; then
         echo -e "${YELLOW}⚠️  404 - Endpoint peut exister${NC}"

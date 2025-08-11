@@ -635,7 +635,7 @@ sync_devices_via_api() {
                 "imei": "353260051234567",
                 "marque": "Samsung",
                 "modele": "Galaxy A54",
-                "statut": "actif",
+                "statut": "active",
                 "emmc": "128GB",
                 "metadata": {
                     "source_dms": "manual_import_with_tac",
@@ -647,7 +647,7 @@ sync_devices_via_api() {
                 "imei": "356920051234567",
                 "marque": "Apple",
                 "modele": "iPhone 15",
-                "statut": "actif",
+                "statut": "active",
                 "emmc": "256GB",
                 "metadata": {
                     "source_dms": "manual_import_with_tac",

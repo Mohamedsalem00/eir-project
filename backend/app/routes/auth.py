@@ -294,7 +294,7 @@ async def get_profile_detailed(
         }
         
         # Déterminer le statut du compte
-        statut_compte = "actif"  # Par défaut, pourrait être enrichi avec une logique métier
+        statut_compte = "active"  # Par défaut, pourrait être enrichi avec une logique métier
         
         # Enregistrer la consultation du profil dans l'audit
         audit = JournalAudit(

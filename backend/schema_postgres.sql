@@ -73,6 +73,9 @@ DROP VIEW IF EXISTS vue_monitoring_sync_tac;
 DROP VIEW IF EXISTS vue_sync_tac_recent;
 DROP VIEW IF EXISTS vue_analyse_tac;
 
+-- Drop triggers first (they depend on functions)
+DROP TRIGGER IF EXISTS tac_update_modification_date ON tac_database;
+
 -- Drop functions (they might depend on tables)
 DROP FUNCTION IF EXISTS valider_lot_imeis_avec_tac(TEXT[]);
 DROP FUNCTION IF EXISTS nettoyer_logs_sync_tac(INTEGER);
