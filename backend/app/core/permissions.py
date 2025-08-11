@@ -72,12 +72,12 @@ class Operation(Enum):
 
 class PorteeDonnees(Enum):
     """Data access portee_donnees definitions"""
-    NONE = "none"              # No data access
-    OWN = "own"               # Only user's own data
-    ORGANIZATION = "organization"  # Organization-level data
-    BRANDS = "brands"         # Specific marque data
-    RANGES = "ranges"         # Specific IMEI ranges
-    ALL = "all"              # All data (admin level)
+    NONE = "aucun"             # No data access
+    OWN = "personnel"          # Only user's own data  
+    ORGANIZATION = "organisation"  # Organization-level data
+    BRANDS = "marques"         # Specific marque data
+    RANGES = "plages"          # Specific IMEI ranges
+    ALL = "tout"               # All data (admin level)
 
 class PermissionManager:
     """Advanced permission management with granular access control"""
@@ -289,7 +289,7 @@ class PermissionManager:
                 return False, context
         
         # Check organization access
-        if user.portee_donnees == "organization" and getattr(user, 'organisation', None):
+        if user.portee_donnees == "organisation" and getattr(user, 'organisation', None):
             # This would require organization field on devices - placeholder logic
             context.update({
                 "reason": "organization_access",
@@ -317,8 +317,16 @@ class PermissionManager:
                 "is_admin": False
             }
         
+        # Handle portee_donnees safely with French database values
+        portee_donnees_value = user.portee_donnees or "personnel"
+        try:
+            portee_donnees = PorteeDonnees(portee_donnees_value)
+        except ValueError:
+            # Fallback to personnel if the value doesn't match any enum
+            portee_donnees = PorteeDonnees.OWN
+        
         return {
-            "portee_donnees": PorteeDonnees(user.portee_donnees or "own"),
+            "portee_donnees": portee_donnees,
             "user_id": user.id,
             "marques_autorisees": user.marques_autorisees or [],
             "allowed_ranges": user.plages_imei_autorisees or [],
@@ -415,7 +423,7 @@ class PermissionManager:
         return {
             "user_id": str(user.id),
             "niveau_acces": user_level.value,
-            "portee_donnees": user.portee_donnees or "own",
+            "portee_donnees": user.portee_donnees or "personnel",
             "organization": getattr(user, 'organisation', None),
             "est_actif": getattr(user, 'est_actif', True),
             "permissions": {

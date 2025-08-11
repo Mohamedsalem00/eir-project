@@ -175,7 +175,7 @@ SELECT
 FROM utilisateur u WHERE u.email = 'devvmrr@gmail.com';
 
 -- Insert sample notifications using new notification system structure
-INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation)
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, source, utilisateur_id, date_creation)
 SELECT 
     gen_random_uuid(),
     'email',
@@ -199,11 +199,12 @@ Le système est maintenant prêt à être utilisé.
 ---
 EIR Project - Système d''initialisation automatique',
     'en_attente',
+    'system',
     u.id,
     NOW()
 FROM utilisateur u WHERE u.email = 'eirrproject@gmail.com';
 
-INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation)
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, source, utilisateur_id, date_creation)
 SELECT 
     gen_random_uuid(),
     'email',
@@ -230,12 +231,13 @@ Vous avez 2 appareils enregistrés dans le système :
 ---
 L''équipe EIR Project',
     'en_attente',
+    'system',
     u.id,
     NOW()
 FROM utilisateur u WHERE u.email = 'sidis9828@gmail.com';
 
 -- Notification pour l'opérateur Orange
-INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation)
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, source, utilisateur_id, date_creation)
 SELECT 
     gen_random_uuid(),
     'email',
@@ -265,25 +267,27 @@ Aucune alerte de sécurité détectée.
 ---
 EIR Project - Rapport automatique',
     'en_attente',
+    'system',
     u.id,
     NOW() - INTERVAL '15 minutes'
 FROM utilisateur u WHERE u.email = 'devvmrr@gmail.com';
 
 -- Notification de test pour SMS (sera traitée en mode console)
-INSERT INTO notification (id, type, destinataire, contenu, statut, utilisateur_id, date_creation, tentative)
+INSERT INTO notification (id, type, destinataire, contenu, statut, source, utilisateur_id, date_creation, tentative)
 SELECT 
     gen_random_uuid(),
     'sms',
     '+33123456789',
     '🔔 EIR Project: Votre IMEI 353260051234567 a été vérifié avec succès. Appareil: Samsung Galaxy S23. Plus d''infos: http://eir.ma/v/353260051234567',
     'en_attente',
+    'system',
     u.id,
     NOW() - INTERVAL '5 minutes',
     0
 FROM utilisateur u WHERE u.email = 'sidis9828@gmail.com';
 
 -- Notification d'alerte sécurité (exemple)
-INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, utilisateur_id, date_creation, tentative)
+INSERT INTO notification (id, type, destinataire, sujet, contenu, statut, source, utilisateur_id, date_creation, tentative)
 SELECT 
     gen_random_uuid(),
     'email',
@@ -311,6 +315,7 @@ Un IMEI suspect a été détecté dans le système.
 ---
 EIR Project - Système d''alerte automatique',
     'en_attente',
+    'system',
     u.id,
     NOW() - INTERVAL '1 hour',
     0

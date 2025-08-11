@@ -1,5 +1,133 @@
+-- =============================================
+-- UNIVERSAL POSTGRESQL SCHEMA CONFIGURATION
+-- =============================================
+-- Compatible with: Local Docker, Render, Heroku, AWS RDS, Google Cloud SQL, Azure Database
+-- Deployment environments: Development, Staging, Production
+
+-- Enable error handling and strict mode
+\set ON_ERROR_STOP on
+
+-- Set client encoding for international characters
+SET client_encoding = 'UTF8';
+
+-- Set timezone to UTC for consistency across deployments
+SET timezone = 'UTC';
+
+-- Set search path to public schema (works for all PostgreSQL deployments)
+SET search_path = public, pg_catalog;
+
+-- Enable row security if supported (graceful degradation)
+DO $$
+BEGIN
+    -- Try to enable row level security features if available
+    EXECUTE 'SET row_security = on';
+EXCEPTION WHEN OTHERS THEN
+    -- Ignore if not supported in this PostgreSQL version
+    NULL;
+END $$;
+
+-- Configuration for connection pooling compatibility
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+
+-- Optimize for batch operations during schema creation
+SET synchronous_commit = off;
+
+-- Memory and performance settings for schema creation
+SET work_mem = '256MB';
+SET maintenance_work_mem = '512MB';
+
+-- =============================================
+-- DEPLOYMENT COMPATIBILITY NOTES
+-- =============================================
+-- 
+-- SUPPORTED PLATFORMS:
+-- ✓ Local Docker PostgreSQL (any version 12+)
+-- ✓ Render PostgreSQL (managed service)
+-- ✓ Heroku PostgreSQL (all plans)
+-- ✓ AWS RDS PostgreSQL
+-- ✓ Google Cloud SQL PostgreSQL
+-- ✓ Azure Database for PostgreSQL
+-- ✓ DigitalOcean Managed PostgreSQL
+-- ✓ Supabase PostgreSQL
+--
+-- EXECUTION METHODS:
+-- 1. psql command: psql -h host -U user -d database -f schema_postgres.sql
+-- 2. pgAdmin: Tools > Query Tool > Open File > Execute
+-- 3. Docker: docker exec -i container_name psql -U user -d database < schema_postgres.sql
+-- 4. Application migration: Use with SQLAlchemy, Django, Rails, etc.
+--
+-- REQUIREMENTS:
+-- - PostgreSQL version 12 or higher
+-- - Superuser privileges OR database owner privileges
+-- - Extensions: uuid-ossp (auto-created if needed)
+--
+
+-- =============================================
+-- DROP EXISTING OBJECTS (Clean slate)
+-- =============================================
+
+-- Drop views first (they depend on tables)
+DROP VIEW IF EXISTS vue_monitoring_sync_tac;
+DROP VIEW IF EXISTS vue_sync_tac_recent;
+DROP VIEW IF EXISTS vue_analyse_tac;
+
+-- Drop functions (they might depend on tables)
+DROP FUNCTION IF EXISTS valider_lot_imeis_avec_tac(TEXT[]);
+DROP FUNCTION IF EXISTS nettoyer_logs_sync_tac(INTEGER);
+DROP FUNCTION IF EXISTS obtenir_stats_tac_temps_reel();
+DROP FUNCTION IF EXISTS sync_osmocom_json();
+DROP FUNCTION IF EXISTS sync_osmocom_csv();
+DROP FUNCTION IF EXISTS update_tac_modification_date();
+DROP FUNCTION IF EXISTS obtenir_stats_sync_tac();
+DROP FUNCTION IF EXISTS importer_tac_depuis_json(JSONB, VARCHAR);
+DROP FUNCTION IF EXISTS importer_tac_avec_mapping(TEXT, VARCHAR);
+DROP FUNCTION IF EXISTS valider_luhn(VARCHAR);
+DROP FUNCTION IF EXISTS valider_imei_avec_tac(VARCHAR);
+DROP FUNCTION IF EXISTS extraire_tac_depuis_imei(VARCHAR);
+
+-- Drop tables (in order to respect foreign key constraints)
+DROP TABLE IF EXISTS tac_sync_log;
+DROP TABLE IF EXISTS tac_database;
+DROP TABLE IF EXISTS password_reset;
+DROP TABLE IF EXISTS importexport;
+DROP TABLE IF EXISTS journal_audit;
+DROP TABLE IF EXISTS notification;
+DROP TABLE IF EXISTS recherche;
+DROP TABLE IF EXISTS sim;
+DROP TABLE IF EXISTS imei;
+DROP TABLE IF EXISTS appareil;
+DROP TABLE IF EXISTS utilisateur;
+
+-- Drop indexes explicitly (if they exist independently)
+DROP INDEX IF EXISTS idx_utilisateur_date_creation;
+DROP INDEX IF EXISTS idx_notification_source;
+DROP INDEX IF EXISTS idx_password_reset_token;
+DROP INDEX IF EXISTS idx_password_reset_utilisateur_id;
+DROP INDEX IF EXISTS idx_password_reset_expiration;
+DROP INDEX IF EXISTS idx_password_reset_utilise;
+DROP INDEX IF EXISTS idx_numero_imei;
+DROP INDEX IF EXISTS idx_appareil_utilisateur;
+DROP INDEX IF EXISTS idx_recherche_imei;
+DROP INDEX IF EXISTS idx_recherche_date;
+DROP INDEX IF EXISTS idx_utilisateur_niveau_acces;
+DROP INDEX IF EXISTS idx_utilisateur_organisation;
+DROP INDEX IF EXISTS idx_utilisateur_est_actif;
+DROP INDEX IF EXISTS idx_utilisateur_marques_autorisees;
+DROP INDEX IF EXISTS idx_tac_marque;
+DROP INDEX IF EXISTS idx_tac_statut;
+DROP INDEX IF EXISTS idx_tac_type_appareil;
+DROP INDEX IF EXISTS idx_tac_sync_log_date;
+DROP INDEX IF EXISTS idx_tac_sync_log_source;
+DROP INDEX IF EXISTS idx_tac_sync_log_status;
+
+-- =============================================
+-- CREATE TABLES
+-- =============================================
+
 -- Table: utilisateur (Enhanced with minimal access control fields)
-CREATE TABLE utilisateur (
+CREATE TABLE public.utilisateur (
     id UUID PRIMARY KEY,
     nom VARCHAR(100),
     email VARCHAR(100) UNIQUE,
@@ -24,41 +152,41 @@ COMMENT ON COLUMN utilisateur.date_creation IS 'Date et heure de création du co
 
 
 -- Table: appareil (removed imei field)
-CREATE TABLE appareil (
+CREATE TABLE public.appareil (
     id UUID PRIMARY KEY,
     marque VARCHAR(50),
     modele VARCHAR(50),
     emmc VARCHAR(100),
-    utilisateur_id UUID REFERENCES utilisateur(id)
+    utilisateur_id UUID REFERENCES public.utilisateur(id)
 );
 
 -- Table : imei (nouvelle table pour gérer plusieurs IMEIs par appareil)
-CREATE TABLE imei (
+CREATE TABLE public.imei (
     id UUID PRIMARY KEY,
     numero_imei VARCHAR(20) UNIQUE,
     numero_slot INTEGER,
     statut VARCHAR(50) DEFAULT 'actif',
-    appareil_id UUID REFERENCES appareil(id) NOT NULL
+    appareil_id UUID REFERENCES public.appareil(id) NOT NULL
 );
 
 -- Table : sim
-CREATE TABLE sim (
+CREATE TABLE public.sim (
     id UUID PRIMARY KEY,
     iccid VARCHAR(22) UNIQUE,
     operateur VARCHAR(50),
-    utilisateur_id UUID REFERENCES utilisateur(id)
+    utilisateur_id UUID REFERENCES public.utilisateur(id)
 );
 
 -- Table : recherche
-CREATE TABLE recherche (
+CREATE TABLE public.recherche (
     id UUID PRIMARY KEY,
     date_recherche TIMESTAMP,
     imei_recherche VARCHAR(20),
-    utilisateur_id UUID REFERENCES utilisateur(id)
+    utilisateur_id UUID REFERENCES public.utilisateur(id)
 );
 
 -- Table : notification
-CREATE TABLE notification (
+CREATE TABLE public.notification (
     id UUID PRIMARY KEY,
     type VARCHAR(50), -- email, sms
     destinataire VARCHAR(255), -- numéro de téléphone ou adresse email
@@ -70,7 +198,7 @@ CREATE TABLE notification (
     erreur TEXT,
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_envoi TIMESTAMP,
-    utilisateur_id UUID REFERENCES utilisateur(id)
+    utilisateur_id UUID REFERENCES public.utilisateur(id)
 );
 
 -- Update existing notifications to mark them as system notifications
@@ -838,3 +966,59 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql;
+
+-- =============================================
+-- POST-DEPLOYMENT VERIFICATION
+-- =============================================
+
+-- Reset settings to defaults after schema creation
+RESET work_mem;
+RESET maintenance_work_mem;
+RESET synchronous_commit;
+
+-- Final verification queries (uncomment to run validation)
+/*
+-- Verify all tables were created
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+ORDER BY table_name;
+
+-- Verify all functions were created  
+SELECT routine_name FROM information_schema.routines 
+WHERE routine_schema = 'public' AND routine_type = 'FUNCTION'
+ORDER BY routine_name;
+
+-- Verify all indexes were created
+SELECT indexname FROM pg_indexes 
+WHERE schemaname = 'public'
+ORDER BY indexname;
+
+-- Quick health check
+SELECT 'Schema deployment successful!' as status, 
+       CURRENT_TIMESTAMP as deployment_time,
+       version() as postgresql_version;
+*/
+
+-- =============================================
+-- DEPLOYMENT INSTRUCTIONS
+-- =============================================
+--
+-- FOR RENDER POSTGRESQL:
+-- 1. Connect to your database: psql postgresql://username:password@host:port/database
+-- 2. Run: \i schema_postgres.sql
+--
+-- FOR HEROKU POSTGRESQL:
+-- 1. Run: heroku pg:psql -f schema_postgres.sql
+--
+-- FOR LOCAL DOCKER:
+-- 1. Run: docker exec -i container_name psql -U postgres -d eir_db < schema_postgres.sql
+--
+-- FOR AWS RDS/Google Cloud/Azure:
+-- 1. Connect via psql with your connection string
+-- 2. Run: \i schema_postgres.sql
+--
+-- TROUBLESHOOTING:
+-- - If "permission denied": Ensure user has CREATE privileges
+-- - If "schema does not exist": The script creates objects in public schema automatically
+-- - If "function already exists": Script includes DROP statements for clean deployment
+--

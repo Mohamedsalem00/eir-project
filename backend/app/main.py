@@ -891,7 +891,7 @@ def list_searches(
     }
 
 # Enhanced device listing with granular filtering
-@app.get("/appareils", tags=["Appareils"],summary= "Liste des appareils")
+@app.get("/appareils", tags=["Appareils"], summary="Liste des appareils")
 def list_devices(
     skip: int = 0,
     limit: int = 100,
@@ -900,88 +900,133 @@ def list_devices(
     user: Utilisateur = Depends(get_current_user)
 ):
     """
-Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
+    Répertorier les appareils avec un contrôle d'accès et un filtrage améliorés
 
-### Contrôle d'accès :
-- Les utilisateurs voient les appareils en fonction de leur périmètre de données
-- Le filtrage par marque respecte les marques autorisées pour les parties concernées
-- Filtrage organisationnel pour les utilisateurs privilégiés
-- Accès complet pour les administrateurs
+    ### Contrôle d'accès :
+    - Les utilisateurs voient les appareils en fonction de leur périmètre de données
+    - Le filtrage par marque respecte les marques autorisées pour les parties concernées
+    - Filtrage organisationnel pour les utilisateurs privilégiés
+    - Accès complet pour les administrateurs
     """
-    # Check if user has permission to read devices
-    if not PermissionManager.has_permission(user, Operation.READ_DEVICE):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Autorisation refusée : impossible de lire les appareils"
-        )
-    
-    # Get data filter context for this user
-    filter_context = PermissionManager.get_data_filter_context(user)
-    
-    query = db.query(Appareil)
-    
-    # Apply access-based filtering based on user's data portee_donnees
-    if not filter_context["is_admin"]:
-        if filter_context["portee_donnees"].value == "own":
-            query = query.filter(Appareil.utilisateur_id == user.id)
-        elif filter_context["portee_donnees"].value == "brands" and filter_context["marques_autorisees"]:
-            query = query.filter(Appareil.marque.in_(filter_context["marques_autorisees"]))
-        elif filter_context["portee_donnees"].value == "organization" and filter_context["organization"]:
-            # Organization filtering would need additional device fields
-            pass
-    
-    # Apply marque filter with access validation
-    if marque:
-        # Validate marque access for limited users
-        if user.niveau_acces == "limited" and user.marques_autorisees:
-            if marque not in user.marques_autorisees:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Accès refusé : Marque '{marque}' pas dans les marques autorisées"
-                )
-        query = query.filter(Appareil.marque == marque)
-    
-    devices = query.offset(skip).limit(limit).all()
-    
-    # Build response with access-appropriate data
-    device_list = []
-    for device in devices:
-        can_access, access_details = PermissionManager.can_access_device(user, device)
+    try:
+        # Check if user has permission to read devices
+        if not PermissionManager.has_permission(user, Operation.READ_DEVICE):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Autorisation refusée : impossible de lire les appareils"
+            )
         
-        if can_access:
-            device_info = {
-                "id": str(device.id),
-                "marque": device.marque,
-                "modele": device.modele,
-                "can_modify": PermissionManager.has_permission(user, Operation.UPDATE_DEVICE) and can_access,
-                "motif_acces": access_details["reason"]
+        # Get data filter context for this user
+        filter_context = PermissionManager.get_data_filter_context(user)
+        
+        query = db.query(Appareil)
+        
+        # Apply access-based filtering based on user's data portee_donnees
+        if not filter_context.get("is_admin", False):
+            portee_donnees = filter_context.get("portee_donnees", "personnel")
+            
+            # Handle both enum and string values for portee_donnees
+            if hasattr(portee_donnees, 'value'):
+                scope_value = portee_donnees.value
+            elif isinstance(portee_donnees, str):
+                scope_value = portee_donnees
+            else:
+                scope_value = str(portee_donnees)
+            
+            if scope_value in ["personnel"]:
+                query = query.filter(Appareil.utilisateur_id == user.id)
+            elif scope_value in ["marques"]:
+                marques_autorisees = filter_context.get("marques_autorisees", [])
+                if marques_autorisees:
+                    query = query.filter(Appareil.marque.in_(marques_autorisees))
+                else:
+                    # If no authorized brands, show only own devices
+                    query = query.filter(Appareil.utilisateur_id == user.id)
+            elif scope_value == "organisation" and filter_context.get("organization"):
+                # Organization filtering would need additional device fields
+                # For now, fall back to user's own devices
+                query = query.filter(Appareil.utilisateur_id == user.id)
+        
+        # Apply marque filter with access validation
+        if marque:
+            # Validate marque access for limited users
+            if getattr(user, 'niveau_acces', None) == "limited" and getattr(user, 'marques_autorisees', None):
+                if marque not in user.marques_autorisees:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Accès refusé : Marque '{marque}' pas dans les marques autorisées"
+                    )
+            query = query.filter(Appareil.marque == marque)
+        
+        devices = query.offset(skip).limit(limit).all()
+        
+        # Build response with access-appropriate data
+        device_list = []
+        for device in devices:
+            try:
+                can_access, access_details = PermissionManager.can_access_device(user, device)
+                
+                if can_access:
+                    device_info = {
+                        "id": str(device.id),
+                        "marque": getattr(device, 'marque', 'N/A') or "N/A",
+                        "modele": getattr(device, 'modele', 'N/A') or "N/A", 
+                        "can_modify": PermissionManager.has_permission(user, Operation.UPDATE_DEVICE) and can_access,
+                        "motif_acces": access_details.get("reason", "Accès autorisé") if access_details else "Accès autorisé"
+                    }
+                    
+                    # Add enhanced info based on access level
+                    try:
+                        user_level = AccessLevel.from_french(getattr(user, 'niveau_acces', 'basique') or "basique")
+                        if user_level in [AccessLevel.ELEVATED, AccessLevel.ADMIN]:
+                            device_info.update({
+                                "emmc": getattr(device, 'emmc', None),
+                                "utilisateur_id": str(device.utilisateur_id) if device.utilisateur_id else None,
+                                "imei_count": len(getattr(device, 'imeis', []))
+                            })
+                    except Exception as e:
+                        # If access level conversion fails, continue with basic info
+                        logger.warning(f"Access level conversion failed: {e}")
+                    
+                    device_list.append(device_info)
+            except Exception as e:
+                # Log device processing error but continue
+                logger.warning(f"Error processing device {device.id}: {e}")
+                continue
+        
+        # Get portee_donnees value safely for response
+        portee_donnees = filter_context.get("portee_donnees", "own")
+        if hasattr(portee_donnees, 'value'):
+            portee_value = portee_donnees.value
+        else:
+            portee_value = str(portee_donnees)
+        
+        return {
+            "devices": device_list,
+            "contexte_acces": {
+                "niveau_acces": getattr(user, 'niveau_acces', 'basique') or "basique",
+                "portee_donnees": portee_value,
+                "marques_autorisees": filter_context.get("marques_autorisees", []),
+                "total_accessible": len(device_list)
+            },
+            "filters": {
+                "marque": marque,
+                "skip": skip,
+                "limit": limit
             }
-            
-            # Add enhanced info based on access level
-            user_level = AccessLevel.from_french(user.niveau_acces or "basique")
-            if user_level in [AccessLevel.ELEVATED, AccessLevel.ADMIN]:
-                device_info.update({
-                    "emmc": device.emmc,
-                    "utilisateur_id": str(device.utilisateur_id) if device.utilisateur_id else None,
-                    "imei_count": len(device.imeis)
-                })
-            
-            device_list.append(device_info)
-    
-    return {
-        "devices": device_list,
-        "contexte_acces": {
-            "niveau_acces": user.niveau_acces or "basique",
-            "portee_donnees": filter_context["portee_donnees"].value,
-            "marques_autorisees": filter_context["marques_autorisees"],
-            "total_accessible": len(device_list)
-        },
-        "filters": {
-            "marque": marque,
-            "skip": skip,
-            "limit": limit
         }
-    }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Log unexpected errors and return a generic error response
+        logger.error(f"Unexpected error in list_devices: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Une erreur interne s'est produite lors de la récupération des appareils"
+        )
+
 
 # Nouvel endpoint pour les parties concernées pour vérifier leurs permissions d'accès
 @app.get("/mes-permissions", tags=["Utilisateurs"], response_model=None)
