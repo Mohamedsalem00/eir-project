@@ -64,6 +64,7 @@ CREATE TABLE notification (
     destinataire VARCHAR(255), -- numéro de téléphone ou adresse email
     sujet VARCHAR(255), -- pour email
     contenu TEXT,
+    source VARCHAR(20) DEFAULT 'system',
     statut VARCHAR(20) DEFAULT 'en_attente', -- en_attente, envoyé, échoué
     tentative INT DEFAULT 0,
     erreur TEXT,
@@ -71,6 +72,20 @@ CREATE TABLE notification (
     date_envoi TIMESTAMP,
     utilisateur_id UUID REFERENCES utilisateur(id)
 );
+
+-- Update existing notifications to mark them as system notifications
+UPDATE notification SET source = 'system' WHERE source IS NULL;
+
+-- Add an index for better performance when filtering by source
+CREATE INDEX IF NOT EXISTS idx_notification_source ON notification (source);
+
+-- Add a check constraint to ensure valid source values
+ALTER TABLE notification ADD CONSTRAINT chk_notification_source 
+CHECK (source IN ('admin', 'system', 'user'));
+
+-- Comment on the new column
+COMMENT ON COLUMN notification.source IS 'Source of the notification: admin (sent by administrator), system (automatic), user (sent by regular user)';
+
 
 -- Table : journal_audit (minuscules pour correspondre au modèle SQLAlchemy)
 CREATE TABLE journal_audit (

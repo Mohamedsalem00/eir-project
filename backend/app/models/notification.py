@@ -15,6 +15,7 @@ class Notification(Base):
     statut = Column(String(20), default='en_attente')  # en_attente, envoyé, échoué
     tentative = Column(Integer, default=0)
     erreur = Column(Text)
+    source = Column(String(20), default='system')  # admin, system, user
     date_creation = Column(DateTime(timezone=True), server_default=func.now())
     date_envoi = Column(DateTime(timezone=True))
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))

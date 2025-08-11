@@ -3,6 +3,16 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
+import uuid
+import time
+import csv
+import json
+import io
+import os
+import platform
+import logging
 from .core.dependencies import get_db, get_current_user, get_current_user_optional, get_admin_user
 from .core.permissions import PermissionManager, Operation, AccessLevel, require_permission, require_niveau_acces
 from .core.i18n_deps import get_current_translator, get_language_from_request
@@ -19,16 +29,6 @@ from .models.sim import SIM
 from .models.notification import Notification
 from .models.journal_audit import JournalAudit
 from .models.imei import IMEI
-from datetime import datetime, timedelta
-import uuid
-import time
-import csv
-import json
-import io
-import os
-import platform
-import logging
-from typing import Optional, List, Dict, Any
 import platform
 
 # Configuration du logger
@@ -111,9 +111,8 @@ app.include_router(auth_router, tags=["Authentification"])
 app.include_router(access_router, tags=["Gestion d'Accès"])
 
 # Import et inclusion du router des notifications
-# TEMPORAIREMENT DÉSACTIVÉ POUR TEST EMAIL
-# from .routes.notifications import router as notifications_router
-# app.include_router(notifications_router)
+from .routes.notifications import router as notifications_router
+app.include_router(notifications_router, tags=["Notifications"])
 
 # Stocker l'heure de démarrage de l'application pour le calcul du temps de fonctionnement
 app_start_time = datetime.now()

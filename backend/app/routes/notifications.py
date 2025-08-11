@@ -3,415 +3,121 @@ Router FastAPI pour la gestion des notifications EIR Project
 Fournit les endpoints pour créer, lister, envoyer et gérer les notifications
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func, desc
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import uuid
 import logging
+import time
 
 from ..core.dependencies import get_db, get_current_user, get_admin_user
-from ..core.permissions import require_niveau_acces, AccessLevel
+from ..services.email_service import send_email
+from ..services.sms_service import send_sms
 from ..models.notification import Notification
 from ..models.utilisateur import Utilisateur
-from ..schemas.notifications import (
-    CreationNotification, ReponseNotification, ReponseListeNotifications,
-    FiltresNotifications, EnvoiNotificationImmediat, ReponseEnvoiImmediat,
-    StatistiquesNotifications, StatistiquesDispatcher, TestConnexionEmail,
-    TestConnexionSMS, MiseAJourNotification, ReponseProcessingNotifications,
-    HistoriqueNotification, ConfigurationService
-)
-from ..services.email_service import email_service
-from ..services.sms_service import sms_service
-from ..tasks.notification_dispatcher import (
-    notification_dispatcher, send_notification_now, process_notifications_background
-)
+
+# Import essential schemas with fallback
+try:
+    from ..schemas.notifications import (
+        CreationNotification, ReponseNotification, ReponseListeNotifications,
+        StatistiquesNotifications, ReponseEnvoiImmediat,
+        EnvoiNotificationAdmin, EnvoiNotificationLotAdmin, ReponseEnvoiLotAdmin,
+        EnvoiNotificationLotAdminParEmail, EnvoiNotificationAdminParId
+    )
+except ImportError:
+    # Fallback minimal schemas
+    from pydantic import BaseModel
+    from enum import Enum
+    
+    class NotificationType(str, Enum):
+        EMAIL = "email"
+        SMS = "sms"
+    
+    class CreationNotification(BaseModel):
+        type: str
+        destinataire: str
+        sujet: Optional[str] = None
+        contenu: str
+        utilisateur_id: Optional[str] = None
+        envoyer_immediatement: bool = False
+    
+    class ReponseNotification(BaseModel):
+        id: str
+        type: str
+        destinataire: str
+        sujet: Optional[str]
+        contenu: str
+        statut: str
+        tentative: int
+        erreur: Optional[str]
+        date_creation: datetime
+        date_envoi: Optional[datetime]
+        utilisateur_id: str
+    
+    class ReponseListeNotifications(BaseModel):
+        notifications: List[ReponseNotification]
+        total: int
+        page: int
+        taille_page: int
+        total_pages: int
+    
+    class StatistiquesNotifications(BaseModel):
+        total_notifications: int
+        en_attente: int
+        envoyes: int
+        echecs: int
+        emails_total: int
+        sms_total: int
+        derniere_24h: Dict[str, int]
+        taux_succes: float
+    
+    class ReponseEnvoiImmediat(BaseModel):
+        success: bool
+        message: str
+        notification_id: str
+        destinataire: str
+        type: str
+    
+    class EnvoiNotificationAdmin(BaseModel):
+        utilisateur_id: str
+        type: str
+        destinataire: Optional[str] = None
+        sujet: str
+        contenu: str
+        priorite: str = "normale"
+    
+    class EnvoiNotificationLotAdmin(BaseModel):
+        utilisateurs_ids: List[str]
+        type: str
+        sujet: str
+        contenu: str
+        priorite: str = "normale"
+        filtre_utilisateurs_actifs: bool = True
+    
+    class ReponseEnvoiLotAdmin(BaseModel):
+        total_utilisateurs: int
+        envoyes_succes: int
+        envoyes_echec: int
+        utilisateurs_introuvables: List[str]
+        utilisateurs_inactifs: List[str]
+        details_envois: List[Dict[str, Any]]
+        duree_traitement_secondes: float
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
-@router.post("/", response_model=ReponseNotification, status_code=status.HTTP_201_CREATED)
-async def creer_notification(
-    notification_data: CreationNotification,
-    db: Session = Depends(get_db),
-    current_user: Optional[Utilisateur] = Depends(get_current_user)
-):
-    """
-    Crée une nouvelle notification
-    
-    - **type**: Type de notification (email ou sms)
-    - **destinataire**: Adresse email ou numéro de téléphone
-    - **sujet**: Sujet du message (requis pour email)
-    - **contenu**: Contenu du message
-    - **envoyer_immediatement**: Si true, envoie immédiatement
-    """
-    try:
-        # Utiliser l'utilisateur connecté si pas d'ID spécifié
-        user_id = notification_data.utilisateur_id or str(current_user.id)
-        
-        # Vérifier que l'utilisateur peut créer pour cet ID
-        if str(current_user.id) != user_id and current_user.type_utilisateur != "administrateur":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Vous ne pouvez créer des notifications que pour vous-même"
-            )
-        
-        # Créer la notification
-        notification = Notification(
-            id=uuid.uuid4(),
-            type=notification_data.type.value,
-            destinataire=notification_data.destinataire,
-            sujet=notification_data.sujet,
-            contenu=notification_data.contenu,
-            statut='en_attente',
-            tentative=0,
-            utilisateur_id=user_id,
-            date_creation=datetime.now()
-        )
-        
-        db.add(notification)
-        db.commit()
-        db.refresh(notification)
-        
-        # Envoyer immédiatement si demandé
-        if notification_data.envoyer_immediatement:
-            result = await send_notification_now(
-                user_id,
-                notification_data.type.value,
-                notification_data.destinataire,
-                notification_data.sujet,
-                notification_data.contenu
-            )
-            
-            # Mettre à jour le statut selon le résultat
-            if result.get('success'):
-                notification.statut = 'envoyé'
-                notification.date_envoi = datetime.now()
-            else:
-                notification.statut = 'échoué'
-                notification.erreur = result.get('error', 'Erreur inconnue')
-            
-            db.commit()
-            db.refresh(notification)
-        
-        logger.info(f"Notification créée: {notification.id} ({notification.type})")
-        
-        return ReponseNotification(
-            id=str(notification.id),
-            type=notification.type,
-            destinataire=notification.destinataire,
-            sujet=notification.sujet,
-            contenu=notification.contenu,
-            statut=notification.statut,
-            tentative=notification.tentative,
-            erreur=notification.erreur,
-            date_creation=notification.date_creation,
-            date_envoi=notification.date_envoi,
-            utilisateur_id=str(notification.utilisateur_id)
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erreur lors de la création de notification: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la création de la notification"
-        )
-
-@router.get("/", response_model=ReponseListeNotifications)
-async def lister_notifications(
-    page: int = Query(1, ge=1, description="Numéro de page"),
-    taille_page: int = Query(20, ge=1, le=100, description="Taille de la page"),
-    type_notification: Optional[str] = Query(None, description="Filtrer par type"),
-    statut: Optional[str] = Query(None, description="Filtrer par statut"),
-    destinataire: Optional[str] = Query(None, description="Filtrer par destinataire"),
-    db: Session = Depends(get_db),
-    current_user: Optional[Utilisateur] = Depends(get_current_user)
-):
-    """
-    Liste les notifications de l'utilisateur connecté
-    
-    Paramètres de filtrage et pagination disponibles
-    """
-    try:
-        # Construire la requête de base
-        query = db.query(Notification).filter(
-            Notification.utilisateur_id == current_user.id
-        )
-        
-        # Appliquer les filtres
-        if type_notification:
-            query = query.filter(Notification.type == type_notification)
-        
-        if statut:
-            query = query.filter(Notification.statut == statut)
-        
-        if destinataire:
-            query = query.filter(Notification.destinataire.ilike(f"%{destinataire}%"))
-        
-        # Compter le total
-        total = query.count()
-        
-        # Appliquer la pagination
-        offset = (page - 1) * taille_page
-        notifications = query.order_by(desc(Notification.date_creation)).offset(offset).limit(taille_page).all()
-        
-        # Calculer le nombre total de pages
-        total_pages = (total + taille_page - 1) // taille_page
-        
-        # Convertir en schéma de réponse
-        notifications_response = [
-            ReponseNotification(
-                id=str(notif.id),
-                type=notif.type,
-                destinataire=notif.destinataire,
-                sujet=notif.sujet,
-                contenu=notif.contenu,
-                statut=notif.statut,
-                tentative=notif.tentative,
-                erreur=notif.erreur,
-                date_creation=notif.date_creation,
-                date_envoi=notif.date_envoi,
-                utilisateur_id=str(notif.utilisateur_id)
-            )
-            for notif in notifications
-        ]
-        
-        return ReponseListeNotifications(
-            notifications=notifications_response,
-            total=total,
-            page=page,
-            taille_page=taille_page,
-            total_pages=total_pages
-        )
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de la récupération des notifications: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la récupération des notifications"
-        )
-
-@router.get("/{notification_id}", response_model=HistoriqueNotification)
-async def obtenir_notification(
-    notification_id: str,
-    db: Session = Depends(get_db),
-    current_user: Optional[Utilisateur] = Depends(get_current_user)
-):
-    """
-    Obtient les détails d'une notification spécifique avec son historique
-    """
-    try:
-        # Récupérer la notification
-        notification = db.query(Notification).filter(
-            and_(
-                Notification.id == notification_id,
-                or_(
-                    Notification.utilisateur_id == current_user.id,
-                    current_user.type_utilisateur == "administrateur"
-                )
-            )
-        ).first()
-        
-        if not notification:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Notification non trouvée"
-            )
-        
-        # Récupérer les informations utilisateur
-        utilisateur = db.query(Utilisateur).filter(
-            Utilisateur.id == notification.utilisateur_id
-        ).first()
-        
-        # Créer l'historique des tentatives (simulation)
-        tentatives = []
-        for i in range(notification.tentative):
-            tentatives.append({
-                'numero_tentative': i + 1,
-                'date_tentative': notification.date_creation,  # Simulation
-                'statut': 'échoué' if i < notification.tentative - 1 else notification.statut,
-                'erreur': notification.erreur if i == notification.tentative - 1 else None
-            })
-        
-        response = HistoriqueNotification(
-            notification=ReponseNotification(
-                id=str(notification.id),
-                type=notification.type,
-                destinataire=notification.destinataire,
-                sujet=notification.sujet,
-                contenu=notification.contenu,
-                statut=notification.statut,
-                tentative=notification.tentative,
-                erreur=notification.erreur,
-                date_creation=notification.date_creation,
-                date_envoi=notification.date_envoi,
-                utilisateur_id=str(notification.utilisateur_id)
-            ),
-            tentatives=tentatives,
-            utilisateur_nom=utilisateur.nom if utilisateur else None,
-            utilisateur_email=utilisateur.email if utilisateur else None
-        )
-        
-        return response
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erreur lors de la récupération de la notification: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la récupération de la notification"
-        )
-
-@router.post("/envoyer-immediatement", response_model=ReponseEnvoiImmediat)
-async def envoyer_notification_immediatement(
-    notification_data: EnvoiNotificationImmediat,
-    db: Session = Depends(get_db),
-    current_user: Optional[Utilisateur] = Depends(get_current_user)
-):
-    """
-    Envoie une notification immédiatement (bypass de la queue)
-    
-    Utile pour les notifications urgentes ou les tests
-    """
-    try:
-        result = await send_notification_now(
-            str(current_user.id),
-            notification_data.type.value,
-            notification_data.destinataire,
-            notification_data.sujet,
-            notification_data.contenu
-        )
-        
-        return ReponseEnvoiImmediat(**result)
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de l'envoi immédiat: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de l'envoi immédiat"
-        )
-
-@router.put("/{notification_id}", response_model=ReponseNotification)
-async def mettre_a_jour_notification(
-    notification_id: str,
-    update_data: MiseAJourNotification,
-    db: Session = Depends(get_db),
-    current_user: Optional[Utilisateur] = Depends(get_current_user)
-):
-    """
-    Met à jour une notification (statut, erreur, tentatives)
-    
-    Seuls les administrateurs peuvent modifier les notifications
-    """
-    if current_user.type_utilisateur != "administrateur":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Seuls les administrateurs peuvent modifier les notifications"
-        )
-    
-    try:
-        notification = db.query(Notification).filter(
-            Notification.id == notification_id
-        ).first()
-        
-        if not notification:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Notification non trouvée"
-            )
-        
-        # Mettre à jour les champs spécifiés
-        if update_data.statut is not None:
-            notification.statut = update_data.statut.value
-            
-            # Si le statut devient "envoyé", mettre à jour la date d'envoi
-            if update_data.statut.value == "envoyé" and not notification.date_envoi:
-                notification.date_envoi = datetime.now()
-        
-        if update_data.erreur is not None:
-            notification.erreur = update_data.erreur
-        
-        if update_data.tentative is not None:
-            notification.tentative = update_data.tentative
-        
-        db.commit()
-        db.refresh(notification)
-        
-        return ReponseNotification(
-            id=str(notification.id),
-            type=notification.type,
-            destinataire=notification.destinataire,
-            sujet=notification.sujet,
-            contenu=notification.contenu,
-            statut=notification.statut,
-            tentative=notification.tentative,
-            erreur=notification.erreur,
-            date_creation=notification.date_creation,
-            date_envoi=notification.date_envoi,
-            utilisateur_id=str(notification.utilisateur_id)
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erreur lors de la mise à jour: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la mise à jour"
-        )
-
-@router.delete("/{notification_id}", response_model=None)
-async def supprimer_notification(
-    notification_id: str,
-    db: Session = Depends(get_db),
-    current_user: Optional[Utilisateur] = Depends(get_current_user)
-):
-    """
-    Supprime une notification
-    
-    Les utilisateurs peuvent supprimer leurs propres notifications
-    Les administrateurs peuvent supprimer toutes les notifications
-    """
-    try:
-        query = db.query(Notification).filter(Notification.id == notification_id)
-        
-        # Les utilisateurs normaux ne peuvent supprimer que leurs notifications
-        if current_user.type_utilisateur != "administrateur":
-            query = query.filter(Notification.utilisateur_id == current_user.id)
-        
-        notification = query.first()
-        
-        if not notification:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Notification non trouvée"
-            )
-        
-        db.delete(notification)
-        db.commit()
-        
-        logger.info(f"Notification supprimée: {notification_id}")
-        
-        return {"message": "Notification supprimée avec succès"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erreur lors de la suppression: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la suppression"
-        )
+@router.get("/", response_model=Dict[str, str])
+async def test_notifications():
+    """Test endpoint pour vérifier que le router fonctionne"""
+    return {"message": "Router notifications opérationnel", "status": "OK"}
 
 @router.get("/statistiques/globales", response_model=StatistiquesNotifications)
 async def obtenir_statistiques_notifications(
     db: Session = Depends(get_db),
-    current_user: Optional[Utilisateur] = Depends(get_current_user)
+    current_user: Utilisateur = Depends(get_current_user)
 ):
     """
     Obtient les statistiques des notifications pour l'utilisateur connecté
@@ -469,150 +175,644 @@ async def obtenir_statistiques_notifications(
 
 # Endpoints administratifs
 
-@router.post("/admin/traiter-en-attente", response_model=ReponseProcessingNotifications)
-async def traiter_notifications_en_attente(
-    background_tasks: BackgroundTasks,
-    executer_en_arriere_plan: bool = Query(True, description="Exécuter en arrière-plan"),
-    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
+@router.post("/admin/envoyer-a-utilisateur", response_model=ReponseEnvoiImmediat)
+async def admin_envoyer_notification_utilisateur(
+    notification_data: EnvoiNotificationAdmin,
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user)
 ):
     """
-    Déclenche le traitement des notifications en attente
+    Permet à un administrateur d'envoyer une notification à un utilisateur spécifique via son email
     
     **Réservé aux administrateurs**
+    **Pratique: Utilisez l'email de l'utilisateur au lieu de son ID**
     """
     try:
-        if executer_en_arriere_plan:
-            background_tasks.add_task(process_notifications_background)
-            return ReponseProcessingNotifications(
-                message="Traitement des notifications démarré en arrière-plan",
-                processed=0
+        # Vérifier que l'utilisateur destinataire existe par email
+        utilisateur_cible = db.query(Utilisateur).filter(
+            Utilisateur.email == notification_data.email_utilisateur
+        ).first()
+        
+        if not utilisateur_cible:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Utilisateur avec l'email {notification_data.email_utilisateur} introuvable"
             )
-        else:
-            result = await notification_dispatcher.process_pending_notifications()
-            return ReponseProcessingNotifications(**result)
         
+        # Pour les emails, utiliser automatiquement l'email de l'utilisateur
+        destinataire_effectif = utilisateur_cible.email
+        
+        if not destinataire_effectif:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"L'utilisateur {notification_data.email_utilisateur} n'a pas d'adresse email valide"
+            )
+        
+        # Valider le type de notification (maintenant seulement email)
+        if notification_data.type != "email":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ce endpoint ne supporte que les emails (type='email')"
+            )
+        
+        # Envoyer l'email (type vérifié par le validateur Pydantic)
+        envoi_reussi = False
+        erreur_envoi = None
+        
+        try:
+            if not notification_data.sujet:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Le sujet est requis pour les emails"
+                )
+            
+            envoi_reussi, erreur_envoi = await send_email(
+                to_email=destinataire_effectif,
+                subject=notification_data.sujet,
+                content=notification_data.contenu
+            )
+            
+            if not envoi_reussi:
+                raise Exception(f"Échec de l'envoi: {erreur_envoi}")
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de l'envoi de la notification: {e}")
+            # Créer la notification avec statut d'échec
+            notification = Notification(
+                id=uuid.uuid4(),
+                type=notification_data.type,
+                destinataire=destinataire_effectif,
+                sujet=notification_data.sujet,
+                contenu=notification_data.contenu,
+                statut='échoué',
+                tentative=1,
+                erreur=str(e),
+                source='admin',  # Notification envoyée par admin
+                utilisateur_id=str(utilisateur_cible.id),  # Utiliser l'ID trouvé par email
+                date_creation=datetime.now()
+            )
+            
+            db.add(notification)
+            db.commit()
+            
+            return ReponseEnvoiImmediat(
+                success=False,
+                message=f"Échec de l'envoi de la notification: {erreur_envoi or str(e)}",
+                notification_id=str(notification.id),
+                destinataire=destinataire_effectif,
+                type=notification_data.type,
+                error=erreur_envoi or str(e)
+            )
+        
+        # Créer la notification avec statut de succès
+        notification = Notification(
+            id=uuid.uuid4(),
+            type=notification_data.type,
+            destinataire=destinataire_effectif,
+            sujet=notification_data.sujet,
+            contenu=notification_data.contenu,
+            statut='envoyé',
+            tentative=1,
+            source='admin',  # Notification envoyée par admin
+            utilisateur_id=str(utilisateur_cible.id),  # Utiliser l'ID trouvé par email
+            date_creation=datetime.now(),
+            date_envoi=datetime.now()
+        )
+        
+        db.add(notification)
+        db.commit()
+        db.refresh(notification)
+        
+        logger.info(f"Notification administrative envoyée via email {notification_data.email_utilisateur}: {notification.id}")
+        
+        return ReponseEnvoiImmediat(
+            success=True,
+            message=f"Notification administrative envoyée avec succès à {utilisateur_cible.nom} ({notification_data.email_utilisateur})",
+            notification_id=str(notification.id),
+            destinataire=destinataire_effectif,
+            type=notification_data.type
+        )
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Erreur lors du traitement des notifications: {e}")
+        logger.error(f"Erreur lors de l'envoi administrateur par ID (legacy): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors du traitement des notifications"
+            detail="Erreur interne lors de l'envoi de la notification administrative par ID"
         )
 
-@router.get("/admin/statistiques-dispatcher", response_model=StatistiquesDispatcher)
-async def obtenir_statistiques_dispatcher(
-    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
+@router.post("/admin/envoyer-lot-utilisateurs", response_model=ReponseEnvoiLotAdmin)
+async def admin_envoyer_notifications_lot(
+    notification_data: EnvoiNotificationLotAdmin,
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user)
 ):
     """
-    Obtient les statistiques du dispatcher de notifications
+    Permet à un administrateur d'envoyer des notifications en lot à plusieurs utilisateurs
+    
+    **Réservé aux administrateurs**
+    """
+    import time
+    debut_traitement = time.time()
+    
+    try:
+        # Récupérer les utilisateurs ciblés
+        query = db.query(Utilisateur).filter(Utilisateur.id.in_(notification_data.utilisateurs_ids))
+        
+        if notification_data.filtre_utilisateurs_actifs:
+            query = query.filter(Utilisateur.est_actif == True)
+        
+        utilisateurs_valides = query.all()
+        
+        # Préparer les listes de tracking
+        utilisateurs_introuvables = []
+        envoyes_succes = 0
+        envoyes_echec = 0
+        details_envois = []
+        
+        # Identifier les utilisateurs introuvables
+        ids_trouves = {str(u.id) for u in utilisateurs_valides}
+        utilisateurs_introuvables = [uid for uid in notification_data.utilisateurs_ids if uid not in ids_trouves]
+        
+        # Traiter chaque utilisateur valide
+        for utilisateur in utilisateurs_valides:
+            try:
+                # Déterminer le destinataire selon le type de notification
+                destinataire_effectif = None
+                
+                if notification_data.type == "email":
+                    if not utilisateur.email:
+                        details_envois.append({
+                            "utilisateur_id": str(utilisateur.id),
+                            "nom": utilisateur.nom,
+                            "statut": "échec",
+                            "erreur": "Utilisateur sans adresse email"
+                        })
+                        envoyes_echec += 1
+                        continue
+                    destinataire_effectif = utilisateur.email
+                    
+                elif notification_data.type == "sms":
+                    if not hasattr(utilisateur, 'telephone') or not utilisateur.telephone:
+                        details_envois.append({
+                            "utilisateur_id": str(utilisateur.id),
+                            "nom": utilisateur.nom,
+                            "statut": "échec",
+                            "erreur": "Utilisateur sans numéro de téléphone"
+                        })
+                        envoyes_echec += 1
+                        continue
+                    destinataire_effectif = utilisateur.telephone
+                else:
+                    details_envois.append({
+                        "utilisateur_id": str(utilisateur.id),
+                        "nom": utilisateur.nom,
+                        "statut": "échec",
+                        "erreur": "Type de notification invalide"
+                    })
+                    envoyes_echec += 1
+                    continue
+                
+                # Envoyer la notification
+                envoi_reussi = False
+                erreur_envoi = None
+                
+                try:
+                    if notification_data.type == "email":
+                        if not notification_data.sujet:
+                            raise Exception("Le sujet est requis pour les emails")
+                        
+                        envoi_reussi, erreur_envoi = await send_email(
+                            to_email=destinataire_effectif,
+                            subject=notification_data.sujet,
+                            content=notification_data.contenu
+                        )
+                        
+                    elif notification_data.type == "sms":
+                        envoi_reussi, erreur_envoi = await send_sms(
+                            to_phone=destinataire_effectif,
+                            message=notification_data.contenu
+                        )
+                    
+                    if not envoi_reussi:
+                        raise Exception(f"Échec de l'envoi: {erreur_envoi}")
+                        
+                except Exception as e_envoi:
+                    # Créer la notification avec statut d'échec
+                    notification = Notification(
+                        id=uuid.uuid4(),
+                        type=notification_data.type,
+                        destinataire=destinataire_effectif,
+                        sujet=notification_data.sujet,
+                        contenu=notification_data.contenu,
+                        statut='échoué',
+                        tentative=1,
+                        erreur=str(e_envoi),
+                    source='admin',  # Notification lot admin
+                    utilisateur_id=str(utilisateur.id),
+                    date_creation=datetime.now()
+                )
+                
+                db.add(notification)
+                db.commit()
+                
+                envoyes_echec += 1
+                details_envois.append({
+                    "utilisateur_id": str(utilisateur.id),
+                    "nom": utilisateur.nom,
+                    "destinataire": destinataire_effectif,
+                    "statut": "échec",
+                    "erreur": str(e_envoi),
+                    "notification_id": str(notification.id)
+                })
+                continue
+                
+                # Créer la notification avec statut de succès
+                notification = Notification(
+                    id=uuid.uuid4(),
+                    type=notification_data.type,
+                    destinataire=destinataire_effectif,
+                    sujet=notification_data.sujet,
+                    contenu=notification_data.contenu,
+                    statut='envoyé',
+                    tentative=1,
+                    source='admin',  # Notification lot admin
+                    utilisateur_id=str(utilisateur.id),
+                    date_creation=datetime.now(),
+                    date_envoi=datetime.now()
+                )
+                
+                db.add(notification)
+                db.commit()
+                
+                envoyes_succes += 1
+                details_envois.append({
+                    "utilisateur_id": str(utilisateur.id),
+                    "nom": utilisateur.nom,
+                    "destinataire": destinataire_effectif,
+                    "statut": "succès",
+                    "notification_id": str(notification.id)
+                })
+                    
+            except Exception as e:
+                envoyes_echec += 1
+                details_envois.append({
+                    "utilisateur_id": str(utilisateur.id),
+                    "nom": utilisateur.nom,
+                    "statut": "échec",
+                    "erreur": str(e)
+                })
+        
+        duree_traitement = time.time() - debut_traitement
+        
+        logger.info(f"Envoi lot administrateur terminé: {envoyes_succes} succès, {envoyes_echec} échecs")
+        
+        return ReponseEnvoiLotAdmin(
+            total_utilisateurs=len(notification_data.utilisateurs_ids),
+            envoyes_succes=envoyes_succes,
+            envoyes_echec=envoyes_echec,
+            utilisateurs_introuvables=utilisateurs_introuvables,
+            utilisateurs_inactifs=[],
+            details_envois=details_envois,
+            duree_traitement_secondes=round(duree_traitement, 2)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'envoi en lot administrateur: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de l'envoi en lot de notifications administratives"
+        )
+
+@router.post("/admin/envoyer-lot-emails", response_model=ReponseEnvoiLotAdmin)
+async def admin_envoyer_notifications_lot_par_emails(
+    notification_data: EnvoiNotificationLotAdminParEmail,
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user)
+):
+    """
+    Permet à un administrateur d'envoyer des notifications en lot en utilisant les adresses email
+    
+    **Réservé aux administrateurs**
+    **Pratique: Utilisez les emails directement au lieu des UUIDs**
+    """
+    debut_traitement = time.time()
+    
+    try:
+        # Récupérer les utilisateurs par email
+        query = db.query(Utilisateur).filter(Utilisateur.email.in_(notification_data.emails))
+        
+        if notification_data.filtre_utilisateurs_actifs:
+            query = query.filter(Utilisateur.est_actif == True)
+        
+        utilisateurs_valides = query.all()
+        
+        # Préparer les listes de tracking
+        emails_introuvables = []
+        envoyes_succes = 0
+        envoyes_echec = 0
+        details_envois = []
+        
+        # Identifier les emails introuvables
+        emails_trouves = {u.email for u in utilisateurs_valides}
+        emails_introuvables = [email for email in notification_data.emails if email not in emails_trouves]
+        
+        # Traiter chaque utilisateur valide
+        for utilisateur in utilisateurs_valides:
+            try:
+                # Pour les notifications par email, on utilise toujours l'email de l'utilisateur
+                if notification_data.type != "email":
+                    details_envois.append({
+                        "utilisateur_id": str(utilisateur.id),
+                        "nom": utilisateur.nom,
+                        "email": utilisateur.email,
+                        "statut": "échec",
+                        "erreur": "Ce endpoint ne supporte que les emails (type=email)"
+                    })
+                    envoyes_echec += 1
+                    continue
+                
+                if not notification_data.sujet:
+                    details_envois.append({
+                        "utilisateur_id": str(utilisateur.id),
+                        "nom": utilisateur.nom,
+                        "email": utilisateur.email,
+                        "statut": "échec",
+                        "erreur": "Le sujet est requis pour les emails"
+                    })
+                    envoyes_echec += 1
+                    continue
+                
+                # Envoyer l'email
+                envoi_reussi = False
+                erreur_envoi = None
+                
+                try:
+                    envoi_reussi, erreur_envoi = await send_email(
+                        to_email=utilisateur.email,
+                        subject=notification_data.sujet,
+                        content=notification_data.contenu
+                    )
+                    
+                    if not envoi_reussi:
+                        raise Exception(f"Échec de l'envoi: {erreur_envoi}")
+                        
+                except Exception as e_envoi:
+                    # Créer la notification avec statut d'échec
+                    notification = Notification(
+                        id=uuid.uuid4(),
+                        type="email",
+                        destinataire=utilisateur.email,
+                        sujet=notification_data.sujet,
+                        contenu=notification_data.contenu,
+                        statut='échoué',
+                        tentative=1,
+                        erreur=str(e_envoi),
+                        source='admin',  # Notification admin par email
+                        utilisateur_id=str(utilisateur.id),
+                        date_creation=datetime.now()
+                    )
+                    
+                    db.add(notification)
+                    db.commit()
+                    
+                    envoyes_echec += 1
+                    details_envois.append({
+                        "utilisateur_id": str(utilisateur.id),
+                        "nom": utilisateur.nom,
+                        "email": utilisateur.email,
+                        "statut": "échec",
+                        "erreur": str(e_envoi),
+                        "notification_id": str(notification.id)
+                    })
+                    continue
+                
+                # Créer la notification avec statut de succès
+                notification = Notification(
+                    id=uuid.uuid4(),
+                    type="email",
+                    destinataire=utilisateur.email,
+                    sujet=notification_data.sujet,
+                    contenu=notification_data.contenu,
+                    statut='envoyé',
+                    tentative=1,
+                    source='admin',  # Notification admin par email
+                    utilisateur_id=str(utilisateur.id),
+                    date_creation=datetime.now(),
+                    date_envoi=datetime.now()
+                )
+                
+                db.add(notification)
+                db.commit()
+                
+                envoyes_succes += 1
+                details_envois.append({
+                    "utilisateur_id": str(utilisateur.id),
+                    "nom": utilisateur.nom,
+                    "email": utilisateur.email,
+                    "statut": "succès",
+                    "notification_id": str(notification.id)
+                })
+                    
+            except Exception as e:
+                envoyes_echec += 1
+                details_envois.append({
+                    "utilisateur_id": str(utilisateur.id),
+                    "nom": utilisateur.nom,
+                    "email": utilisateur.email,
+                    "statut": "échec",
+                    "erreur": str(e)
+                })
+        
+        duree_traitement = time.time() - debut_traitement
+        
+        logger.info(f"Envoi lot admin par emails terminé: {envoyes_succes} succès, {envoyes_echec} échecs")
+        
+        return ReponseEnvoiLotAdmin(
+            total_utilisateurs=len(notification_data.emails),
+            envoyes_succes=envoyes_succes,
+            envoyes_echec=envoyes_echec,
+            utilisateurs_introuvables=emails_introuvables,  # Ici ce sont les emails introuvables
+            utilisateurs_inactifs=[],
+            details_envois=details_envois,
+            duree_traitement_secondes=round(duree_traitement, 2)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'envoi en lot par emails: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de l'envoi en lot de notifications par email"
+        )
+
+@router.get("/admin/liste-utilisateurs", response_model=List[Dict[str, Any]])
+async def admin_lister_utilisateurs_pour_notifications(
+    actifs_seulement: bool = Query(True, description="Lister seulement les utilisateurs actifs"),
+    avec_email: bool = Query(True, description="Lister seulement les utilisateurs avec email"),
+    recherche: Optional[str] = Query(None, description="Rechercher par nom ou email"),
+    limite: int = Query(50, le=100, description="Limite du nombre de résultats"),
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user)
+):
+    """
+    Liste les utilisateurs disponibles pour l'envoi de notifications administratives
     
     **Réservé aux administrateurs**
     """
     try:
-        stats = notification_dispatcher.get_stats()
+        # Construire la requête de base
+        query = db.query(Utilisateur)
         
-        return StatistiquesDispatcher(
-            total_processed=stats['total_processed'],
-            emails_sent=stats['emails_sent'],
-            sms_sent=stats['sms_sent'],
-            errors=stats['errors'],
-            last_run=stats['last_run'],
-            configuration={
-                'enabled': stats['enabled'],
-                'check_interval_seconds': stats['check_interval_seconds'],
-                'batch_size': stats['batch_size'],
-                'working_hours_enabled': stats['working_hours_enabled'],
-                'rate_limiting_enabled': stats['rate_limiting_enabled'],
-                'is_working_hours': stats['is_working_hours'],
-                'is_running': stats['is_running']
+        # Appliquer les filtres
+        if actifs_seulement:
+            query = query.filter(Utilisateur.est_actif == True)
+        
+        if avec_email:
+            query = query.filter(Utilisateur.email.isnot(None), Utilisateur.email != '')
+        
+        if recherche:
+            terme_recherche = f"%{recherche}%"
+            query = query.filter(
+                or_(
+                    Utilisateur.nom.ilike(terme_recherche),
+                    Utilisateur.email.ilike(terme_recherche)
+                )
+            )
+        
+        # Limiter les résultats et ordonner
+        utilisateurs = query.order_by(Utilisateur.nom).limit(limite).all()
+        
+        # Formater la réponse
+        utilisateurs_formated = [
+            {
+                "id": str(utilisateur.id),
+                "nom": utilisateur.nom,
+                "email": utilisateur.email,
+                "type_utilisateur": utilisateur.type_utilisateur,
+                "niveau_acces": getattr(utilisateur, 'niveau_acces', None),
+                "organisation": getattr(utilisateur, 'organisation', None),
+                "est_actif": getattr(utilisateur, 'est_actif', True),
+                "date_creation": utilisateur.date_creation.isoformat() if hasattr(utilisateur, 'date_creation') and utilisateur.date_creation else None
             }
-        )
+            for utilisateur in utilisateurs
+        ]
+        
+        logger.info(f"Admin consultation liste utilisateurs: {len(utilisateurs_formated)} résultats")
+        
+        return utilisateurs_formated
         
     except Exception as e:
-        logger.error(f"Erreur lors de la récupération des statistiques: {e}")
+        logger.error(f"Erreur lors de la récupération des utilisateurs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la récupération des statistiques"
+            detail="Erreur interne lors de la récupération de la liste des utilisateurs"
         )
 
-@router.post("/admin/reset-statistiques", response_model=None)
-async def reset_statistiques_dispatcher(
-    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
+# Endpoints de test pour les administrateurs
+
+@router.post("/admin/test-email", response_model=Dict[str, Any])
+async def admin_test_email(
+    email_test: str = Query(..., description="Adresse email de test"),
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user)
 ):
     """
-    Remet à zéro les statistiques du dispatcher
+    Teste l'envoi d'email pour les administrateurs
     
     **Réservé aux administrateurs**
     """
     try:
-        notification_dispatcher.reset_stats()
-        return {"message": "Statistiques remises à zéro avec succès"}
+        sujet = "Test d'envoi d'email - EIR Project"
+        contenu = f"""
+        Bonjour,
         
+        Ceci est un email de test envoyé depuis le système de notifications EIR Project.
+        
+        Détails du test:
+        - Date: {datetime.now().strftime('%d/%m/%Y à %H:%M')}
+        - Envoyé par: {current_user.nom} (Admin)
+        - Système: EIR Notification System
+        
+        Si vous recevez cet email, la configuration email fonctionne correctement.
+        
+        Cordialement,
+        L'équipe EIR Project
+        """
+        
+        envoi_reussi, erreur_envoi = await send_email(
+            to_email=email_test,
+            subject=sujet,
+            content=contenu
+        )
+        
+        if envoi_reussi:
+            logger.info(f"Test email réussi vers {email_test} par admin {current_user.id}")
+            return {
+                "success": True,
+                "message": f"Email de test envoyé avec succès à {email_test}",
+                "timestamp": datetime.now().isoformat(),
+                "admin": current_user.nom
+            }
+        else:
+            logger.error(f"Test email échoué vers {email_test}: {erreur_envoi}")
+            return {
+                "success": False,
+                "message": f"Échec de l'envoi de l'email de test: {erreur_envoi}",
+                "timestamp": datetime.now().isoformat(),
+                "error": erreur_envoi
+            }
+            
     except Exception as e:
-        logger.error(f"Erreur lors de la remise à zéro: {e}")
+        logger.error(f"Erreur lors du test email: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la remise à zéro"
+            detail=f"Erreur interne lors du test email: {str(e)}"
         )
 
-@router.get("/admin/test-connexions", response_model=Dict[str, Any])
-async def tester_connexions_services(
-    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
+@router.post("/admin/test-sms", response_model=Dict[str, Any])
+async def admin_test_sms(
+    numero_test: str = Query(..., description="Numéro de téléphone de test"),
+    db: Session = Depends(get_db),
+    current_user: Utilisateur = Depends(get_admin_user)
 ):
     """
-    Teste les connexions des services email et SMS
+    Teste l'envoi de SMS pour les administrateurs
     
     **Réservé aux administrateurs**
     """
     try:
-        # Test connexion email
-        email_success, email_message = email_service.test_connection()
-        email_config = email_service.get_config_info()
+        contenu = f"Test SMS EIR Project - {datetime.now().strftime('%d/%m/%Y %H:%M')} - Envoyé par: {current_user.nom} (Admin)"
         
-        # Test connexion SMS
-        sms_success, sms_message = sms_service.test_connection()
-        sms_config = sms_service.get_config_info()
-        
-        return {
-            "email": {
-                "success": email_success,
-                "message": email_message,
-                "configuration": email_config
-            },
-            "sms": {
-                "success": sms_success,
-                "message": sms_message,
-                "configuration": sms_config
-            },
-            "test_date": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Erreur lors du test des connexions: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors du test des connexions"
-        )
-
-@router.get("/admin/configuration", response_model=ConfigurationService)
-async def obtenir_configuration_services(
-    contexte_acces: Dict[str, Any] = Depends(require_niveau_acces(AccessLevel.ADMIN))
-):
-    """
-    Obtient la configuration complète des services de notification
-    
-    **Réservé aux administrateurs**
-    """
-    try:
-        return ConfigurationService(
-            email_service=email_service.get_config_info(),
-            sms_service=sms_service.get_config_info(),
-            dispatcher=notification_dispatcher.get_stats(),
-            rate_limiting=notification_dispatcher.rate_limiting_config
+        envoi_reussi, erreur_envoi = await send_sms(
+            to_phone=numero_test,
+            message=contenu
         )
         
+        if envoi_reussi:
+            logger.info(f"Test SMS réussi vers {numero_test} par admin {current_user.id}")
+            return {
+                "success": True,
+                "message": f"SMS de test envoyé avec succès au {numero_test}",
+                "timestamp": datetime.now().isoformat(),
+                "admin": current_user.nom
+            }
+        else:
+            logger.error(f"Test SMS échoué vers {numero_test}: {erreur_envoi}")
+            return {
+                "success": False,
+                "message": f"Échec de l'envoi du SMS de test: {erreur_envoi}",
+                "timestamp": datetime.now().isoformat(),
+                "error": erreur_envoi
+            }
+            
     except Exception as e:
-        logger.error(f"Erreur lors de la récupération de la configuration: {e}")
+        logger.error(f"Erreur lors du test SMS: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la récupération de la configuration"
+            detail=f"Erreur interne lors du test SMS: {str(e)}"
         )

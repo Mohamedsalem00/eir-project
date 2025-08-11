@@ -18,6 +18,13 @@ class NotificationStatus(str, Enum):
     EN_ATTENTE = "en_attente"
     ENVOYE = "envoyé"
     ECHEC = "échoué"
+    SMS = "sms"
+
+class NotificationStatus(str, Enum):
+    """Statuts des notifications"""
+    EN_ATTENTE = "en_attente"
+    ENVOYE = "envoyé"
+    ECHEC = "échoué"
 
 class CreationNotification(BaseModel):
     """Schéma pour créer une nouvelle notification"""
@@ -67,6 +74,7 @@ class ReponseNotification(BaseModel):
     statut: str = Field(..., description="Statut actuel de la notification")
     tentative: int = Field(..., description="Nombre de tentatives d'envoi")
     erreur: Optional[str] = Field(None, description="Message d'erreur si échec")
+    source: Optional[str] = Field(None, description="Source de la notification (admin, system, user)")
     date_creation: datetime = Field(..., description="Date de création de la notification")
     date_envoi: Optional[datetime] = Field(None, description="Date d'envoi réussie")
     utilisateur_id: str = Field(..., description="ID de l'utilisateur propriétaire")
@@ -183,6 +191,100 @@ class EnvoiNotificationTemplate(BaseModel):
     destinataire: str = Field(..., description="Destinataire")
     variables: Dict[str, str] = Field(default_factory=dict, description="Variables pour le template")
     envoyer_immediatement: bool = Field(False, description="Envoyer immédiatement")
+
+class EnvoiNotificationAdmin(BaseModel):
+    """Schéma pour qu'un administrateur envoie une notification à un utilisateur spécifique par email"""
+    email_utilisateur: EmailStr = Field(..., description="Adresse email de l'utilisateur destinataire")
+    type: NotificationType = Field(..., description="Type de notification (email uniquement pour cette version simplifiée)")
+    sujet: Optional[str] = Field(None, description="Sujet du message (requis pour email)")
+    contenu: str = Field(..., min_length=1, description="Contenu du message à envoyer")
+    envoyer_immediatement: bool = Field(True, description="Envoyer immédiatement par défaut pour l'admin")
+    priorite: Optional[str] = Field("normale", description="Priorité de la notification (normale, haute, urgente)")
+    
+    @validator('type')
+    def valider_type_email_seulement(cls, v):
+        """Pour cette version simplifiée, on supporte seulement les emails"""
+        if v != NotificationType.EMAIL:
+            raise ValueError('Cette version de l\'endpoint ne supporte que les emails (type="email")')
+        return v
+    
+    @validator('sujet')
+    def valider_sujet_email_admin(cls, v, values):
+        """Valide que le sujet est présent pour les emails"""
+        notification_type = values.get('type')
+        
+        if notification_type == NotificationType.EMAIL and not v:
+            raise ValueError('Sujet requis pour les emails')
+        
+        return v
+
+class EnvoiNotificationAdminParId(BaseModel):
+    """Schéma pour qu'un administrateur envoie une notification à un utilisateur spécifique par ID (legacy)"""
+    utilisateur_id: str = Field(..., description="ID de l'utilisateur destinataire")
+    type: NotificationType = Field(..., description="Type de notification (email ou sms)")
+    destinataire: Optional[str] = Field(None, description="Destinataire spécifique (optionnel, utilise l'email/tel de l'utilisateur par défaut)")
+    sujet: Optional[str] = Field(None, description="Sujet du message (requis pour email)")
+    contenu: str = Field(..., min_length=1, description="Contenu du message à envoyer")
+    envoyer_immediatement: bool = Field(True, description="Envoyer immédiatement par défaut pour l'admin")
+    priorite: Optional[str] = Field("normale", description="Priorité de la notification (normale, haute, urgente)")
+    
+    @validator('sujet')
+    def valider_sujet_email_admin_id(cls, v, values):
+        """Valide que le sujet est présent pour les emails"""
+        notification_type = values.get('type')
+        
+        if notification_type == NotificationType.EMAIL and not v:
+            raise ValueError('Sujet requis pour les emails')
+        
+        return v
+
+class EnvoiNotificationLotAdmin(BaseModel):
+    """Schéma pour qu'un administrateur envoie des notifications en lot"""
+    utilisateurs_ids: List[str] = Field(..., description="Liste des IDs des utilisateurs destinataires")
+    type: NotificationType = Field(..., description="Type de notification (email ou sms)")
+    sujet: Optional[str] = Field(None, description="Sujet du message (requis pour email)")
+    contenu: str = Field(..., min_length=1, description="Contenu du message à envoyer")
+    priorite: Optional[str] = Field("normale", description="Priorité de la notification")
+    filtre_utilisateurs_actifs: bool = Field(True, description="Filtrer uniquement les utilisateurs actifs")
+    
+    @validator('sujet')
+    def valider_sujet_email_lot(cls, v, values):
+        """Valide que le sujet est présent pour les emails"""
+        notification_type = values.get('type')
+        
+        if notification_type == NotificationType.EMAIL and not v:
+            raise ValueError('Sujet requis pour les emails')
+        
+        return v
+
+class EnvoiNotificationLotAdminParEmail(BaseModel):
+    """Schéma pour qu'un administrateur envoie des notifications en lot en utilisant directement les emails"""
+    emails: List[str] = Field(..., description="Liste des adresses email des destinataires")
+    type: NotificationType = Field(..., description="Type de notification (email ou sms)")
+    sujet: Optional[str] = Field(None, description="Sujet du message (requis pour email)")
+    contenu: str = Field(..., min_length=1, description="Contenu du message à envoyer")
+    priorite: Optional[str] = Field("normale", description="Priorité de la notification")
+    filtre_utilisateurs_actifs: bool = Field(True, description="Filtrer uniquement les utilisateurs actifs")
+    
+    @validator('sujet')
+    def valider_sujet_email_par_email(cls, v, values):
+        """Valide que le sujet est présent pour les emails"""
+        notification_type = values.get('type')
+        
+        if notification_type == NotificationType.EMAIL and not v:
+            raise ValueError('Sujet requis pour les emails')
+        
+        return v
+
+class ReponseEnvoiLotAdmin(BaseModel):
+    """Schéma de réponse pour l'envoi en lot par l'admin"""
+    total_utilisateurs: int = Field(..., description="Nombre total d'utilisateurs ciblés")
+    envoyes_succes: int = Field(..., description="Nombre d'envois réussis")
+    envoyes_echec: int = Field(..., description="Nombre d'envois échoués")
+    utilisateurs_introuvables: List[str] = Field(..., description="IDs des utilisateurs introuvables")
+    utilisateurs_inactifs: List[str] = Field(..., description="IDs des utilisateurs inactifs (si filtrage activé)")
+    details_envois: List[Dict[str, Any]] = Field(..., description="Détails des envois")
+    duree_traitement_secondes: float = Field(..., description="Durée du traitement en secondes")
 
 class ReponseProcessingNotifications(BaseModel):
     """Schéma de réponse pour le traitement des notifications"""
