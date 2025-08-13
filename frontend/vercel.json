@@ -1,0 +1,37 @@
+{
+  "name": "eir-project-frontend",
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://eir-project.onrender.com",
+    "NEXT_PUBLIC_API_VERSION": "v1",
+    "NEXT_PUBLIC_APP_NAME": "Projet EIR",
+    "NEXT_PUBLIC_APP_DESCRIPTION": "Système de Gestion des IMEI",
+    "NEXT_PUBLIC_DEFAULT_LOCALE": "fr",
+    "NEXT_PUBLIC_SUPPORTED_LOCALES": "fr,en,ar",
+    "NEXT_PUBLIC_RATE_LIMIT_DISPLAY": "true",
+    "NEXT_PUBLIC_VISITOR_SEARCH_LIMIT": "10",
+    "NEXT_PUBLIC_AUTHENTICATED_SEARCH_LIMIT": "100",
+    "NEXT_PUBLIC_RATE_LIMIT_REQUESTS": "10",
+    "NEXT_PUBLIC_RATE_LIMIT_WINDOW": "900000",
+    "NEXT_PUBLIC_JWT_EXPIRY": "3600",
+    "NODE_ENV": "production",
+    "NEXT_PUBLIC_DEBUG": "false"
+  },
+  "functions": {
+    "app/**": {
+      "maxDuration": 30
+    }
+  }
+}
