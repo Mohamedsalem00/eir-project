@@ -25,9 +25,10 @@ cd frontend/
 - **Project Name**: `eir-project-frontend`
 - **Framework Preset**: `Next.js` (détection automatique)
 - **Root Directory**: `frontend` ⚠️ **IMPORTANT**
-- **Build Command**: `npm run build` (par défaut)
-- **Output Directory**: `.next` (par défaut)
-- **Install Command**: `npm install` (par défaut)
+- **Build Command**: `npm run build` (par défaut, ne pas changer)
+- **Output Directory**: `.next` (par défaut, ne pas changer)
+- **Install Command**: `npm install` (par défaut, ou `npm ci` pour plus de vitesse)
+- **Node.js Version**: `18.x` (recommandé)
 
 #### C. Variables d'Environnement
 Ajoutez ces variables dans la section "Environment Variables" :
@@ -112,6 +113,26 @@ Vercel redéploie automatiquement à chaque push sur la branche `main`. Pour for
 - **Performance** : Dashboard Vercel → Speed Insights
 
 ## Résolution de Problèmes
+
+### ⚠️ Prévention des Conflits de Configuration
+
+**Avant le déploiement, vérifiez qu'il n'y a pas de fichiers conflictuels :**
+
+```bash
+# Dans le dossier frontend/
+# Supprimez ces fichiers s'ils existent (ancienne convention)
+rm -f now.json
+rm -rf .now/
+rm -f .nowignore
+
+# Vérifiez qu'il n'y a qu'un seul fichier de config
+ls -la vercel.json   # ✅ Doit exister
+ls -la now.json      # ❌ Ne doit PAS exister
+```
+
+**Variables d'environnement - Utilisez UNIQUEMENT le préfixe `VERCEL_` si nécessaire :**
+- ✅ `VERCEL_URL` (automatique)
+- ❌ `NOW_URL` (obsolète)
 
 ### Erreur : "Module not found"
 ```bash

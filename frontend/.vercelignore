@@ -1,0 +1,74 @@
+# Vercel ignore file
+# Ne pas inclure ces fichiers/dossiers dans le déploiement
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production builds (sera généré par Vercel)
+.next/
+out/
+build/
+
+# Environment files (gérés par Vercel dashboard)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage/
+.nyc_output/
+__tests__/
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Optional npm cache directory
+.npm
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Documentation (pas nécessaire en production)
+*.md
+docs/
+
+# Development scripts
+deploy-vercel.sh
+dev-*
+
+# Backup files
+*.backup
+*.bak
