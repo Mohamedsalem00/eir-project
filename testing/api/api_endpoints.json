@@ -1,0 +1,985 @@
+{
+  "api_config": {
+    "info": {
+      "title": "API Projet EIR",
+      "version": "1.0.0",
+      "description": "API du Registre d'Identité des Équipements (EIR) pour la gestion professionnelle d'appareils mobiles",
+      "contact": {
+        "name": "Équipe de Développement EIR",
+        "email": "contact@eir-project.com",
+        "url": "https://eir-project.com"
+      },
+      "license": {
+        "name": "Licence Propriétaire"
+      },
+      "terms_of_service": "https://eir-project.com/terms"
+    },
+    "servers": [
+      {
+        "url": "http://localhost:8000",
+        "description": "Serveur de développement local"
+      },
+      {
+        "url": "https://api.eir-project.com",
+        "description": "Serveur de production"
+      }
+    ],
+    "tags": [
+      {
+        "name": "Système",
+        "description": "Informations système et vérifications d'état"
+      },
+      {
+        "name": "Public",
+        "description": "Points de terminaison publics disponibles pour tous les utilisateurs"
+      },
+      {
+        "name": "Authentification",
+        "description": "Authentification et autorisation des utilisateurs"
+      },
+      {
+        "name": "IMEI",
+        "description": "Services de validation et recherche d'IMEI"
+      },
+      {
+        "name": "Appareils",
+        "description": "Opérations de gestion des appareils"
+      },
+      {
+        "name": "Cartes SIM",
+        "description": "Opérations de gestion des cartes SIM"
+      },
+      {
+        "name": "Utilisateurs",
+        "description": "Opérations de gestion des utilisateurs"
+      },
+      {
+        "name": "Historique de Recherche",
+        "description": "Points de terminaison d'historique et suivi des recherches"
+      },
+      {
+        "name": "Notifications",
+        "description": "Points de terminaison de gestion des notifications"
+      },
+      {
+        "name": "Analyses",
+        "description": "Points de terminaison d'analyses et rapports"
+      },
+      {
+        "name": "Admin",
+        "description": "Opérations administratives"
+      },
+      {
+        "name": "TAC",
+        "description": "Gestion de la base de données TAC (Type Allocation Code)"
+      },
+      {
+        "name": "Gestion d'Accès",
+        "description": "Contrôle d'accès granulaire et permissions"
+      }
+    ]
+  },
+  "endpoints": {
+    "system": {
+      "welcome": {
+        "path": "/",
+        "method": "GET",
+        "summary": "Bienvenue API",
+        "description": "Point d'entrée principal de l'API avec informations générales",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["nom_service", "version", "description"],
+        "test_data": null
+      },
+      "health": {
+        "path": "/health",
+        "method": "GET",
+        "summary": "Vérification d'État",
+        "description": "Vérification de l'état de santé du système",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["status", "timestamp"],
+        "test_data": null
+      },
+      "health_french": {
+        "path": "/verification-etat",
+        "method": "GET",
+        "summary": "Vérification d'État (Francisé)",
+        "description": "Vérification de l'état de santé du système (version française)",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["statut", "base_donnees", "horodatage"],
+        "test_data": null
+      },
+      "languages": {
+        "path": "/languages",
+        "method": "GET",
+        "summary": "Langues Supportées",
+        "description": "Liste des langues supportées par l'API",
+        "tags": ["Système"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["langues_supportees"],
+        "test_data": null
+      }
+    },
+    "public": {
+      "imei_lookup": {
+        "path": "/imei/{imei}",
+        "method": "GET",
+        "summary": "Recherche IMEI Améliorée avec Contrôle d'Accès",
+        "description": "Recherche d'informations sur un IMEI avec contrôle d'accès",
+        "tags": ["Public", "IMEI"],
+        "auth_required": false,
+        "test_priority": "high",
+        "path_params": {"imei": "352745080123456"},
+        "expected_fields": ["numero_imei", "statut"],
+        "test_data": null
+      },
+      "public_stats": {
+        "path": "/public/statistiques",
+        "method": "GET",
+        "summary": "Statistiques Publiques",
+        "description": "Statistiques publiques du système",
+        "tags": ["Public", "Analyses"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["total_appareils", "total_recherches"],
+        "test_data": null
+      }
+    },
+    "auth": {
+      "register": {
+        "path": "/authentification/inscription",
+        "method": "POST",
+        "summary": "Inscription",
+        "description": "Créer un nouveau compte utilisateur",
+        "tags": ["Authentification"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["message", "user_id"],
+        "test_data": {
+          "nom": "Test User",
+          "email": "test_user@example.com",
+          "mot_de_passe": "test123456",
+          "type_utilisateur": "utilisateur_authentifie"
+        }
+      },
+      "login": {
+        "path": "/authentification/connexion",
+        "method": "POST",
+        "summary": "Connexion",
+        "description": "Authentification utilisateur et obtention du token",
+        "tags": ["Authentification"],
+        "auth_required": false,
+        "test_priority": "high",
+        "expected_fields": ["access_token", "token_type"],
+        "test_data": {
+          "email": "eirrproject@gmail.com",
+          "mot_de_passe": "admin123"
+        }
+      },
+      "profile": {
+        "path": "/authentification/profile",
+        "method": "GET",
+        "summary": "Profil Utilisateur Détaillé",
+        "description": "Obtenir les informations détaillées du profil utilisateur connecté",
+        "tags": ["Authentification"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["id", "nom", "email", "type_utilisateur", "permissions", "statistiques"],
+        "test_data": null
+      },
+      "profile_simple": {
+        "path": "/authentification/profile/simple",
+        "method": "GET",
+        "summary": "Profil Utilisateur Simple",
+        "description": "Obtenir les informations basiques du profil utilisateur",
+        "tags": ["Authentification"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["id", "nom", "email"],
+        "test_data": null
+      },
+      "logout": {
+        "path": "/authentification/deconnexion",
+        "method": "POST",
+        "summary": "Déconnexion",
+        "description": "Déconnexion utilisateur",
+        "tags": ["Authentification"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["message"],
+        "test_data": null
+      },
+      "forgot_password": {
+        "path": "/authentification/mot-de-passe-oublie",
+        "method": "POST",
+        "summary": "Mot de Passe Oublié",
+        "description": "Demander un reset de mot de passe",
+        "tags": ["Authentification"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["success", "message", "token"],
+        "test_data": {
+          "email": "eirrproject@gmail.com",
+          "methode_verification": "email"
+        }
+      },
+      "verify_reset_code": {
+        "path": "/authentification/verifier-code-reset",
+        "method": "POST",
+        "summary": "Vérifier Code Reset",
+        "description": "Vérifier le code de réinitialisation",
+        "tags": ["Authentification"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["success", "message"],
+        "test_data": {
+          "token": "test-token",
+          "code_verification": "123456"
+        }
+      },
+      "new_password": {
+        "path": "/authentification/nouveau-mot-de-passe",
+        "method": "POST",
+        "summary": "Nouveau Mot de Passe",
+        "description": "Changer le mot de passe avec token de reset",
+        "tags": ["Authentification"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["success", "message"],
+        "test_data": {
+          "token": "test-token",
+          "nouveau_mot_de_passe": "nouveaumotdepasse123",
+          "confirmer_mot_de_passe": "nouveaumotdepasse123"
+        }
+      }
+    },
+    "users": {
+      "my_permissions": {
+        "path": "/mes-permissions",
+        "method": "GET",
+        "summary": "Mes Permissions",
+        "description": "Obtenir les permissions de l'utilisateur connecté",
+        "tags": ["Utilisateurs"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["permissions", "niveau_acces", "portee_donnees"],
+        "test_data": null
+      },
+      "create_user": {
+        "path": "/utilisateurs",
+        "method": "POST",
+        "summary": "Créer Utilisateur",
+        "description": "Créer un nouvel utilisateur (admin uniquement)",
+        "tags": ["Utilisateurs", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["message", "user_id"],
+        "test_data": {
+          "nom": "Nouvel Utilisateur",
+          "email": "newuser@example.com",
+          "mot_de_passe": "password123",
+          "type_utilisateur": "utilisateur_authentifie"
+        }
+      },
+      "get_user": {
+        "path": "/utilisateurs/{user_id}",
+        "method": "GET",
+        "summary": "Obtenir Utilisateur",
+        "description": "Obtenir les informations d'un utilisateur",
+        "tags": ["Utilisateurs"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"user_id": "test-user-id"},
+        "expected_fields": ["id", "nom", "email"],
+        "test_data": null
+      },
+      "user_searches": {
+        "path": "/utilisateurs/{user_id}/recherches",
+        "method": "GET",
+        "summary": "Recherches Utilisateur",
+        "description": "Historique des recherches d'un utilisateur",
+        "tags": ["Historique de Recherche"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"user_id": "test-user-id"},
+        "expected_fields": ["recherches", "total"],
+        "test_data": null
+      }
+    },
+    "devices": {
+      "list_devices": {
+        "path": "/appareils",
+        "method": "GET",
+        "summary": "Liste des Appareils",
+        "description": "Lister les appareils avec contrôle d'accès granulaire",
+        "tags": ["Appareils"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["appareils", "total"],
+        "test_data": null
+      },
+      "create_device": {
+        "path": "/appareils",
+        "method": "POST",
+        "summary": "Enregistrer Appareil",
+        "description": "Enregistrer un nouvel appareil",
+        "tags": ["Appareils"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["message", "appareil_id"],
+        "test_data": {
+          "marque": "Samsung",
+          "modele": "Galaxy S21",
+          "emmc": "128GB",
+          "imei1": "352745080123456",
+          "imei2": "352745080123457"
+        }
+      },
+      "assign_device": {
+        "path": "/appareils/{device_id}/assigner",
+        "method": "PUT",
+        "summary": "Assigner Appareil",
+        "description": "Assigner un appareil à un utilisateur",
+        "tags": ["Appareils", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"device_id": "test-device-id"},
+        "expected_fields": ["message"],
+        "test_data": {
+          "utilisateur_id": "test-user-id"
+        }
+      },
+      "delete_device": {
+        "path": "/admin/appareils/{device_id}",
+        "method": "DELETE",
+        "summary": "Supprimer Appareil",
+        "description": "Supprimer un appareil (admin uniquement)",
+        "tags": ["Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"device_id": "test-device-id"},
+        "expected_fields": ["message"],
+        "test_data": null
+      },
+      "bulk_import": {
+        "path": "/admin/import-lot-appareils",
+        "method": "POST",
+        "summary": "Import en Lot",
+        "description": "Import en lot d'appareils",
+        "tags": ["Appareils", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["message", "imported"],
+        "test_data": []
+      },
+      "import_file": {
+        "path": "/admin/import-file",
+        "method": "POST",
+        "summary": "Import depuis Fichier",
+        "description": "Import d'appareils depuis fichier CSV/JSON",
+        "tags": ["Appareils", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "content_type": "multipart/form-data",
+        "expected_fields": ["message", "result"],
+        "test_data": null
+      },
+      "import_template": {
+        "path": "/admin/import-template",
+        "method": "GET",
+        "summary": "Template d'Import",
+        "description": "Télécharger template d'import",
+        "tags": ["Appareils", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["template"],
+        "test_data": null
+      },
+      "preview_import": {
+        "path": "/admin/preview-import",
+        "method": "POST",
+        "summary": "Prévisualiser Import",
+        "description": "Prévisualiser l'import avant validation",
+        "tags": ["Appareils", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "content_type": "multipart/form-data",
+        "expected_fields": ["preview", "errors", "recommendations"],
+        "test_data": null
+      },
+      "add_imei": {
+        "path": "/appareils/{appareil_id}/imeis",
+        "method": "POST",
+        "summary": "Ajouter IMEI",
+        "description": "Ajouter un IMEI à un appareil",
+        "tags": ["Appareils"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"appareil_id": "test-device-id"},
+        "expected_fields": ["message", "imei_id"],
+        "test_data": {
+          "numero_imei": "352745080123458",
+          "numero_slot": 1
+        }
+      },
+      "update_imei_status": {
+        "path": "/imeis/{imei_id}/status",
+        "method": "PUT",
+        "summary": "Mettre à Jour Statut IMEI",
+        "description": "Mettre à jour le statut d'un IMEI",
+        "tags": ["IMEI", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"imei_id": "test-imei-id"},
+        "expected_fields": ["message"],
+        "test_data": {
+          "statut": "bloque"
+        }
+      }
+    },
+    "sim": {
+      "register_sim": {
+        "path": "/cartes-sim",
+        "method": "POST",
+        "summary": "Enregistrer Carte SIM",
+        "description": "Enregistrer une nouvelle carte SIM",
+        "tags": ["Cartes SIM"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["message", "sim_id"],
+        "test_data": {
+          "iccid": "8934051234567890123",
+          "operateur": "Orange"
+        }
+      },
+      "check_iccid": {
+        "path": "/cartes-sim/{iccid}",
+        "method": "GET",
+        "summary": "Vérifier ICCID",
+        "description": "Vérifier une carte SIM par ICCID",
+        "tags": ["Cartes SIM"],
+        "auth_required": false,
+        "test_priority": "low",
+        "path_params": {"iccid": "8934051234567890123"},
+        "expected_fields": ["iccid", "statut"],
+        "test_data": null
+      }
+    },
+    "searches": {
+      "list_searches": {
+        "path": "/recherches",
+        "method": "GET",
+        "summary": "Liste des Recherches",
+        "description": "Lister l'historique des recherches",
+        "tags": ["Historique de Recherche"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["recherches", "total"],
+        "test_data": null
+      }
+    },
+    "notifications": {
+      "list_notifications": {
+        "path": "/notifications",
+        "method": "GET",
+        "summary": "Liste des Notifications",
+        "description": "Lister les notifications avec filtres",
+        "tags": ["Notifications"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["notifications", "total"],
+        "test_data": null
+      },
+      "notification_stats": {
+        "path": "/notifications/statistiques/globales",
+        "method": "GET",
+        "summary": "Statistiques Notifications",
+        "description": "Statistiques complètes des notifications",
+        "tags": ["Notifications"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["total_notifications", "taux_succes"],
+        "test_data": null
+      },
+      "admin_send_to_user": {
+        "path": "/notifications/admin/envoyer-a-utilisateur",
+        "method": "POST",
+        "summary": "Envoi Admin à Utilisateur",
+        "description": "Envoyer notification admin à un utilisateur",
+        "tags": ["Notifications", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["success", "message", "notification_id"],
+        "test_data": {
+          "email_utilisateur": "eirrproject@gmail.com",
+          "type": "email",
+          "sujet": "Test notification",
+          "contenu": "Ceci est un test",
+          "priorite": "normale"
+        }
+      },
+      "admin_send_bulk": {
+        "path": "/notifications/admin/envoyer-lot-utilisateurs",
+        "method": "POST",
+        "summary": "Envoi Admin en Lot",
+        "description": "Envoyer notifications en lot par IDs utilisateur",
+        "tags": ["Notifications", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["total_utilisateurs", "envoyes_succes", "envoyes_echec"],
+        "test_data": {
+          "utilisateurs_ids": ["test-user-id"],
+          "type": "email",
+          "sujet": "Notification en lot",
+          "contenu": "Message en lot",
+          "priorite": "normale"
+        }
+      },
+      "admin_send_bulk_emails": {
+        "path": "/notifications/admin/envoyer-lot-emails",
+        "method": "POST",
+        "summary": "Envoi Admin en Lot par Emails",
+        "description": "Envoyer notifications en lot par emails",
+        "tags": ["Notifications", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["total_utilisateurs", "envoyes_succes", "envoyes_echec"],
+        "test_data": {
+          "emails": ["eirrproject@gmail.com"],
+          "type": "email",
+          "sujet": "Notification par email",
+          "contenu": "Message par email",
+          "priorite": "normale"
+        }
+      },
+      "admin_list_users": {
+        "path": "/notifications/admin/liste-utilisateurs",
+        "method": "GET",
+        "summary": "Liste Utilisateurs Admin",
+        "description": "Liste utilisateurs pour notifications admin",
+        "tags": ["Notifications", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["utilisateurs"],
+        "test_data": null
+      },
+      "admin_test_email": {
+        "path": "/notifications/admin/test-email",
+        "method": "POST",
+        "summary": "Test Email Admin",
+        "description": "Test configuration email avec diagnostic",
+        "tags": ["Notifications", "Admin"],
+        "auth_required": true,
+        "test_priority": "high",
+        "expected_fields": ["success", "message"],
+        "test_data": null
+      },
+      "admin_test_sms": {
+        "path": "/notifications/admin/test-sms",
+        "method": "POST",
+        "summary": "Test SMS Admin",
+        "description": "Test configuration SMS avec diagnostic",
+        "tags": ["Notifications", "Admin"],
+        "auth_required": true,
+        "test_priority": "high",
+        "expected_fields": ["success", "message"],
+        "test_data": null
+      },
+      "scheduler_status": {
+        "path": "/admin/notifications/scheduler/status",
+        "method": "GET",
+        "summary": "Statut Planificateur",
+        "description": "Statut du planificateur de notifications",
+        "tags": ["Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["status", "jobs"],
+        "test_data": null
+      },
+      "scheduler_trigger": {
+        "path": "/admin/notifications/scheduler/trigger/{job_id}",
+        "method": "POST",
+        "summary": "Déclencher Tâche",
+        "description": "Déclencher une tâche manuelle du planificateur",
+        "tags": ["Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"job_id": "test-job"},
+        "expected_fields": ["success", "message"],
+        "test_data": null
+      }
+    },
+    "access_management": {
+      "access_levels": {
+        "path": "/admin/gestion-acces/niveaux-acces",
+        "method": "GET",
+        "summary": "Niveaux d'Accès",
+        "description": "Niveaux d'accès disponibles avec descriptions",
+        "tags": ["Gestion d'Accès"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["niveaux_acces"],
+        "test_data": null
+      },
+      "list_users_permissions": {
+        "path": "/admin/gestion-acces/utilisateurs",
+        "method": "GET",
+        "summary": "Utilisateurs avec Permissions",
+        "description": "Liste utilisateurs avec permissions détaillées",
+        "tags": ["Gestion d'Accès"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["utilisateurs"],
+        "test_data": null
+      },
+      "user_permissions": {
+        "path": "/admin/gestion-acces/utilisateurs/{id}/permissions",
+        "method": "GET",
+        "summary": "Permissions Utilisateur",
+        "description": "Permissions granulaires d'un utilisateur",
+        "tags": ["Gestion d'Accès"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"id": "test-user-id"},
+        "expected_fields": ["permissions", "niveau_acces"],
+        "test_data": null
+      },
+      "update_permissions": {
+        "path": "/admin/gestion-acces/utilisateurs/{id}/permissions",
+        "method": "PUT",
+        "summary": "Mettre à Jour Permissions",
+        "description": "Mise à jour permissions avec audit",
+        "tags": ["Gestion d'Accès"],
+        "auth_required": true,
+        "test_priority": "low",
+        "path_params": {"id": "test-user-id"},
+        "expected_fields": ["success", "message"],
+        "test_data": {
+          "niveau_acces": "standard",
+          "portee_donnees": "personnel"
+        }
+      },
+      "permissions_audit": {
+        "path": "/admin/gestion-acces/audit/changements-permissions",
+        "method": "GET",
+        "summary": "Audit Permissions",
+        "description": "Audit des changements de permissions",
+        "tags": ["Gestion d'Accès"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["changements", "total"],
+        "test_data": null
+      }
+    },
+    "admin": {
+      "audit_logs": {
+        "path": "/admin/journaux-audit",
+        "method": "GET",
+        "summary": "Journaux d'Audit",
+        "description": "Consultation détaillée des journaux d'audit",
+        "tags": ["Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["journaux", "total"],
+        "test_data": null
+      }
+    },
+    "protocols": {
+      "verify_imei_multiprotocol": {
+        "path": "/verify_imei",
+        "method": "POST",
+        "summary": "Vérification IMEI Multi-Protocoles",
+        "description": "Vérifier IMEI via différents protocoles",
+        "tags": ["IMEI", "Intégration"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["result", "protocol"],
+        "test_data": {
+          "imei": "352745080123456",
+          "protocol": "REST"
+        }
+      },
+      "protocols_status": {
+        "path": "/protocols/status",
+        "method": "GET",
+        "summary": "Statut des Protocoles",
+        "description": "Statut d'activation des protocoles d'intégration",
+        "tags": ["Système", "Intégration"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "expected_fields": ["protocols", "status"],
+        "test_data": null
+      }
+    },
+    "debug": {
+      "test_email_config": {
+        "path": "/test-email-config",
+        "method": "GET",
+        "summary": "Test Configuration Email",
+        "description": "Test de la configuration email",
+        "tags": ["Admin"],
+        "auth_required": true,
+        "test_priority": "high",
+        "expected_fields": ["config", "status"],
+        "test_data": null
+      },
+      "debug_env": {
+        "path": "/debug-env",
+        "method": "GET",
+        "summary": "Variables d'Environnement",
+        "description": "Variables d'environnement (admin seulement)",
+        "tags": ["Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["environment"],
+        "test_data": null
+      },
+      "test_send_email": {
+        "path": "/test-send-email",
+        "method": "POST",
+        "summary": "Test Envoi Email",
+        "description": "Test envoi email complet",
+        "tags": ["Admin"],
+        "auth_required": true,
+        "test_priority": "high",
+        "expected_fields": ["success", "message"],
+        "test_data": {
+          "to": "test@example.com",
+          "subject": "Test Email",
+          "body": "Test message"
+        }
+      }
+    },
+    "tac": {
+      "tac_search": {
+        "path": "/tac/{tac}",
+        "method": "GET",
+        "summary": "Recherche TAC",
+        "description": "Rechercher les informations d'un code TAC",
+        "tags": ["TAC"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "path_params": {"tac": "35274508"},
+        "expected_fields": ["tac", "marque", "modele", "trouve"],
+        "test_data": null
+      },
+      "tac_stats": {
+        "path": "/admin/tac/stats",
+        "method": "GET",
+        "summary": "Statistiques TAC",
+        "description": "Obtenir les statistiques de la base TAC",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["statistiques_generales", "repartition_statuts"],
+        "test_data": null
+      },
+      "tac_sync": {
+        "path": "/admin/tac/sync",
+        "method": "POST",
+        "summary": "Synchronisation TAC",
+        "description": "Synchroniser la base TAC depuis sources externes",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "high",
+        "expected_fields": ["message", "source", "result"],
+        "test_data": null
+      },
+      "tac_sync_logs": {
+        "path": "/admin/tac/sync/logs",
+        "method": "GET",
+        "summary": "Logs Synchronisation TAC",
+        "description": "Obtenir l'historique des synchronisations TAC",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "low",
+        "expected_fields": ["statistiques", "logs_recents"],
+        "test_data": null
+      },
+      "tac_import": {
+        "path": "/admin/tac/import",
+        "method": "POST",
+        "summary": "Import TAC",
+        "description": "Importer des données TAC depuis fichier",
+        "tags": ["TAC", "Admin"],
+        "auth_required": true,
+        "test_priority": "medium",
+        "expected_fields": ["message", "filename", "result"],
+        "test_data": null,
+        "content_type": "multipart/form-data"
+      },
+      "imei_validate_tac": {
+        "path": "/imei/{imei}/validate",
+        "method": "GET",
+        "summary": "Validation IMEI avec TAC",
+        "description": "Valider IMEI avec base TAC et algorithme Luhn",
+        "tags": ["IMEI", "TAC"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "path_params": {"imei": "352745080123456"},
+        "expected_fields": ["valide", "luhn_valide", "tac_info"],
+        "test_data": null
+      },
+      "imei_details": {
+        "path": "/imei/{imei}/details",
+        "method": "GET",
+        "summary": "Détails complets IMEI",
+        "description": "Détails complets IMEI avec validation TAC",
+        "tags": ["IMEI", "TAC"],
+        "auth_required": false,
+        "test_priority": "medium",
+        "path_params": {"imei": "352745080123456"},
+        "expected_fields": ["imei", "recherche_locale", "validation_tac", "resume"],
+        "test_data": null
+      }
+    }
+  },
+  "test_groups": {
+    "smoke": [
+      "system.welcome",
+      "system.health_french",
+      "auth.login",
+      "public.imei_lookup"
+    ],
+    "core": [
+      "system.welcome",
+      "system.health_french",
+      "system.languages",
+      "auth.login",
+      "auth.profile",
+      "public.imei_lookup",
+      "public.public_stats",
+      "tac.tac_search",
+      "tac.imei_validate_tac"
+    ],
+    "auth": [
+      "auth.login",
+      "auth.profile",
+      "auth.profile_simple",
+      "auth.logout",
+      "auth.forgot_password",
+      "auth.verify_reset_code",
+      "auth.new_password"
+    ],
+    "tac": [
+      "tac.tac_search",
+      "tac.tac_stats",
+      "tac.tac_sync",
+      "tac.tac_sync_logs",
+      "tac.tac_import",
+      "tac.imei_validate_tac",
+      "tac.imei_details"
+    ],
+    "devices": [
+      "devices.list_devices",
+      "devices.create_device",
+      "devices.assign_device",
+      "devices.add_imei",
+      "devices.update_imei_status"
+    ],
+    "notifications": [
+      "notifications.list_notifications",
+      "notifications.notification_stats",
+      "notifications.admin_send_to_user",
+      "notifications.admin_send_bulk",
+      "notifications.admin_test_email",
+      "notifications.admin_test_sms"
+    ],
+    "admin": [
+      "admin.audit_logs",
+      "access_management.access_levels",
+      "access_management.list_users_permissions",
+      "notifications.scheduler_status",
+      "debug.test_email_config"
+    ],
+    "admin_full": [
+      "devices.bulk_import",
+      "devices.import_file",
+      "devices.preview_import",
+      "devices.delete_device",
+      "notifications.admin_send_bulk_emails",
+      "notifications.scheduler_trigger",
+      "access_management.update_permissions",
+      "access_management.permissions_audit",
+      "debug.debug_env",
+      "debug.test_send_email"
+    ]
+  },
+  "test_config": {
+    "default_timeout": 10,
+    "retry_attempts": 3,
+    "base_url": "http://localhost:8000",
+    "auth_endpoints": {
+      "login": "/authentification/connexion",
+      "logout": "/authentification/deconnexion"
+    },
+    "test_users": {
+      "admin": {
+        "email": "eirrproject@gmail.com",
+        "mot_de_passe": "admin123"
+      },
+      "regular": {
+        "email": "user@example.com",
+        "mot_de_passe": "admin123"
+      }
+    },
+    "test_data": {
+      "test_imei": "352745080123456",
+      "test_iccid": "8934051234567890123",
+      "test_device_id": "test-device-id",
+      "test_user_id": "test-user-id",
+      "test_tac": "35274508",
+      "test_imei_invalid": "123456789012345",
+      "test_email": "test@example.com",
+      "test_phone": "+33123456789"
+    },
+    "response_schemas": {
+      "error": {
+        "detail": "string",
+        "status_code": "integer"
+      },
+      "success": {
+        "message": "string",
+        "success": "boolean"
+      },
+      "auth_token": {
+        "access_token": "string",
+        "token_type": "string"
+      },
+      "notification_stats": {
+        "total_notifications": "integer",
+        "en_attente": "integer",
+        "envoyes": "integer",
+        "echecs": "integer",
+        "taux_succes": "float"
+      },
+      "tac_validation": {
+        "valide": "boolean",
+        "marque": "string",
+        "modele": "string",
+        "tac": "string",
+        "luhn_valide": "boolean"
+      }
+    },
+    "environment_variables": {
+      "required": [
+        "DATABASE_URL",
+        "API_SECRET_KEY"
+      ],
+      "optional": [
+        "SMTP_SERVER",
+        "SMTP_USERNAME",
+        "SMTP_PASSWORD",
+        "SMS_PROVIDER",
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_AUTH_TOKEN"
+      ]
+    }
+  }
+}

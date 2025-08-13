@@ -1,5 +1,6 @@
 # 🔒 EIR PROJECT - COMPREHENSIVE GITIGNORE
 # Production-ready .gitignore for EIR API project
+# Updated: August 2025
 
 # ===== PYTHON =====
 # Byte-compiled / optimized / DLL files
@@ -46,8 +47,297 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+test-results/
+test-reports/
 
 # Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# PyCharm
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# ===== NODE.JS & FRONTEND =====
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next/
+out/
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# ===== DOCKER =====
+# Docker files that should be ignored
+.docker/
+docker-data/
+volumes/
+
+# ===== DATABASE =====
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+mysql-data/
+
+# Database dumps and backups
+*.sql.backup
+*.dump
+*.backup
+backups/*.sql
+
+# ===== LOGS =====
+# Log files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime logs
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ===== SYSTEM FILES =====
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+*.lnk
+
+# Linux
+*~
+
+# ===== IDE & EDITORS =====
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ===== TEMPORARY & CACHE FILES =====
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# ===== SECURITY & SENSITIVE DATA =====
+# Environment files with secrets
+.env.production
+.env.staging
+.env.secrets
+.secrets/
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+
+# JWT secrets
+jwt_secret.txt
+
+# ===== PROJECT SPECIFIC =====
+# Test files that should not be committed
+test_*.py
+*_test_*.py
+testing/temp/
+testing/outputs/
+
+# Temporary documentation and reports
+*_TEMP.md
+*_TEMPORAIRE.md
+*_SUCCESS*.md
+PROJECT_CLEANUP_*.md
+COMMIT_SUMMARY_OLD.md
+NOTIFICATION_SYSTEM_SUCCESS_REPORT.md
+PROJECT_CLEANUP_SUCCESS.md
+
+# Generated documentation
+documentation/generated/
+
+# Upload directories
+uploads/
+media/
+static/uploaded/
+
+# Large data files (keep samples)
+data/large_datasets/
+data/*.csv.backup
+data/*.json.backup
+data/tac_database_backup_*.json
+
+# Development scripts
+dev_*.py
+dev_*.sh
+test_*.sh
+diagnostic_*.py
+
+# Build artifacts
+build/
+dist/
+
+# ===== KEEP THESE IMPORTANT FILES =====
+# Force include important files even if they match patterns above
+!backend/requirements.txt
+!frontend/package.json
+!docker-compose.yml
+!docker-compose.prod.yml
+!README.md
+!documentation/README.md
+!config/protocols.yml
+!config/external_apis.yml
+!testing/README.md
+!scripts/README.md
+!scripts/*.sh
+!backend/init-db.sh
+!backend/schema_postgres.sql
+
+# ===== DEVELOPMENT TOOLS =====
+# Profiling data
+.prof
+
+# Coverage reports
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
 .env
 .venv
 env/
@@ -232,3 +522,9 @@ static/uploaded/
 !scripts/*.sh
 !backend/init-db.sh
 !backend/schema_postgres.sql
+# Scripts temporaires et obsolètes
+*.sh.backup
+*.sh.tmp
+quick_api_test.sh
+test_*.temp
+cleanup_*.log

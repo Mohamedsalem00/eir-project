@@ -1,0 +1,65 @@
+{
+  "app": {
+    "title": "IMEI Verification",
+    "subtitle": "Verify your device authenticity",
+    "description": "Enter your device's 15-digit IMEI number for instant verification and detailed information"
+  },
+  "form": {
+    "imeiLabel": "IMEI Number *",
+    "imeiPlaceholder": "123456789012345",
+    "imeiFormat": "Format: 15 digits only",
+    "verifyButton": "Verify IMEI",
+    "newSearchButton": "New Search"
+  },
+  "results": {
+    "title": "Complete Verification Results",
+    "subtitle": "IMEI Details: {imei}",
+    "description": "Complete analysis including local search, TAC validation and device details",
+    "analysisComplete": "Complete Analysis Performed",
+    "analysisDescription": "Local search, TAC validation and Luhn verification",
+    "timestamp": "Timestamp"
+  },
+  "validation": {
+    "summary": "Validation Summary",
+    "localDb": "Local Database",
+    "tacValid": "TAC Valid",
+    "luhnValid": "Luhn Valid",
+    "found": "Found",
+    "notFound": "Not Found",
+    "valid": "Valid",
+    "invalid": "Invalid",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "device": {
+    "localSearch": "Local Search",
+    "status": "Status",
+    "state": "State",
+    "brand": "Brand",
+    "model": "Model",
+    "tacValidation": "TAC Validation",
+    "tac": "TAC",
+    "source": "Source",
+    "tacDetails": "TAC Details",
+    "tacNotFound": "TAC not found in database"
+  },
+  "status": {
+    "invalidLuhn": "INVALID LUHN",
+    "validLuhn": "VALID LUHN",
+    "found": "FOUND",
+    "notFound": "NOT FOUND",
+    "valid": "VALID",
+    "invalid": "INVALID"
+  },
+  "errors": {
+    "networkError": "Network error",
+    "serverError": "Server error",
+    "invalidFormat": "Invalid IMEI format",
+    "rateLimitExceeded": "Search limit exceeded",
+    "unknownError": "Unknown error"
+  },
+  "loading": {
+    "verifying": "Verifying...",
+    "searching": "Searching..."
+  }
+}

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, status, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text
 from datetime import datetime, timedelta
@@ -104,6 +105,29 @@ app = FastAPI(
             "description": "Opérations administratives"
         }
     ]
+)
+
+# Configuration CORS pour permettre les requêtes depuis le frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js dev server par défaut
+        "http://localhost:3001",  # Next.js dev server alternatif
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "https://eir-project.vercel.app",  # Production frontend
+        "https://eir-frontend.onrender.com"  # Production alternative
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type", 
+        "Accept",
+        "Accept-Language",
+        "X-Requested-With",
+        "Access-Control-Allow-Origin"
+    ],
 )
 
 # Inclure les routeurs
@@ -2868,7 +2892,7 @@ async def importer_tac_fichier(
     description="Obtenir tous les détails d'un IMEI incluant validation TAC et informations de base",
     response_model=None
 )
-def details_complets_imei(
+async def details_complets_imei(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
@@ -2889,8 +2913,8 @@ def details_complets_imei(
     - Historique et statut
     """
     try:
-        # Recherche IMEI locale (réutilise la logique existante)
-        imei_local = verifier_imei(imei, request, db, user, translator, audit_service)
+        # Recherche IMEI locale (réutilise la logique existante) - ASYNC CALL
+        imei_local = await verifier_imei(imei, request, db, user, translator, audit_service)
         
         # Validation TAC
         tac_validation = valider_imei_avec_tac_endpoint(imei, request, db, user, translator, audit_service)

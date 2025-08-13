@@ -1,0 +1,65 @@
+{
+  "app": {
+    "title": "التحقق من IMEI",
+    "subtitle": "تحقق من صحة جهازك",
+    "description": "أدخل رقم IMEI المكون من 15 رقماً لجهازك للتحقق الفوري والمعلومات التفصيلية"
+  },
+  "form": {
+    "imeiLabel": "رقم IMEI *",
+    "imeiPlaceholder": "123456789012345",
+    "imeiFormat": "التنسيق: 15 رقماً فقط",
+    "verifyButton": "تحقق من IMEI",
+    "newSearchButton": "بحث جديد"
+  },
+  "results": {
+    "title": "نتائج التحقق الكاملة",
+    "subtitle": "تفاصيل IMEI: {imei}",
+    "description": "تحليل شامل يشمل البحث المحلي والتحقق من TAC وتفاصيل الجهاز",
+    "analysisComplete": "تم إجراء التحليل الكامل",
+    "analysisDescription": "البحث المحلي والتحقق من TAC وتحقق Luhn",
+    "timestamp": "الطابع الزمني"
+  },
+  "validation": {
+    "summary": "ملخص التحقق",
+    "localDb": "قاعدة البيانات المحلية",
+    "tacValid": "TAC صالح",
+    "luhnValid": "Luhn صالح",
+    "found": "موجود",
+    "notFound": "غير موجود",
+    "valid": "صالح",
+    "invalid": "غير صالح",
+    "active": "نشط",
+    "inactive": "غير نشط"
+  },
+  "device": {
+    "localSearch": "البحث المحلي",
+    "status": "الحالة",
+    "state": "الوضع",
+    "brand": "العلامة التجارية",
+    "model": "الموديل",
+    "tacValidation": "التحقق من TAC",
+    "tac": "TAC",
+    "source": "المصدر",
+    "tacDetails": "تفاصيل TAC",
+    "tacNotFound": "TAC غير موجود في قاعدة البيانات"
+  },
+  "status": {
+    "invalidLuhn": "LUHN غير صالح",
+    "validLuhn": "LUHN صالح",
+    "found": "موجود",
+    "notFound": "غير موجود",
+    "valid": "صالح",
+    "invalid": "غير صالح"
+  },
+  "errors": {
+    "networkError": "خطأ في الشبكة",
+    "serverError": "خطأ في الخادم",
+    "invalidFormat": "تنسيق IMEI غير صالح",
+    "rateLimitExceeded": "تم تجاوز حد البحث",
+    "unknownError": "خطأ غير معروف"
+  },
+  "loading": {
+    "verifying": "جاري التحقق...",
+    "searching": "جاري البحث..."
+  }
+}

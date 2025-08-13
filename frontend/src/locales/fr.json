@@ -1,0 +1,65 @@
+{
+  "app": {
+    "title": "Vérification IMEI",
+    "subtitle": "Vérifiez l'authenticité de votre appareil",
+    "description": "Entrez le numéro IMEI de 15 chiffres de votre appareil pour une vérification instantanée et des informations détaillées"
+  },
+  "form": {
+    "imeiLabel": "Numéro IMEI *",
+    "imeiPlaceholder": "123456789012345",
+    "imeiFormat": "Format : 15 chiffres uniquement",
+    "verifyButton": "Vérifier IMEI",
+    "newSearchButton": "Nouvelle recherche"
+  },
+  "results": {
+    "title": "Résultats de Vérification Complète",
+    "subtitle": "Détails IMEI : {imei}",
+    "description": "Analyse complète incluant recherche locale, validation TAC et détails d'appareil",
+    "analysisComplete": "Analyse Complète Effectuée",
+    "analysisDescription": "Recherche locale, validation TAC et vérification Luhn",
+    "timestamp": "Horodatage"
+  },
+  "validation": {
+    "summary": "Résumé de Validation",
+    "localDb": "Base Locale",
+    "tacValid": "TAC Valide",
+    "luhnValid": "Luhn Valide",
+    "found": "Trouvé",
+    "notFound": "Non trouvé",
+    "valid": "Valide",
+    "invalid": "Invalide",
+    "active": "Actif",
+    "inactive": "Inactif"
+  },
+  "device": {
+    "localSearch": "Recherche Locale",
+    "status": "Statut",
+    "state": "État",
+    "brand": "Marque",
+    "model": "Modèle",
+    "tacValidation": "Validation TAC",
+    "tac": "TAC",
+    "source": "Source",
+    "tacDetails": "Détails TAC",
+    "tacNotFound": "TAC non trouvé dans la base de données"
+  },
+  "status": {
+    "invalidLuhn": "INVALIDE LUHN",
+    "validLuhn": "VALIDE LUHN",
+    "found": "TROUVÉ",
+    "notFound": "NON TROUVÉ",
+    "valid": "VALIDE",
+    "invalid": "INVALIDE"
+  },
+  "errors": {
+    "networkError": "Erreur réseau",
+    "serverError": "Erreur du serveur",
+    "invalidFormat": "Format IMEI invalide",
+    "rateLimitExceeded": "Limite de recherche dépassée",
+    "unknownError": "Erreur inconnue"
+  },
+  "loading": {
+    "verifying": "Vérification en cours...",
+    "searching": "Recherche en cours..."
+  }
+}

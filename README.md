@@ -713,3 +713,25 @@ docker compose logs -f
 - **API REST** : Conformité OpenAPI 3.0 avec documentation interactive
 - **Base de données** : PostgreSQL avec contraintes d'intégrité et indexation optimisée
 - **Docker** : Containerisation complète pour déploiement multi-environnement
+## 📚 Documentation Organisée
+
+La documentation du projet a été réorganisée pour une meilleure navigation :
+
+- **[📁 Guide de Documentation](documentation/README.md)** - Index complet de la documentation
+- **[🧪 Guide des Tests](testing/README.md)** - Tests et validation du système
+- **[🔧 Scripts de Gestion](scripts/README.md)** - Scripts d'administration
+
+### Structure Organisée
+```
+📁 documentation/          # Documentation technique et utilisateur
+├── user-guides/          # Guides d'utilisation
+├── technical/            # Documentation technique
+├── deployment/           # Guides de déploiement
+└── api/                  # Documentation API
+
+📁 testing/               # Tests organisés par type
+├── unit/                 # Tests unitaires
+├── integration/          # Tests d'intégration
+└── api/                  # Tests API spécialisés
+```
+

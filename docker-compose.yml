@@ -41,5 +41,38 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/eir_project
 
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: eir_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_APP_NAME=Projet EIR
+      - NEXT_PUBLIC_DEFAULT_LOCALE=fr
+      - NEXT_PUBLIC_SUPPORTED_LOCALES=fr,en,ar
+      - NEXT_PUBLIC_RATE_LIMIT_REQUESTS=10
+      - NEXT_PUBLIC_RATE_LIMIT_WINDOW=900000
+      - NEXT_PUBLIC_VISITOR_SEARCH_LIMIT=10
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - web
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
 volumes:
   postgres_data:
