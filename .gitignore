@@ -17,7 +17,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -522,6 +521,9 @@ static/uploaded/
 !scripts/*.sh
 !backend/init-db.sh
 !backend/schema_postgres.sql
+!frontend/src/lib/
+!frontend/src/lib/api-client.ts
+!frontend/src/lib/api-error.ts
 # Scripts temporaires et obsolètes
 *.sh.backup
 *.sh.tmp
