@@ -1,9 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "installCommand": "npm install",
   "functions": {
     "pages/api/**/*.js": {
       "maxDuration": 30
@@ -12,7 +8,5 @@
       "maxDuration": 30
     }
   },
-  "regions": ["fra1"],
-  "cleanUrls": true,
-  "trailingSlash": false
+  "regions": ["fra1"]
 }
