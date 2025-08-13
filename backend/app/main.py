@@ -35,6 +35,51 @@ import platform
 # Configuration du logger
 logger = logging.getLogger(__name__)
 
+# Fonction pour lire les origines CORS depuis les variables d'environnement
+def get_cors_origins():
+    """
+    Lit les origines CORS depuis les variables d'environnement
+    Retourne une liste d'URLs autorisées avec des valeurs par défaut
+    """
+    default_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001", 
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ]
+    
+    origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if origins_env:
+        # Séparer par virgules et nettoyer les espaces
+        origins = [origin.strip() for origin in origins_env.split(",") if origin.strip()]
+        return origins if origins else default_origins
+    return default_origins
+
+def get_cors_methods():
+    """Lit les méthodes CORS depuis les variables d'environnement"""
+    default_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    methods_env = os.getenv("CORS_ALLOWED_METHODS", "")
+    if methods_env:
+        methods = [method.strip() for method in methods_env.split(",") if method.strip()]
+        return methods if methods else default_methods
+    return default_methods
+
+def get_cors_headers():
+    """Lit les en-têtes CORS depuis les variables d'environnement"""
+    default_headers = [
+        "Authorization",
+        "Content-Type", 
+        "Accept",
+        "Accept-Language",
+        "X-Requested-With",
+        "Access-Control-Allow-Origin"
+    ]
+    headers_env = os.getenv("CORS_ALLOWED_HEADERS", "")
+    if headers_env:
+        headers = [header.strip() for header in headers_env.split(",") if header.strip()]
+        return headers if headers else default_headers
+    return default_headers
+
 # Import pour l'intégration multi-protocoles
 from .interface_gateway.dispatcher import (
     handle_incoming_request, 
@@ -110,26 +155,10 @@ app = FastAPI(
 # Configuration CORS pour permettre les requêtes depuis le frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://eir-project-git-main-mohamedsalem00s-projects.vercel.app",
-        "https://eir-project.vercel.app",
-        "http://localhost:3000",  # Next.js dev server par défaut
-        "http://localhost:3001",  # Next.js dev server alternatif
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "https://eir-project.vercel.app",  # Production frontend
-        "https://eir-frontend.onrender.com"  # Production alternative
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Authorization",
-        "Content-Type", 
-        "Accept",
-        "Accept-Language",
-        "X-Requested-With",
-        "Access-Control-Allow-Origin"
-    ],
+    allow_methods=get_cors_methods(),
+    allow_headers=get_cors_headers(),
 )
 
 # Inclure les routeurs
