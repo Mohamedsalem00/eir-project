@@ -111,6 +111,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://eir-project-git-main-mohamedsalem00s-projects.vercel.app",
+        "https://eir-project.vercel.app",
         "http://localhost:3000",  # Next.js dev server par défaut
         "http://localhost:3001",  # Next.js dev server alternatif
         "http://127.0.0.1:3000",
