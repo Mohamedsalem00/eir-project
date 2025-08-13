@@ -1,5 +1,5 @@
-import { apiClient } from '../../lib/api-client'
-import { handleApiError } from '../../lib/api-error'
+import { apiClient } from '../lib/api-client'
+import { handleApiError } from '../lib/api-error'
 import { IMEIResponse, IMEIDetailsResponse, ApiResponse } from '../types/api'
 
 export class IMEIService {

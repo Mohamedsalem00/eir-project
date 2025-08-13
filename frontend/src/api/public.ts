@@ -1,5 +1,5 @@
-import { apiClient } from '../../lib/api-client'
-import { handleApiError } from '../../lib/api-error'
+import { apiClient } from '../lib/api-client'
+import { handleApiError } from '../lib/api-error'
 import { PublicStatsResponse, HealthResponse, ApiResponse } from '../types/api'
 
 export class PublicService {
