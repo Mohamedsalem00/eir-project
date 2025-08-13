@@ -2,7 +2,7 @@ import { apiClient } from '../lib/api-client'
 import { handleApiError } from '../lib/api-error'
 import { IMEIResponse, IMEIDetailsResponse, ApiResponse } from '../types/api'
 
-// Fixed import paths for Vercel deployment
+// Fixed import paths for Vercel deployment - v2
 export class IMEIService {
   private static readonly SESSION_KEY = 'eir_search_count'
   private static readonly SESSION_DATE_KEY = 'eir_search_date'

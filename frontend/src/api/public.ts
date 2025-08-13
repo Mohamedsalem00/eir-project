@@ -2,6 +2,7 @@ import { apiClient } from '../lib/api-client'
 import { handleApiError } from '../lib/api-error'
 import { PublicStatsResponse, HealthResponse, ApiResponse } from '../types/api'
 
+// Fixed imports for Vercel build
 export class PublicService {
   static async getPublicStats(language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<PublicStatsResponse>> {
     try {

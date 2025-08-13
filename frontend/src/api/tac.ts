@@ -2,6 +2,7 @@ import { apiClient } from '../lib/api-client'
 import { handleApiError } from '../lib/api-error'
 import { TACResponse, ApiResponse } from '../types/api'
 
+// Fixed imports for Vercel build
 export class TACService {
   static async searchTAC(tac: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<TACResponse>> {
     try {
