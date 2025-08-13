@@ -7,5 +7,5 @@ export { PublicService } from './public'
 export * from '../types/api'
 
 // Re-export utilities
-export { apiClient } from '../lib/api-client'
-export { handleApiError, ApiError } from '../lib/api-error'
+export { apiClient } from '../../lib/api-client'
+export { handleApiError, ApiError } from '../../lib/api-error'
