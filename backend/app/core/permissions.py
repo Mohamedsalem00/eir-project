@@ -438,7 +438,7 @@ class PermissionManager:
 
 def require_permission(operation: Operation):
     """Dependency factory for operation-specific permission checking"""
-    def permission_dependency(user: Optional[Utilisateur] = None):
+    def permission_dependency(user=None):
         if not PermissionManager.has_permission(user, operation):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -450,7 +450,7 @@ def require_permission(operation: Operation):
 
 def require_niveau_acces(min_level: AccessLevel):
     """Dependency factory for access level checking"""
-    def level_dependency(user: Optional[Utilisateur] = None):
+    def level_dependency(user=None):
         if not user:
             current_level = AccessLevel.VISITOR
         else:

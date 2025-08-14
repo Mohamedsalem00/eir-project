@@ -27,6 +27,12 @@ help:
 	@echo "  make db-reset              - Reset rapide DB"
 	@echo "  make db-manage             - Gestion interactive DB"
 	@echo ""
+	@echo "📱 Génération IMEI :"
+	@echo "  make imei-estimate         - Estimer la génération IMEI"
+	@echo "  make imei-generate         - Générer IMEI blacklist"
+	@echo "  make imei-validate         - Valider IMEI générés"
+	@echo "  make imei-sample-tac       - Générer données TAC d'exemple"
+	@echo ""
 	@echo "🛠️  Utilitaires :"
 	@echo "  make install-test          - Installer dépendances de test"
 	@echo "  make clean                 - Nettoyer fichiers temporaires"
@@ -76,6 +82,12 @@ scripts-help:
 	@echo "⚙️  Configuration :"
 	@echo "  ./scripts/configurer-apis-externes.sh - Config APIs externes"
 	@echo "  ./scripts/setup-notifications.sh      - Config notifications"
+	@echo ""
+	@echo "📱 Génération IMEI :"
+	@echo "  ./data/estimate_generation.sh         - Estimation génération"
+	@echo "  ./data/generate_imei_blacklist.sh     - Génération IMEI"
+	@echo "  ./data/validate_imei.sh               - Validation IMEI"
+	@echo "  ./data/generate_sample_tac.sh         - Génération TAC exemple"
 	@echo ""
 	@echo "🧪 Tests (via make test recommandé) :"
 	@echo "  ./testing/scripts/api/             - Tests API"
@@ -127,6 +139,23 @@ test-system-scripts:
 	@echo "🖥️  Lancement des tests système via scripts..."
 	@./testing/scripts/system/test-system.sh
 	@./testing/scripts/system/test-updated-data.sh
+
+# === GÉNÉRATION IMEI ===
+imei-estimate:
+	@echo "📊 Estimation de la génération IMEI..."
+	@cd data && ./estimate_generation.sh
+
+imei-generate:
+	@echo "🔧 Génération IMEI blacklist..."
+	@cd data && ./generate_imei_blacklist.sh
+
+imei-validate:
+	@echo "✅ Validation des IMEI générés..."
+	@cd data && ./validate_imei.sh
+
+imei-sample-tac:
+	@echo "📱 Génération de données TAC d'exemple..."
+	@cd data && ./generate_sample_tac.sh
 
 # Commande pour nettoyer les anciens scripts (déjà exécuté)
 cleanup-old-scripts:

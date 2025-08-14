@@ -169,6 +169,10 @@ app.include_router(access_router, tags=["Gestion d'Accès"])
 from .routes.notifications import router as notifications_router
 app.include_router(notifications_router, tags=["Notifications"])
 
+# Import et inclusion du router d'import blacklist
+from .routes.import_blacklist import router as import_router
+app.include_router(import_router, tags=["Import"])
+
 # Stocker l'heure de démarrage de l'application pour le calcul du temps de fonctionnement
 app_start_time = datetime.now()
 
@@ -194,7 +198,7 @@ def get_system_uptime():
 )
 async def bienvenue(
     request: Request,
-    user: Optional[Utilisateur] = Depends(get_current_user_optional),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
@@ -568,7 +572,7 @@ async def verifier_imei(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
-    user: Optional[Utilisateur] = Depends(get_current_user_optional),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
@@ -1086,7 +1090,7 @@ def list_devices(
 # Nouvel endpoint pour les parties concernées pour vérifier leurs permissions d'accès
 @app.get("/mes-permissions", tags=["Utilisateurs"], response_model=None)
 def get_my_permissions(
-    user: Optional[Utilisateur] = Depends(get_current_user_optional)
+    user = Depends(get_current_user_optional)
 ):
     """
     Obtenir les permissions et niveaux d'accès de l'utilisateur actuel
@@ -2254,7 +2258,7 @@ async def verify_imei_multi_protocol(
     protocol: str = Query(default="rest", description="Protocole à utiliser (rest, ss7, diameter)"),
     request: Request = None,
     db: Session = Depends(get_db),
-    user: Optional[Utilisateur] = Depends(get_current_user_optional),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
@@ -2393,7 +2397,7 @@ async def verify_imei_multi_protocol(
     response_model=None
 )
 async def get_protocols_status(
-    user: Optional[Utilisateur] = Depends(get_current_user_optional),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
@@ -2471,7 +2475,7 @@ def valider_imei_avec_tac_endpoint(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
-    user: Optional[Utilisateur] = Depends(get_current_user_optional),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):
@@ -2548,7 +2552,7 @@ def valider_imei_avec_tac_endpoint(
 def rechercher_tac(
     tac: str,
     db: Session = Depends(get_db),
-    user: Optional[Utilisateur] = Depends(get_current_user_optional),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator)
 ):
     """
@@ -2927,7 +2931,7 @@ async def details_complets_imei(
     imei: str,
     request: Request,
     db: Session = Depends(get_db),
-    user: Optional[Utilisateur] = Depends(get_current_user_optional),
+    user = Depends(get_current_user_optional),
     translator = Depends(get_current_translator),
     audit_service: AuditService = Depends(get_audit_service)
 ):

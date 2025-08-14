@@ -1,0 +1,7 @@
+marque,modele,imei1,imei2,statut
+Samsung,Galaxy S23,353260051234567,,active
+Apple,iPhone 14,356920051234567,,bloque
+Huawei,P50 Pro,862345671234567,,suspect
+OnePlus,10 Pro,354048061234567,354048061234568,active
+Xiaomi,Mi 12,358472001234567,,bloque
+TestDevice,Test Model,990000001234567,,suspect
