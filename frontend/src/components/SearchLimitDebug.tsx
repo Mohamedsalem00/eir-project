@@ -1,9 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { IMEIService } from '../api/imei'
+import { IMEIService } from '../api'
+import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
+import Link from 'next/link'
 
 export function SearchLimitDebug() {
+  const { user } = useAuth()
+  const { t } = useLanguage()
   const [debugInfo, setDebugInfo] = useState({
     count: 0,
     limit: 0,
@@ -50,13 +55,13 @@ export function SearchLimitDebug() {
 
   return (
     <div className="fixed bottom-4 right-4 bg-white border rounded-lg shadow-lg p-4 text-xs max-w-sm">
-      <h4 className="font-semibold text-gray-700 mb-2">🔍 Search Limit Debug</h4>
+      <h4 className="font-semibold text-gray-700 mb-2">🔍 {t('search_limit')} Debug</h4>
       <div className="space-y-1 text-gray-600">
-        <div>Count: {debugInfo.count}/{debugInfo.limit}</div>
-        <div>Remaining: {debugInfo.remaining}</div>
-        <div>Reset in: {debugInfo.timeRemaining}</div>
+        <div>{t('recherches')}: {debugInfo.count}/{debugInfo.limit}</div>
+        <div>{t('recherches_restantes')}: {debugInfo.remaining}</div>
+        <div>{t('reinitialisation_dans')}: {debugInfo.timeRemaining}</div>
         <div className={`font-medium ${debugInfo.isLimitReached ? 'text-red-600' : 'text-green-600'}`}>
-          Status: {debugInfo.isLimitReached ? 'LIMIT REACHED' : 'ACTIVE'}
+          {t('statut')}: {debugInfo.isLimitReached ? t('limite_atteinte') : 'ACTIVE'}
         </div>
       </div>
       <div className="flex gap-2 mt-3">
@@ -65,19 +70,19 @@ export function SearchLimitDebug() {
           className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
           disabled={debugInfo.isLimitReached}
         >
-          +1 Search
+          +1 {t('recherche')}
         </button>
         <button 
           onClick={clearSession}
           className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200"
         >
-          Clear Session
+          {t('clear_session')}
         </button>
         <button 
           onClick={updateDebugInfo}
           className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200"
         >
-          Refresh
+          {t('actualiser')}
         </button>
       </div>
     </div>

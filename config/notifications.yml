@@ -5,7 +5,7 @@ notifications:
   enabled: true  # Activer/désactiver tout le système de notifications
   
   email:
-    enabled: true  # Activer/désactiver l'envoi d'emails
+    enabled: false  # Activer/désactiver l'envoi d'emails
     provider: "smtp"  # smtp, gmail, sendgrid, mailgun, etc.
     
     # Configuration SMTP générique

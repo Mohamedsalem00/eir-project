@@ -13,6 +13,7 @@ class Appareil(Base):
     modele = Column(String(50))
     emmc = Column(String(100))
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))
+    numero_serie = Column(String(6), index=True)
 
     # Relations
     utilisateur = relationship("Utilisateur", back_populates="appareils")

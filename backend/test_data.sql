@@ -96,40 +96,51 @@ BEGIN
     SELECT id INTO orange_user_id FROM utilisateur WHERE email = 'devvmrr@gmail.com';
     
     -- Insert Samsung device for regular user
+    -- IMEI: 353260051234567 -> TAC: 35326005, SNR: 123456, Luhn: 7
     device_id := gen_random_uuid();
     INSERT INTO appareil (id, marque, modele, emmc, utilisateur_id)
     VALUES (device_id, 'Samsung', 'Galaxy S23', '256GB', regular_user_id);
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
     VALUES (gen_random_uuid(), '353260051234567', 1, 'active', device_id);
+    -- numero_serie '123456' will be auto-populated via trigger
     
     -- Insert Apple device for Orange operator
+    -- IMEI: 356920051789012 -> TAC: 35692005, SNR: 178901, Luhn: 2
     device_id := gen_random_uuid();
     INSERT INTO appareil (id, marque, modele, emmc, utilisateur_id)
     VALUES (device_id, 'Apple', 'iPhone 14', '128GB', orange_user_id);
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
-    VALUES (gen_random_uuid(), '356920051234567', 1, 'active', device_id);
+    VALUES (gen_random_uuid(), '356920051789012', 1, 'active', device_id);
+    -- numero_serie '178901' will be auto-populated via trigger
     
     -- Insert Huawei device for admin testing
+    -- IMEI: 862345673456789 -> TAC: 86234567, SNR: 345678, Luhn: 9
     device_id := gen_random_uuid();
     INSERT INTO appareil (id, marque, modele, emmc, utilisateur_id)
     VALUES (device_id, 'Huawei', 'P50 Pro', '512GB', admin_user_id);
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
-    VALUES (gen_random_uuid(), '862345671234567', 1, 'active', device_id);
+    VALUES (gen_random_uuid(), '862345673456789', 1, 'active', device_id);
+    -- numero_serie '345678' will be auto-populated via trigger
     
-    -- Insert test device with multiple IMEIs
+    -- Insert test device with multiple IMEIs (dual-SIM)
+    -- IMEI1: 354048061357924 -> TAC: 35404806, SNR: 135792, Luhn: 4
+    -- IMEI2: 354048061468035 -> TAC: 35404806, SNR: 146803, Luhn: 5
     device_id := gen_random_uuid();
     INSERT INTO appareil (id, marque, modele, emmc, utilisateur_id)
     VALUES (device_id, 'OnePlus', '10 Pro', '128GB', regular_user_id);
     
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
     VALUES 
-    (gen_random_uuid(), '354048061234567', 1, 'active', device_id),
-    (gen_random_uuid(), '354048061234568', 2, 'active', device_id);
+    (gen_random_uuid(), '354048061357924', 1, 'active', device_id),
+    (gen_random_uuid(), '354048061468035', 2, 'active', device_id);
+    -- numero_serie '135792' will be auto-populated from first IMEI (slot 1)
     
     -- Insert some test IMEIs for TAC validation testing
+    -- IMEI1: 990000001234567 -> TAC: 99000000, SNR: 123456, Luhn: 7 (test device)
+    -- IMEI2: 011948009876543 -> TAC: 01194800, SNR: 987654, Luhn: 3 (obsolete device)
     device_id := gen_random_uuid();
     INSERT INTO appareil (id, marque, modele, emmc, utilisateur_id)
     VALUES (device_id, 'TestDevice', 'Test Model', '64GB', admin_user_id);
@@ -137,7 +148,8 @@ BEGIN
     INSERT INTO imei (id, numero_imei, numero_slot, statut, appareil_id)
     VALUES 
     (gen_random_uuid(), '990000001234567', 1, 'suspect', device_id),
-    (gen_random_uuid(), '011948001234567', 1, 'bloque', device_id);
+    (gen_random_uuid(), '011948009876543', 2, 'bloque', device_id);
+    -- numero_serie '123456' will be auto-populated from first IMEI (slot 1)
 END $$;
 
 -- Insert sample SIM cards
@@ -157,12 +169,12 @@ SELECT
     u.id
 FROM utilisateur u WHERE u.email = 'inwi@eir.ma';
 
--- Insert sample search history
+-- Insert sample search history with updated IMEI numbers
 INSERT INTO recherche (id, date_recherche, imei_recherche, utilisateur_id)
 SELECT 
     gen_random_uuid(),
     NOW() - INTERVAL '1 hour',
-    '353260051234567',
+    '353260051234567', -- Samsung Galaxy S23 - SNR: 123456
     u.id
 FROM utilisateur u WHERE u.email = 'sidis9828@gmail.com';
 
@@ -170,7 +182,7 @@ INSERT INTO recherche (id, date_recherche, imei_recherche, utilisateur_id)
 SELECT 
     gen_random_uuid(),
     NOW() - INTERVAL '30 minutes',
-    '356920051234567',
+    '356920051789012', -- Apple iPhone 14 - SNR: 178901
     u.id
 FROM utilisateur u WHERE u.email = 'devvmrr@gmail.com';
 
@@ -216,14 +228,19 @@ Bienvenue dans le système EIR Project !
 
 📱 VOS APPAREILS:
 Vous avez 2 appareils enregistrés dans le système :
-- Samsung Galaxy S23 (IMEI: 353260051234567)
-- OnePlus 10 Pro (IMEI: 354048061234567, 354048061234568)
+- Samsung Galaxy S23 (IMEI: 353260051234567, SNR: 123456)
+- OnePlus 10 Pro (IMEI: 354048061357924, 354048061468035, SNR: 135792)
 
 🔍 FONCTIONNALITÉS DISPONIBLES:
-- Vérification d''IMEI en temps réel
-- Gestion de vos appareils
+- Vérification d''IMEI en temps réel avec extraction automatique du SNR
+- Gestion de vos appareils avec numéros de série uniques
 - Historique des recherches
 - Notifications automatiques
+
+🆕 NOUVELLES FONCTIONNALITÉS:
+- Extraction automatique du Serial Number (SNR) depuis l''IMEI
+- Identification unique de chaque appareil physique
+- Validation TAC + SNR pour sécurité renforcée
 
 🌐 Portail: http://localhost:8000
 📞 Support: contact@eir-project.com
@@ -248,8 +265,9 @@ SELECT
 Votre rapport d''activité EIR pour votre organisation Orange Maroc.
 
 📱 VOS APPAREILS ENREGISTRÉS:
-- Apple iPhone 14 (IMEI: 356920051234567)
+- Apple iPhone 14 (IMEI: 356920051789012, SNR: 178901)
 - Statut: active et validé
+- TAC: 35692005 (Apple iPhone 14 validé)
 
 🔍 ACTIVITÉ RÉCENTE:
 - 1 recherche IMEI effectuée
@@ -278,7 +296,7 @@ SELECT
     gen_random_uuid(),
     'sms',
     '+33123456789',
-    '🔔 EIR Project: Votre IMEI 353260051234567 a été vérifié avec succès. Appareil: Samsung Galaxy S23. Plus d''infos: http://eir.ma/v/353260051234567',
+    '🔔 EIR Project: Votre IMEI 353260051234567 (SNR: 123456) a été vérifié avec succès. Appareil: Samsung Galaxy S23. Plus d''infos: http://eir.ma/v/353260051234567',
     'en_attente',
     'system',
     u.id,
@@ -340,7 +358,7 @@ SELECT
     u.id
 FROM utilisateur u WHERE u.email = 'eirrproject@gmail.com';
 
--- Verify the data and show summary
+-- Verify the data and show summary with auto-populated serial numbers
 SELECT 
     'Résumé des données de test' as info,
     (SELECT COUNT(*) FROM utilisateur) as utilisateurs,
@@ -360,3 +378,32 @@ SELECT
     organisation
 FROM utilisateur 
 ORDER BY type_utilisateur DESC, email;
+
+-- Verify auto-populated serial numbers from IMEI
+SELECT 
+    'Vérification auto-population SNR:' as info,
+    a.marque,
+    a.modele,
+    a.numero_serie as snr_auto_extrait,
+    i.numero_imei,
+    SUBSTRING(i.numero_imei FROM 9 FOR 6) as snr_from_imei,
+    CASE 
+        WHEN a.numero_serie = SUBSTRING(i.numero_imei FROM 9 FOR 6) THEN '✅ Correct'
+        ELSE '❌ Erreur'
+    END as verification_status
+FROM appareil a
+JOIN imei i ON a.id = i.appareil_id AND i.numero_slot = 1
+ORDER BY a.marque, a.modele;
+
+-- Show IMEI structure breakdown for educational purposes
+SELECT 
+    'Structure IMEI de test:' as info,
+    i.numero_imei,
+    SUBSTRING(i.numero_imei FROM 1 FOR 8) as tac_code,
+    SUBSTRING(i.numero_imei FROM 9 FOR 6) as snr_serial,
+    SUBSTRING(i.numero_imei FROM 15 FOR 1) as luhn_check,
+    a.marque || ' ' || a.modele as appareil,
+    a.numero_serie as snr_stored
+FROM imei i
+JOIN appareil a ON i.appareil_id = a.id
+ORDER BY i.numero_imei;

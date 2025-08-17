@@ -7,7 +7,7 @@ export class IMEIService {
   private static readonly SESSION_KEY = 'eir_search_count'
   private static readonly SESSION_DATE_KEY = 'eir_search_date'
   private static readonly SESSION_RESET_HOURS = 24
-  private static maxSearches = parseInt(process.env.NEXT_PUBLIC_VISITOR_SEARCH_LIMIT || '10')
+  public static readonly maxSearches = parseInt(process.env.NEXT_PUBLIC_VISITOR_SEARCH_LIMIT || '10')
   
   // Initialiser le compteur de recherches depuis localStorage
   private static initializeSearchCount(): number {
@@ -84,8 +84,11 @@ export class IMEIService {
       }
 
       // Préparer les headers avec authentification et langue
+      // Ensure Accept-Language is always a valid backend language
+      const supportedLangs = ['ar', 'fr', 'en']
+      const langHeader = supportedLangs.includes(language) ? language : 'fr'
       const headers: any = {
-        'Accept-Language': language
+        'Accept-Language': langHeader
       }
 
       // Ajouter le token d'authentification si disponible
@@ -128,7 +131,7 @@ export class IMEIService {
   }
 
   static getSearchLimit(): number {
-    return this.maxSearches
+    return IMEIService.maxSearches
   }
 
   static resetSearchCount(): void {
@@ -136,11 +139,11 @@ export class IMEIService {
   }
 
   static isSearchLimitReached(): boolean {
-    return this.getSearchCount() >= this.maxSearches
+    return this.getSearchCount() >= IMEIService.maxSearches
   }
 
   static getRemainingSearches(): number {
-    return Math.max(0, this.maxSearches - this.getSearchCount())
+    return Math.max(0, IMEIService.maxSearches - this.getSearchCount())
   }
 
   static getSessionTimeRemaining(): string {
@@ -167,8 +170,9 @@ export class IMEIService {
     }
   }
 
-  // Nouvelle méthode pour obtenir les détails complets IMEI (recherche locale + validation TAC + détails TAC)
-  static async getIMEIDetails(imei: string, authToken?: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<IMEIDetailsResponse>> {
+  // ============== FONCTION MODIFIÉE CI-DESSOUS ==============
+  // Cette fonction appelle maintenant l'endpoint de base /imei/{imei}
+  static async getIMEIDetails(imei: string, authToken?: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<IMEIResponse>> {
     try {
       // Validation côté client
       if (!imei || imei.length < 14) {
@@ -189,8 +193,11 @@ export class IMEIService {
       }
 
       // Préparer les headers avec authentification et langue
+      // Ensure Accept-Language is always a valid backend language
+      const supportedLangs = ['ar', 'fr', 'en']
+      const langHeader = supportedLangs.includes(language) ? language : 'fr'
       const headers: any = {
-        'Accept-Language': language
+        'Accept-Language': langHeader
       }
 
       // Ajouter le token d'authentification si disponible
@@ -199,13 +206,13 @@ export class IMEIService {
       }
 
       const config: any = {
-        timeout: 15000, // Timeout plus long pour cette API complète
+        timeout: 15000,
         withCredentials: false,
         headers
       }
 
-      // Appel à l'endpoint des détails complets
-      const response = await apiClient.get<IMEIDetailsResponse>(`/imei/${cleanImei}/details`, config)
+      // Appel à l'endpoint SANS /details et avec le bon type de réponse
+      const response = await apiClient.get<IMEIResponse>(`/imei/${cleanImei}`, config)
       
       // Incrémenter le compteur de recherches
       const currentCount = this.getSearchCount()
@@ -264,3 +271,5 @@ export class IMEIService {
     }
   }
 }
+
+export default IMEIService

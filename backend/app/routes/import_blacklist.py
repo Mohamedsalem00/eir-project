@@ -47,9 +47,10 @@ async def guide_utilisation():
             "1. Préparez votre fichier CSV avec les colonnes : marque,modele,imei1,statut",
             "2. Utilisez l'endpoint /import/simple-upload pour uploader votre fichier",
             "3. Le système détectera automatiquement le format et importera les données",
-            "4. Les statuts supportés sont : active, suspect, bloque"
+            "4. Les numéros de série (SNR) seront extraits automatiquement des IMEI",
+            "5. Les statuts supportés sont : active, suspect, bloque"
         ],
-        "exemple_csv": "marque,modele,imei1,statut\nSamsung,Galaxy S21,123456789012345,active\nApple,iPhone 13,987654321098765,bloque",
+        "exemple_csv": "marque,modele,imei1,statut\nSamsung,Galaxy S21,353260051234567,active\nApple,iPhone 13,356920051789012,bloque",
         "endpoints_disponibles": {
             "/simple-upload": "Upload simple depuis votre appareil",
             "/templates": "Templates de mapping prédéfinis",
@@ -222,7 +223,7 @@ async def validate_mapping(
     "/csv",
     response_model=ImportResponse,
     summary="Importer un fichier CSV",
-    description="Importer des appareils et IMEI depuis un fichier CSV. Format attendu : marque,modele,imei1,imei2,statut (active/suspect/bloque)"
+    description="Importer des appareils et IMEI depuis un fichier CSV. Format attendu : marque,modele,imei1,imei2,statut (active/suspect/bloque). Les numéros de série (SNR) sont extraits automatiquement des IMEI (positions 9-14)."
 )
 async def import_csv(
     file: UploadFile = File(..., description="Sélectionner un fichier CSV depuis votre appareil"),
@@ -291,7 +292,7 @@ async def import_csv(
         
         # Message de résultat
         if success:
-            message = f"Import CSV réussi : {summary.appareils_created} appareils et {summary.imeis_created} IMEI importés"
+            message = f"Import CSV réussi : {summary.appareils_created} appareils et {summary.imeis_created} IMEI importés avec extraction automatique des numéros de série"
         else:
             message = f"Import CSV partiellement réussi avec {summary.errors_count} erreurs"
         
@@ -317,7 +318,7 @@ async def import_csv(
     "/json", 
     response_model=ImportResponse,
     summary="Importer un fichier JSON",
-    description="Importer des appareils et IMEI depuis un fichier JSON."
+    description="Importer des appareils et IMEI depuis un fichier JSON. Les numéros de série (SNR) sont extraits automatiquement des IMEI (positions 9-14)."
 )
 async def import_json(
     file: UploadFile = File(..., description="Sélectionner un fichier JSON depuis votre appareil"),
@@ -386,7 +387,7 @@ async def import_json(
         
         # Message de résultat
         if success:
-            message = f"Import JSON réussi : {summary.appareils_created} appareils et {summary.imeis_created} IMEI importés"
+            message = f"Import JSON réussi : {summary.appareils_created} appareils et {summary.imeis_created} IMEI importés avec extraction automatique des numéros de série"
         else:
             message = f"Import JSON partiellement réussi avec {summary.errors_count} erreurs"
         
@@ -412,7 +413,7 @@ async def import_json(
     "/upload",
     response_model=ImportResponse,
     summary="Uploader et importer un fichier",
-    description="Uploader un fichier CSV ou JSON depuis votre appareil et l'importer directement."
+    description="Uploader un fichier CSV ou JSON depuis votre appareil et l'importer directement. Les numéros de série (SNR) sont extraits automatiquement des IMEI."
 )
 async def import_file_upload(
     file: UploadFile = File(..., description="Fichier CSV ou JSON à importer"),
@@ -488,7 +489,7 @@ async def import_file_upload(
         
         # Message de résultat
         if success:
-            message = f"Import du fichier '{file.filename}' réussi : {summary.appareils_created} appareils et {summary.imeis_created} IMEI importés"
+            message = f"Import du fichier '{file.filename}' réussi : {summary.appareils_created} appareils et {summary.imeis_created} IMEI importés avec SNR automatique"
         else:
             message = f"Import du fichier '{file.filename}' partiellement réussi avec {summary.errors_count} erreurs"
         
@@ -516,10 +517,11 @@ def _get_field_description(field: str) -> str:
         'marque': 'Marque/fabricant de l\'appareil (Samsung, Apple, etc.)',
         'modele': 'Modèle de l\'appareil (Galaxy S21, iPhone 13, etc.)',
         'emmc': 'Capacité de stockage (128GB, 256GB, etc.)',
-        'imei1': 'IMEI principal (14-15 chiffres)',
-        'imei2': 'IMEI secondaire pour dual-SIM (14-15 chiffres)',
+        'imei1': 'IMEI principal (15 chiffres) - Le SNR sera extrait automatiquement',
+        'imei2': 'IMEI secondaire pour dual-SIM (15 chiffres) - Le SNR sera extrait automatiquement',
         'utilisateur_id': 'ID de l\'utilisateur propriétaire (UUID)',
-        'statut': 'Statut de l\'appareil (active, suspect, bloque)'
+        'statut': 'Statut de l\'appareil (active, suspect, bloque)',
+        'numero_serie': 'Numéro de série (extrait automatiquement de l\'IMEI positions 9-14)'
     }
     return descriptions.get(field, f'Champ {field}')
 
@@ -527,7 +529,7 @@ def _get_field_description(field: str) -> str:
     "/simple-upload",
     response_model=ImportResponse,
     summary="Upload simple de fichier",
-    description="Uploader simplement un fichier CSV ou JSON et l'importer. Idéal pour utilisation mobile."
+    description="Uploader simplement un fichier CSV ou JSON et l'importer. Extraction automatique des numéros de série depuis les IMEI. Idéal pour utilisation mobile."
 )
 async def simple_file_upload(
     file: UploadFile = File(..., description="Sélectionner un fichier CSV ou JSON depuis votre appareil"),
@@ -598,7 +600,7 @@ async def simple_file_upload(
         )
         
         if success:
-            message = f"✅ Import réussi : {summary.appareils_created} appareils importés"
+            message = f"✅ Import réussi : {summary.appareils_created} appareils importés avec SNR automatique"
         else:
             message = f"⚠️ Import avec {summary.errors_count} erreurs"
         

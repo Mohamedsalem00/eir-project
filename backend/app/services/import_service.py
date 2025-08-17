@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import pandas as pd
 import logging
+import chardet
 
 from ..models.appareil import Appareil
 from ..models.imei import IMEI
@@ -169,49 +170,69 @@ class ImportService:
         
         return luhn_checksum(imei) == 0
     
+
     def process_csv_import(self, 
-                          csv_content: str, 
-                          custom_mapping: Optional[Dict] = None,
-                          blacklist_only: bool = False,
-                          user_id: Optional[str] = None) -> Dict[str, Any]:
+                        csv_content: str, 
+                        custom_mapping: Optional[Dict] = None,
+                        blacklist_only: bool = False,
+                        user_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Traite l'importation depuis un fichier CSV
-        
+        Traite l'importation depuis un fichier CSV avec détection des doublons
+        sur IMEI et numéro de série (SNR) extrait de l'IMEI.
+
         Args:
             csv_content: Contenu du fichier CSV
             custom_mapping: Mapping personnalisé des colonnes
             blacklist_only: Si True, marque tous les appareils comme blacklistés
             user_id: ID de l'utilisateur qui fait l'import
-            
+
         Returns:
             Résultats de l'importation
         """
         try:
-            # Lecture du CSV avec pandas pour une meilleure gestion
-            df = pd.read_csv(io.StringIO(csv_content))
+            # ===== 1. Détection intelligente du format CSV (encodage & délimiteur) =====
+            try:
+                # Tenter de décoder en UTF-8, la norme la plus courante
+                decoded_content = csv_content
+            except UnicodeDecodeError:
+                # Si UTF-8 échoue, utiliser chardet pour une détection plus robuste
+                raw_bytes = csv_content.encode('latin1') # Encoder dans un format sûr pour la détection
+                detected = chardet.detect(raw_bytes)
+                encoding = detected.get('encoding') or 'utf-8'
+                decoded_content = raw_bytes.decode(encoding, errors='replace')
             
+            sample = decoded_content[:2048]
+            try:
+                delimiter = csv.Sniffer().sniff(sample).delimiter
+            except csv.Error:
+                delimiter = ',' # Par défaut à la virgule si la détection échoue
+
+            # ===== 2. Lecture du CSV en DataFrame avec Pandas =====
+            # Utiliser dtype=str pour s'assurer que les IMEI ne sont pas interprétés comme des nombres
+            df = pd.read_csv(io.StringIO(decoded_content), delimiter=delimiter, dtype=str, keep_default_na=False)
+
             if df.empty:
-                return {"success": False, "error": "Fichier CSV vide"}
-            
+                return {"success": False, "error": "Le fichier CSV est vide ou n'a pas pu être lu."}
+
+            # ===== 3. Mapping et validation des colonnes =====
             headers = df.columns.tolist()
             column_mapping = self.detect_column_mapping(headers, custom_mapping)
+
+            # Vérifier que les colonnes essentielles sont présentes
+            required_keys = ['marque', 'modele', 'imei1']
+            if not all(key in column_mapping for key in required_keys):
+                missing = [key for key in required_keys if key not in column_mapping]
+                return {
+                    "success": False, 
+                    "error": f"Colonnes essentielles manquantes dans le fichier CSV. Impossible de trouver des correspondances pour : {', '.join(missing)}. Assurez-vous que les en-têtes sont corrects (ex: 'manufacturer', 'model', 'imei')."
+                }
+
+            # ===== 4. Chargement des données existantes en cache pour l'optimisation =====
+            existing_imeis = {res[0] for res in self.db.query(IMEI.numero_imei).all()}
+            existing_snrs = {res[0] for res in self.db.query(Appareil.numero_serie).filter(Appareil.numero_serie.isnot(None)).all()}
             
-            # OPTIMISATION: Charger tous les appareils et IMEI existants en mémoire
-            existing_appareils = {}  # {(marque, modele): appareil_obj}
-            existing_imeis = set()   # {imei_numero}
-            
-            # Charger tous les appareils existants
-            all_appareils = self.db.query(Appareil).all()
-            for app in all_appareils:
-                key = (app.marque, app.modele)
-                existing_appareils[key] = app
-            
-            # Charger tous les IMEI existants
-            all_imeis = self.db.query(IMEI.numero_imei).all()
-            existing_imeis = {imei[0] for imei in all_imeis}
-            
-            logger.info(f"Cache chargé: {len(existing_appareils)} appareils, {len(existing_imeis)} IMEI")
-            
+            logger.info(f"Cache chargé: {len(existing_imeis)} IMEI et {len(existing_snrs)} numéros de série existants.")
+
             results = {
                 "total_rows": len(df),
                 "processed": 0,
@@ -221,50 +242,96 @@ class ImportService:
                 "warnings": [],
                 "column_mapping_used": column_mapping
             }
-            
+
+            # ===== 5. Traitement de chaque ligne du fichier CSV =====
             for index, row in df.iterrows():
                 try:
-                    result = self._process_single_record_optimized(
-                        row, column_mapping, blacklist_only, user_id,
-                        existing_appareils, existing_imeis
+                    # Extraire les données en utilisant le mapping détecté
+                    imei_val = row.get(column_mapping['imei1'], '').strip()
+                    marque = row.get(column_mapping['marque'], 'Inconnue').strip()
+                    modele = row.get(column_mapping['modele'], 'Inconnu').strip()
+                    statut_input = row.get(column_mapping.get('statut'), 'active').strip()
+                    
+                    # Validation de base
+                    if not imei_val or len(imei_val) < 14:
+                        results["warnings"].append(f"Ligne {index + 2}: IMEI manquant ou invalide, ligne ignorée.")
+                        continue
+
+                    # Extraire le numéro de série (SNR) de l'IMEI (positions 9-14)
+                    snr = imei_val[8:14]
+
+                    # ===== VÉRIFICATIONS DES DOUBLONS =====
+                    if imei_val in existing_imeis:
+                        results["warnings"].append(f"Ligne {index + 2}: L'IMEI '{imei_val}' existe déjà, ignoré.")
+                        continue
+                    
+                    if snr in existing_snrs:
+                        results["warnings"].append(f"Ligne {index + 2}: Un appareil avec le numéro de série '{snr}' existe déjà, ignoré.")
+                        continue
+
+                    # ===== Création des objets Appareil et IMEI =====
+                    # Mapper le statut
+                    db_status = self.map_status_to_db(statut_input, blacklist_only)
+                    
+                    # Créer le nouvel appareil
+                    new_appareil = Appareil(
+                        marque=marque,
+                        modele=modele,
+                        numero_serie=snr,
+                        utilisateur_id=user_id
                     )
+                    
+                    # Créer le nouvel IMEI et l'associer à l'appareil
+                    new_imei = IMEI(
+                        numero_imei=imei_val,
+                        statut=db_status,
+                        appareil=new_appareil
+                    )
+
+                    self.db.add(new_appareil) # SQLAlchemy gère l'ajout de new_imei via la relation
+                    
+                    # Mettre à jour les caches pour détecter les doublons au sein du même fichier
+                    existing_imeis.add(imei_val)
+                    existing_snrs.add(snr)
+                    
+                    # Mettre à jour les statistiques
                     results["processed"] += 1
-                    
-                    if result.get("appareil_created"):
-                        results["appareils_created"] += 1
-                    
-                    results["imeis_created"] += result.get("imeis_created", 0)
-                    
-                    if result.get("warnings"):
-                        results["warnings"].extend(result["warnings"])
-                        
+                    results["appareils_created"] += 1
+                    results["imeis_created"] += 1
+
                 except Exception as e:
-                    error_msg = f"Ligne {index + 2}: {str(e)}"
+                    error_msg = f"Ligne {index + 2}: Une erreur inattendue est survenue - {str(e) or 'Erreur non spécifiée'}"
                     results["errors"].append(error_msg)
-                    logger.error(f"Erreur lors du traitement de la ligne {index + 2}: {e}")
-            
-            # Commit des changements si tout s'est bien passé
+                    logger.error(f"Erreur de traitement à la ligne {index + 2}: {e}", exc_info=True)
+
+            # ===== 6. Commit ou Rollback de la transaction =====
             if not results["errors"]:
                 self.db.commit()
                 self._log_import_audit(user_id, "CSV", results)
             else:
                 self.db.rollback()
-            
+
             return results
-            
+
+        except pd.errors.ParserError as e:
+            self.db.rollback()
+            logger.error(f"Erreur de parsing CSV: {e}")
+            return {"success": False, "error": f"Le fichier CSV est mal formaté. Vérifiez les délimiteurs et les guillemets. Détail: {e}"}
         except Exception as e:
             self.db.rollback()
-            logger.error(f"Erreur lors de l'importation CSV: {e}")
-            return {"success": False, "error": f"Erreur lors de l'importation CSV: {str(e)}"}
+            logger.error(f"Erreur critique lors de l'importation CSV: {e}", exc_info=True)
+            return {"success": False, "error": f"Une erreur critique est survenue: {str(e)}"}
+
     
     def process_json_import(self, 
-                           json_content: str, 
-                           custom_mapping: Optional[Dict] = None,
-                           blacklist_only: bool = False,
-                           user_id: Optional[str] = None) -> Dict[str, Any]:
+                        json_content: str, 
+                        custom_mapping: Optional[Dict] = None,
+                        blacklist_only: bool = False,
+                        user_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Traite l'importation depuis un fichier JSON
-        
+        Traite l'importation depuis un fichier JSON avec détection des doublons
+        sur IMEI et numéro de série (SNR) extrait de l'IMEI.
+
         Args:
             json_content: Contenu du fichier JSON
             custom_mapping: Mapping personnalisé des colonnes
@@ -275,47 +342,44 @@ class ImportService:
             Résultats de l'importation
         """
         try:
+            # ===== 1. Chargement et validation du JSON =====
             data = json.loads(json_content)
             
-            # Support pour différents formats JSON
+            # Déterminer la liste des enregistrements (appareils)
             if isinstance(data, dict):
-                if 'data' in data:
-                    records = data['data']
-                elif 'devices' in data:
-                    records = data['devices']
-                elif 'appareils' in data:
-                    records = data['appareils']
+                # Accepte les formats comme {"data": [...]}, {"devices": [...]}, etc.
+                for key in ['data', 'devices', 'appareils', 'records']:
+                    if key in data and isinstance(data[key], list):
+                        records = data[key]
+                        break
                 else:
-                    # Traiter le dict comme un seul enregistrement
+                    # Si aucune clé standard n'est trouvée, considérer le dictionnaire comme un seul enregistrement
                     records = [data]
             elif isinstance(data, list):
                 records = data
             else:
-                return {"success": False, "error": "Format JSON non supporté"}
+                return {"success": False, "error": "Format JSON non supporté. Attendu: une liste d'objets ou un objet contenant une liste."}
             
             if not records:
-                return {"success": False, "error": "Aucune donnée trouvée dans le JSON"}
+                return {"success": False, "error": "Aucun enregistrement (appareil) trouvé dans le fichier JSON."}
+
+            # ===== 2. Mapping et validation des colonnes (clés JSON) =====
+            headers = list(records[0].keys())
+            column_mapping = self.detect_column_mapping(headers, custom_mapping)
             
-            # Détecter le mapping basé sur le premier enregistrement
-            if records:
-                headers = list(records[0].keys())
-                column_mapping = self.detect_column_mapping(headers, custom_mapping)
+            required_keys = ['marque', 'modele', 'imei1']
+            if not all(key in column_mapping for key in required_keys):
+                missing = [key for key in required_keys if key not in column_mapping]
+                return {
+                    "success": False, 
+                    "error": f"Clés essentielles manquantes dans le JSON. Impossible de trouver des correspondances pour : {', '.join(missing)}. Assurez-vous que les clés sont correctes (ex: 'manufacturer', 'model', 'imei')."
+                }
+
+            # ===== 3. Chargement des données existantes en cache pour l'optimisation =====
+            existing_imeis = {res[0] for res in self.db.query(IMEI.numero_imei).all()}
+            existing_snrs = {res[0] for res in self.db.query(Appareil.numero_serie).filter(Appareil.numero_serie.isnot(None)).all()}
             
-            # OPTIMISATION: Charger tous les appareils et IMEI existants en mémoire
-            existing_appareils = {}  # {(marque, modele): appareil_obj}
-            existing_imeis = set()   # {imei_numero}
-            
-            # Charger tous les appareils existants
-            all_appareils = self.db.query(Appareil).all()
-            for app in all_appareils:
-                key = (app.marque, app.modele)
-                existing_appareils[key] = app
-            
-            # Charger tous les IMEI existants
-            all_imeis = self.db.query(IMEI.numero_imei).all()
-            existing_imeis = {imei[0] for imei in all_imeis}
-            
-            logger.info(f"Cache chargé: {len(existing_appareils)} appareils, {len(existing_imeis)} IMEI")
+            logger.info(f"Cache chargé: {len(existing_imeis)} IMEI et {len(existing_snrs)} numéros de série existants.")
             
             results = {
                 "total_rows": len(records),
@@ -326,45 +390,80 @@ class ImportService:
                 "warnings": [],
                 "column_mapping_used": column_mapping
             }
-            
+
+            # ===== 4. Traitement de chaque enregistrement JSON =====
             for index, record in enumerate(records):
                 try:
-                    # Convertir le dict en Series pour compatibilité
-                    row = pd.Series(record)
-                    result = self._process_single_record_optimized(
-                        row, column_mapping, blacklist_only, user_id,
-                        existing_appareils, existing_imeis
+                    # Extraire les données en utilisant le mapping
+                    imei_val = str(record.get(column_mapping['imei1'], '')).strip()
+                    marque = str(record.get(column_mapping['marque'], 'Inconnue')).strip()
+                    modele = str(record.get(column_mapping['modele'], 'Inconnu')).strip()
+                    statut_input = str(record.get(column_mapping.get('statut'), 'active')).strip()
+                    
+                    if not imei_val or len(imei_val) < 14:
+                        results["warnings"].append(f"Enregistrement {index + 1}: IMEI manquant ou invalide, ignoré.")
+                        continue
+                    
+                    # Extraire le numéro de série (SNR) de l'IMEI
+                    snr = imei_val[8:14]
+
+                    # ===== VÉRIFICATIONS DES DOUBLONS =====
+                    if imei_val in existing_imeis:
+                        results["warnings"].append(f"Enregistrement {index + 1}: L'IMEI '{imei_val}' existe déjà, ignoré.")
+                        continue
+                    
+                    if snr in existing_snrs:
+                        results["warnings"].append(f"Enregistrement {index + 1}: Un appareil avec le numéro de série '{snr}' existe déjà, ignoré.")
+                        continue
+
+                    # ===== Création des objets Appareil et IMEI =====
+                    db_status = self.map_status_to_db(statut_input, blacklist_only)
+                    
+                    new_appareil = Appareil(
+                        marque=marque,
+                        modele=modele,
+                        numero_serie=snr,
+                        utilisateur_id=user_id
                     )
+                    
+                    new_imei = IMEI(
+                        numero_imei=imei_val,
+                        statut=db_status,
+                        appareil=new_appareil
+                    )
+                    
+                    self.db.add(new_appareil)
+                    
+                    # Mettre à jour les caches pour éviter les doublons dans le même fichier
+                    existing_imeis.add(imei_val)
+                    existing_snrs.add(snr)
+                    
+                    # Mettre à jour les statistiques
                     results["processed"] += 1
-                    
-                    if result.get("appareil_created"):
-                        results["appareils_created"] += 1
-                    
-                    results["imeis_created"] += result.get("imeis_created", 0)
-                    
-                    if result.get("warnings"):
-                        results["warnings"].extend(result["warnings"])
-                        
+                    results["appareils_created"] += 1
+                    results["imeis_created"] += 1
+
                 except Exception as e:
-                    error_msg = f"Enregistrement {index + 1}: {str(e)}"
+                    error_msg = f"Enregistrement {index + 1}: Erreur - {str(e)}"
                     results["errors"].append(error_msg)
-                    logger.error(f"Erreur lors du traitement de l'enregistrement {index + 1}: {e}")
-            
-            # Commit des changements si tout s'est bien passé
+                    logger.error(f"Erreur de traitement de l'enregistrement {index + 1}: {e}", exc_info=True)
+
+            # ===== 5. Commit ou Rollback de la transaction =====
             if not results["errors"]:
                 self.db.commit()
                 self._log_import_audit(user_id, "JSON", results)
             else:
                 self.db.rollback()
-            
+                
             return results
-            
+
         except json.JSONDecodeError as e:
-            return {"success": False, "error": f"Erreur de format JSON: {str(e)}"}
+            self.db.rollback()
+            return {"success": False, "error": f"Erreur de format JSON: Le fichier n'est pas un JSON valide. Détail: {e}"}
         except Exception as e:
             self.db.rollback()
-            logger.error(f"Erreur lors de l'importation JSON: {e}")
-            return {"success": False, "error": f"Erreur lors de l'importation JSON: {str(e)}"}
+            logger.error(f"Erreur critique lors de l'importation JSON: {e}", exc_info=True)
+            return {"success": False, "error": f"Une erreur critique est survenue: {str(e)}"}
     
     def _process_single_record(self, 
                               row: pd.Series, 
@@ -493,17 +592,16 @@ class ImportService:
                                         column_mapping: Dict[str, str], 
                                         blacklist_only: bool,
                                         user_id: Optional[str],
-                                        existing_appareils: Dict[Tuple[str, str], Appareil],
                                         existing_imeis: set) -> Dict[str, Any]:
         """
         Version optimisée qui utilise des caches en mémoire au lieu de requêtes SQL
+        Chaque appareil est maintenant créé de façon unique grâce au numero_serie
         
         Args:
             row: Données de la ligne
             column_mapping: Mapping des colonnes
             blacklist_only: Si True, marque comme blacklisté
             user_id: ID de l'utilisateur
-            existing_appareils: Cache des appareils existants {(marque, modele): appareil}
             existing_imeis: Cache des IMEI existants {imei_numero}
             
         Returns:
@@ -534,27 +632,17 @@ class ImportService:
             if pd.notna(user_value):
                 assigned_user_id = str(user_value).strip()
         
-        # Vérifier si l'appareil existe déjà (vérification en mémoire)
-        appareil_key = (appareil_data['marque'], appareil_data['modele'])
-        if appareil_key in existing_appareils:
-            # Utiliser l'appareil existant
-            appareil = existing_appareils[appareil_key]
-            result["warnings"].append(f"Appareil {appareil_data['marque']} {appareil_data['modele']} existe déjà, réutilisation")
-        else:
-            # Créer un nouvel appareil
-            appareil = Appareil(
-                id=uuid.uuid4(),
-                marque=appareil_data['marque'],
-                modele=appareil_data['modele'],
-                emmc=appareil_data.get('emmc'),
-                utilisateur_id=assigned_user_id if assigned_user_id else user_id
-            )
-            
-            self.db.add(appareil)
-            result["appareil_created"] = True
-            
-            # Ajouter au cache pour éviter les doublons dans le même batch
-            existing_appareils[appareil_key] = appareil
+        # Créer un nouvel appareil (pas de vérification de duplication, le SNR assure l'unicité)
+        appareil = Appareil(
+            id=uuid.uuid4(),
+            marque=appareil_data['marque'],
+            modele=appareil_data['modele'],
+            emmc=appareil_data.get('emmc'),
+            utilisateur_id=assigned_user_id if assigned_user_id else user_id
+        )
+        
+        self.db.add(appareil)
+        result["appareil_created"] = True
         
         # Traiter les IMEI
         imeis_to_process = []

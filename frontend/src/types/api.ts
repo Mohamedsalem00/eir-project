@@ -18,6 +18,7 @@ export interface IMEIResponse {
     marque: string
     modele: string
     emmc?: string
+    numero_serie?: string
     utilisateur_id?: string
     created_date?: string
     last_updated?: string
@@ -142,6 +143,15 @@ export interface HealthResponse {
     version_python: string
     heure_serveur: string
   }
+}
+
+// histoty rescherche 
+// history recherche SearchHistoryItem
+export interface SearchHistoryItem {
+  id: string;
+  date_recherche: string; // This is a date string, e.g., "2025-08-15 12:40:24"
+  imei_recherche: string;
+  utilisateur_id: string;
 }
 
 // API Request Types

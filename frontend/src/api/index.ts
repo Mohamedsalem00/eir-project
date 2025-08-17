@@ -1,11 +1,34 @@
-// Re-export all API services for easy importing
-// Fixed import paths for Vercel deployment
-export { IMEIService } from './imei'
-export { TACService } from './tac'
-export { PublicService } from './public'
+// Export all API services
+export { authService, AuthService } from './auth'
+export { default as IMEIService } from './imei'
+export { default as TACService } from './tac'
+export { default as PublicService } from './public'
 
-// Re-export types
-export * from '../types/api'
+// Export types
+export type {
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  RegisterResponse,
+  UserProfile,
+  PasswordResetRequest,
+  PasswordResetResponse,
+  VerifyCodeRequest,
+  NewPasswordRequest
+} from './auth'
+
+export type {
+  IMEIResponse,
+  IMEIDetailsResponse,
+  PublicStatsResponse,
+  TACResponse,
+  ErrorResponse,
+  RateLimitInfo,
+  HealthResponse,
+  SearchIMEIRequest,
+  SearchTACRequest,
+  ApiResponse
+} from '../types/api'
 
 // Re-export utilities
 export { apiClient } from '../lib/api-client'

@@ -1,3 +1,6 @@
+// src/hooks/useTranslation.ts
+
+import { useCallback } from 'react' 
 import { useLanguage } from '@/contexts/LanguageContext'
 import frTranslations from '@/i18n/fr.json'
 import enTranslations from '@/i18n/en.json'
@@ -15,7 +18,7 @@ const translations = {
 export function useTranslation() {
   const { currentLang } = useLanguage()
 
-  const t = (key: TranslationKey, params?: TranslationParams): string => {
+  const t = useCallback((key: TranslationKey, params?: TranslationParams): string => {
     try {
       // Naviguer dans l'objet de traduction en utilisant la clé
       const keys = key.split('.')
@@ -54,7 +57,7 @@ export function useTranslation() {
       console.warn(`Translation error for key "${key}":`, error)
       return key
     }
-  }
+  }, [currentLang]) // 👈 3. Add currentLang as a dependency
 
   return { t, currentLang }
 }

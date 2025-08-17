@@ -687,7 +687,8 @@ async def verifier_imei(
                 "id": str(appareil.id),
                 "marque": appareil.marque,
                 "modele": appareil.modele,
-                "emmc": appareil.emmc
+                "emmc": appareil.emmc,
+                "numero_serie": appareil.numero_serie  # Include SNR
             }
             
             # Add ownership info for elevated users and admins
@@ -706,7 +707,8 @@ async def verifier_imei(
             # Informations limitées pour visiteurs et utilisateurs de base
             response_data["appareil"] = {
                 "marque": appareil.marque,
-                "modele": appareil.modele
+                "modele": appareil.modele,
+                "numero_serie": appareil.numero_serie  # Include SNR even for basic users
             }
         
         # 📧 Send IMEI verification result email (only for authenticated users)
@@ -719,7 +721,9 @@ async def verifier_imei(
                     details={
                         "marque": appareil.marque if found else "Inconnue",
                         "modele": appareil.modele if found else "Inconnu",
+                        "numero_serie": appareil.numero_serie if found else "N/A",
                         "tac": imei[:8] if len(imei) >= 8 else "N/A",
+                        "snr": imei[8:14] if len(imei) >= 14 else "N/A",
                         "luhn_valide": True,  # Simplified for demo
                         "info_supplementaire": f"Vérification via niveau d'accès: {niveau_acces_utilisateur}"
                     }
@@ -761,6 +765,11 @@ async def enregistrer_appareil(
     - Les utilisateurs élevés peuvent enregistrer des appareils dans leur organisation
     - Les admins peuvent enregistrer des appareils pour tout utilisateur
     - Les utilisateurs limités (parties concernées) ont un accès restreint basé sur les marques
+    
+    ### Extraction Automatique du Numéro de Série:
+    - Les numéros de série (SNR) sont extraits automatiquement des IMEI (positions 9-14)
+    - Chaque IMEI valide génère un SNR unique pour identification des appareils
+    - Le SNR est stocké dans la colonne numero_serie de la table appareil
     
     ### Support Multilingue:
     - Utilisez l'en-tête `Accept-Language` pour spécifier la langue préférée
@@ -875,6 +884,7 @@ async def enregistrer_appareil(
                 "marque": appareil.marque,
                 "modele": appareil.modele,
                 "emmc": appareil.emmc,
+                "numero_serie": appareil.numero_serie,
                 "imeis": [{"numero": imei, "slot": i+1} for i, imei in enumerate(numeros_imei)]
             }
         )
@@ -886,6 +896,7 @@ async def enregistrer_appareil(
         "id": str(appareil.id),
         "marque": appareil.marque,
         "modele": appareil.modele,
+        "numero_serie": appareil.numero_serie,  # Include SNR in response
         "imeis": [
             {
                 "numero_imei": imei.numero_imei,
@@ -894,7 +905,8 @@ async def enregistrer_appareil(
             }
             for imei in appareil.imeis
         ],
-        "niveau_acces": user.niveau_acces or "basique"
+        "niveau_acces": user.niveau_acces or "basique",
+        "message": "Appareil créé avec extraction automatique du numéro de série depuis l'IMEI"
     }
 
 @app.get("/recherches", tags=["Historique de Recherche"])
@@ -966,6 +978,11 @@ def list_devices(
     - Le filtrage par marque respecte les marques autorisées pour les parties concernées
     - Filtrage organisationnel pour les utilisateurs privilégiés
     - Accès complet pour les administrateurs
+    
+    ### Informations des Appareils :
+    - Inclut les numéros de série extraits automatiquement des IMEI
+    - Affiche les détails complets selon le niveau d'accès
+    - Identifie de manière unique chaque appareil via son SNR
     """
     try:
         # Check if user has permission to read devices
@@ -1029,10 +1046,12 @@ def list_devices(
                     device_info = {
                         "id": str(device.id),
                         "marque": getattr(device, 'marque', 'N/A') or "N/A",
-                        "modele": getattr(device, 'modele', 'N/A') or "N/A", 
+                        "modele": getattr(device, 'modele', 'N/A') or "N/A",
+                        "numero_serie": getattr(device, 'numero_serie', None),
                         "can_modify": PermissionManager.has_permission(user, Operation.UPDATE_DEVICE) and can_access,
                         "motif_acces": access_details.get("reason", "Accès autorisé") if access_details else "Accès autorisé"
                     }
+                    device_list.append(device_info)
                     
                     # Add enhanced info based on access level
                     try:
@@ -1202,6 +1221,7 @@ def get_user(
                 "id": str(d.id), 
                 "marque": d.marque, 
                 "modele": d.modele,
+                "numero_serie": d.numero_serie,
                 "imeis": [imei.numero_imei for imei in d.imeis]
             } 
             for d in devices
@@ -1343,6 +1363,11 @@ def bulk_import_devices(
     """
     Import en lot d'appareils avec journalisation d'audit - Administrateurs uniquement.
     Format JSON simple pour les données structurées.
+    
+    ### Extraction Automatique du Numéro de Série:
+    - Les numéros de série (SNR) sont extraits automatiquement des IMEI lors de l'import
+    - Chaque appareil obtient un SNR unique basé sur l'IMEI principal
+    - Le SNR permet l'identification unique au-delà de la marque/modèle
     """
     imported_count = 0
     errors = []
@@ -1417,6 +1442,11 @@ async def bulk_import_from_file(
     - **JSON**: Fichier JSON contenant un tableau d'objets
     - **CSV**: Fichier CSV avec headers
     
+    ### Extraction Automatique du Numéro de Série:
+    - Les numéros de série (SNR) sont extraits automatiquement des IMEI (positions 9-14)
+    - Chaque IMEI valide génère un SNR unique stocké dans numero_serie
+    - Améliore l'identification des appareils au-delà de marque/modèle
+    
     ### Mappage de Colonnes:
     Le paramètre column_mapping permet de mapper les noms de colonnes du fichier
     vers les champs de la base de données. Format JSON:
@@ -1437,14 +1467,15 @@ async def bulk_import_from_file(
     - **modele**: Modèle de l'appareil (requis)
     - **emmc**: Capacité de stockage
     - **utilisateur_id**: ID du propriétaire (UUID)
-    - **imei1**: Premier IMEI
+    - **imei1**: Premier IMEI (SNR extrait automatiquement)
     - **imei2**: Deuxième IMEI (optionnel)
+    - **numero_serie**: Extrait automatiquement de l'IMEI principal
     
     ### Exemple de fichier CSV:
     ```
     brand_name,device_model,memory,imei_1,imei_2,owner_id
-    Samsung,Galaxy S21,128GB,123456789012345,123456789012346,uuid-here
-    Apple,iPhone 13,256GB,987654321098765,,uuid-here
+    Samsung,Galaxy S21,128GB,353260051234567,353260051234568,uuid-here
+    Apple,iPhone 13,256GB,356920051789012,,uuid-here
     ```
     
     ### Exemple de fichier JSON:
@@ -1454,11 +1485,13 @@ async def bulk_import_from_file(
             "brand_name": "Samsung",
             "device_model": "Galaxy S21",
             "memory": "128GB",
-            "imei_1": "123456789012345",
-            "imei_2": "123456789012346"
+            "imei_1": "353260051234567",
+            "imei_2": "353260051234568"
         }
     ]
     ```
+    
+    Note: Les IMEI dans les exemples suivent la structure réelle (TAC + SNR + Luhn)
     """
     try:
         # Parse column mapping

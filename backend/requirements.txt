@@ -30,6 +30,7 @@ python-multipart>=0.0.6
 requests>=2.31.0
 python-dateutil>=2.8.0
 pandas>=2.0.0
+chardet>=5.2.0,<6.0.0
 
 # YAML configuration support for multi-protocol integration
 PyYAML>=6.0.0

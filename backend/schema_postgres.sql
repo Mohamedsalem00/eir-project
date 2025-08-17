@@ -154,12 +154,13 @@ CREATE INDEX idx_utilisateur_date_creation ON utilisateur(date_creation);
 COMMENT ON COLUMN utilisateur.date_creation IS 'Date et heure de création du compte utilisateur';
 
 
--- Table: appareil (removed imei field)
+-- Table: appareil (enhanced with serial number auto-extracted from IMEI)
 CREATE TABLE public.appareil (
     id UUID PRIMARY KEY,
     marque VARCHAR(50),
     modele VARCHAR(50),
     emmc VARCHAR(100),
+    numero_serie VARCHAR(6), -- Serial Number extracted from IMEI (digits 9-14)
     utilisateur_id UUID REFERENCES public.utilisateur(id)
 );
 
@@ -334,6 +335,50 @@ BEGIN
     RETURN SUBSTRING(numero_imei FROM 1 FOR 8);
 END;
 $$ LANGUAGE plpgsql;
+
+-- Fonction pour extraire le SNR (Serial Number) d'un IMEI
+CREATE OR REPLACE FUNCTION extraire_snr_depuis_imei(numero_imei VARCHAR) 
+RETURNS VARCHAR AS $$
+BEGIN
+    -- Extraire les chiffres 9-14 comme SNR (Serial Number)
+    IF LENGTH(numero_imei) >= 14 THEN
+        RETURN SUBSTRING(numero_imei FROM 9 FOR 6);
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Fonction trigger pour auto-populer le numero_serie dans appareil
+CREATE OR REPLACE FUNCTION auto_populate_numero_serie() 
+RETURNS TRIGGER AS $$
+DECLARE
+    snr_value VARCHAR(6);
+BEGIN
+    -- Extraire le SNR du premier IMEI associé à cet appareil
+    SELECT extraire_snr_depuis_imei(numero_imei) 
+    INTO snr_value 
+    FROM imei 
+    WHERE appareil_id = NEW.appareil_id 
+    AND numero_slot = 1 
+    LIMIT 1;
+    
+    -- Mettre à jour l'appareil avec le SNR extrait
+    IF snr_value IS NOT NULL THEN
+        UPDATE appareil 
+        SET numero_serie = snr_value 
+        WHERE id = NEW.appareil_id 
+        AND numero_serie IS NULL;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour auto-populer le numero_serie quand un IMEI est inséré
+CREATE TRIGGER trigger_auto_populate_snr
+    AFTER INSERT ON imei
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_populate_numero_serie();
 
 -- Fonction pour valider un IMEI avec la base TAC
 CREATE OR REPLACE FUNCTION valider_imei_avec_tac(numero_imei VARCHAR) 
