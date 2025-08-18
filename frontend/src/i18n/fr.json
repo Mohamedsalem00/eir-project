@@ -213,6 +213,8 @@
   "confirmation_deconnexion": "Confirmation de déconnexion",
   "annuler": "Annuler",
   "confirmer": "Confirmer",
-  "se_deconnecter": "Déconnexion"
+  "se_deconnecter": "Déconnexion",
+  "limite_recherches_atteinte_description": "Vous avez atteint votre limite de recherche. Veuillez vous inscrire pour plus de recherches.",
+  "limite_recherches_atteinte_titre": "Limite de recherche atteinte"
 
 }

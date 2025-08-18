@@ -214,6 +214,8 @@
   "confirmation_deconnexion": "تأكيد تسجيل الخروج",
   "annuler": "إلغاء",
   "confirmer": "تأكيد",
-  "se_deconnecter": "تسجيل الخروج"
+  "se_deconnecter": "تسجيل الخروج",
+  "limite_recherches_atteinte_titre": "تم الوصول لحد البحث!",
+  "limite_recherches_atteinte_description": "لقد وصلت إلى الحد اليومي لعمليات البحث. يرجى التسجيل للحصول على المزيد من عمليات البحث."
 
 }

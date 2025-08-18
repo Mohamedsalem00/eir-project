@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { IMEIService, PublicService, PublicStatsResponse } from '@/api'
+import { SearchService, PublicService, PublicStatsResponse } from '@/api'
 import { SearchLimitDebug } from '@/components/SearchLimitDebug'
 import { Footer } from '@/components/Footer'
 import { HeroSection } from '@/components/HeroSection'
@@ -11,7 +11,7 @@ import { WhatIsImei } from '@/components/WhatIsImei'
 import { Statistics } from '@/components/Statistics'
 import { TacLookup } from '@/components/TacLookup'
 import { ApiStatus } from '@/components/ApiStatus'
-// import { SearchLimitPopupProps } from '@/components/SearchLimitPopup'
+import SearchLimitPopup from '@/components/SearchLimitPopup'
 import { useTranslation } from '@/hooks/useTranslation'
 
 // Hook to prevent hydration issues
@@ -64,9 +64,9 @@ export default function Home() {
 
   useEffect(() => {
     const updateLimitInfo = () => {
-      setSearchCount(IMEIService.getSearchCount())
-      setTimeRemaining(IMEIService.getSessionTimeRemaining())
-      setSearchLimitReached(IMEIService.isSearchLimitReached())
+      setSearchCount(SearchService.getSearchCount())
+      setTimeRemaining(SearchService.getSessionTimeRemaining())
+      setSearchLimitReached(SearchService.isSearchLimitReached())
     }
     updateLimitInfo()
     
@@ -93,7 +93,7 @@ searchCount={searchCount}
 
 timeRemaining={timeRemaining}
 
-getSearchLimit={IMEIService.getSearchLimit}
+getSearchLimit={SearchService.getSearchLimit}
 
 />
 
@@ -116,6 +116,8 @@ getSearchLimit={IMEIService.getSearchLimit}
           onRetry={loadStats}
         />
         }
+        {/* Show the popup automatically for visitors when search limit is reached */}
+        <SearchLimitPopup currentLang={currentLang} t={t} open={searchLimitReached} onClose={() => setSearchLimitReached(false)} />
 
         {/* Conditionally render SearchLimitDebug only in development mode */}
       </main>

@@ -33,7 +33,9 @@ interface LanguageProviderProps {
 }
 
 export function LanguageProvider({ children }: LanguageProviderProps) {
+
   const [currentLang, setCurrentLangState] = useState<Language>(DEFAULT_LANGUAGE)
+  const [isLangLoaded, setIsLangLoaded] = useState(false)
 
   useEffect(() => {
     // Charger la langue depuis le localStorage
@@ -43,6 +45,7 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
         setCurrentLangState(savedLang)
       }
     }
+    setIsLangLoaded(true)
   }, [])
 
   const setCurrentLang = (lang: Language) => {
@@ -89,6 +92,10 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     t,
   }
 
+  if (!isLangLoaded) {
+    // Optionally, show a loader or nothing until language is loaded
+    return null
+  }
   return (
     <LanguageContext.Provider value={value}>
       {children}

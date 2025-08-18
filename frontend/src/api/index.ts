@@ -1,6 +1,7 @@
 // Export all API services
 export { authService, AuthService } from './auth'
 export { default as IMEIService } from './imei'
+export { default as SearchService } from './SearchService'
 export { default as TACService } from './tac'
 export { default as PublicService } from './public'
 

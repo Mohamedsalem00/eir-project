@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { IMEIService } from '../api'
+import { SearchService } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import Link from 'next/link'
@@ -19,11 +19,11 @@ export function SearchLimitDebug() {
 
   const updateDebugInfo = () => {
     setDebugInfo({
-      count: IMEIService.getSearchCount(),
-      limit: IMEIService.getSearchLimit(),
-      remaining: IMEIService.getRemainingSearches(),
-      timeRemaining: IMEIService.getSessionTimeRemaining(),
-      isLimitReached: IMEIService.isSearchLimitReached()
+      count: SearchService.getSearchCount(),
+      limit: SearchService.getSearchLimit(),
+      remaining: SearchService.getRemainingSearches(),
+      timeRemaining: SearchService.getSessionTimeRemaining(),
+      isLimitReached: SearchService.isSearchLimitReached()
     })
   }
 
@@ -47,7 +47,7 @@ export function SearchLimitDebug() {
   const simulateSearch = () => {
     // Simulate a search by incrementing the counter manually
     if (typeof window !== 'undefined') {
-      const current = IMEIService.getSearchCount()
+      const current = SearchService.getSearchCount()
       localStorage.setItem('eir_search_count', (current + 1).toString())
       updateDebugInfo()
     }

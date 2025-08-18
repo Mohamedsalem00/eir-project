@@ -3,7 +3,7 @@
 'use client'
 
 import React from 'react'
-import { useAuth } from '@/contexts/AuthContext' // 👈 1. Import useAuth
+import { useAuth } from '@/contexts/AuthContext'
 
 interface HeroSectionProps {
   t: (key: string) => string

@@ -1,67 +1,11 @@
 import { apiClient } from '../lib/api-client'
 import { handleApiError } from '../lib/api-error'
+import SearchService from './SearchService'
 import { IMEIResponse, IMEIDetailsResponse, ApiResponse } from '../types/api'
 
 // Fixed import paths for Vercel deployment - v2
 export class IMEIService {
-  private static readonly SESSION_KEY = 'eir_search_count'
-  private static readonly SESSION_DATE_KEY = 'eir_search_date'
-  private static readonly SESSION_RESET_HOURS = 24
-  public static readonly maxSearches = parseInt(process.env.NEXT_PUBLIC_VISITOR_SEARCH_LIMIT || '10')
-  
-  // Initialiser le compteur de recherches depuis localStorage
-  private static initializeSearchCount(): number {
-    if (typeof window === 'undefined') return 0
-    
-    try {
-      const storedDate = localStorage.getItem(this.SESSION_DATE_KEY)
-      const storedCount = localStorage.getItem(this.SESSION_KEY)
-      
-      if (!storedDate || !storedCount) {
-        // Première visite, initialiser
-        this.resetSearchSession()
-        return 0
-      }
-      
-      const sessionDate = new Date(parseInt(storedDate))
-      const now = new Date()
-      const hoursDiff = (now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60)
-      
-      if (hoursDiff >= this.SESSION_RESET_HOURS) {
-        // Session expirée, réinitialiser
-        this.resetSearchSession()
-        return 0
-      }
-      
-      return parseInt(storedCount) || 0
-    } catch (error) {
-      console.warn('Erreur lors de la lecture du localStorage:', error)
-      this.resetSearchSession()
-      return 0
-    }
-  }
-  
-  private static resetSearchSession(): void {
-    if (typeof window === 'undefined') return
-    
-    try {
-      const now = new Date().getTime().toString()
-      localStorage.setItem(this.SESSION_DATE_KEY, now)
-      localStorage.setItem(this.SESSION_KEY, '0')
-    } catch (error) {
-      console.warn('Erreur lors de l\'écriture du localStorage:', error)
-    }
-  }
-  
-  private static updateSearchCount(count: number): void {
-    if (typeof window === 'undefined') return
-    
-    try {
-      localStorage.setItem(this.SESSION_KEY, count.toString())
-    } catch (error) {
-      console.warn('Erreur lors de la mise à jour du localStorage:', error)
-    }
-  }
+
 
   static async searchIMEI(imei: string, authToken?: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<IMEIResponse>> {
     try {
@@ -105,9 +49,9 @@ export class IMEIService {
       // Appel à l'API
       const response = await apiClient.get<IMEIResponse>(`/imei/${cleanImei}`, config)
       
-      // Incrémenter le compteur de recherches
-      const currentCount = this.getSearchCount()
-      this.updateSearchCount(currentCount + 1)
+      // Incrémenter le compteur de recherches via SearchService
+      const currentCount = SearchService.getSearchCount()
+      SearchService['updateSearchCount'](currentCount + 1)
 
       return {
         success: true,
@@ -127,47 +71,27 @@ export class IMEIService {
   }
 
   static getSearchCount(): number {
-    return this.initializeSearchCount()
+    return SearchService.getSearchCount()
   }
 
   static getSearchLimit(): number {
-    return IMEIService.maxSearches
+    return SearchService.getSearchLimit()
   }
 
   static resetSearchCount(): void {
-    this.resetSearchSession()
+    SearchService.resetSearchCount()
   }
 
   static isSearchLimitReached(): boolean {
-    return this.getSearchCount() >= IMEIService.maxSearches
+    return SearchService.isSearchLimitReached()
   }
 
   static getRemainingSearches(): number {
-    return Math.max(0, IMEIService.maxSearches - this.getSearchCount())
+    return SearchService.getRemainingSearches()
   }
 
   static getSessionTimeRemaining(): string {
-    if (typeof window === 'undefined') return '24h'
-    
-    try {
-      const storedDate = localStorage.getItem(this.SESSION_DATE_KEY)
-      if (!storedDate) return '24h'
-      
-      const sessionDate = new Date(parseInt(storedDate))
-      const now = new Date()
-      const hoursRemaining = this.SESSION_RESET_HOURS - ((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60))
-      
-      if (hoursRemaining <= 0) return '0h'
-      
-      if (hoursRemaining < 1) {
-        const minutesRemaining = Math.ceil(hoursRemaining * 60)
-        return `${minutesRemaining}min`
-      }
-      
-      return `${Math.ceil(hoursRemaining)}h`
-    } catch (error) {
-      return '24h'
-    }
+    return SearchService.getSessionTimeRemaining()
   }
 
   // ============== FONCTION MODIFIÉE CI-DESSOUS ==============
@@ -214,9 +138,9 @@ export class IMEIService {
       // Appel à l'endpoint SANS /details et avec le bon type de réponse
       const response = await apiClient.get<IMEIResponse>(`/imei/${cleanImei}`, config)
       
-      // Incrémenter le compteur de recherches
-      const currentCount = this.getSearchCount()
-      this.updateSearchCount(currentCount + 1)
+      // Incrémenter le compteur de recherches via SearchService
+      const currentCount = SearchService.getSearchCount()
+      SearchService.updateSearchCount(currentCount + 1)
 
       return {
         success: true,

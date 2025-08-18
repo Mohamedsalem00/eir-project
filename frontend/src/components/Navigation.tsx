@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useAuth } from '@/contexts/AuthContext'
+import LanguageSelector from '@/components/LanguageSelector'
 
 // A reusable confirmation modal component
 function ConfirmationModal({ t, isOpen, onClose, onConfirm, title, children }: { t: (key: string) => string, isOpen: boolean, onClose: () => void, onConfirm: () => void, title: string, children: React.ReactNode }) {
@@ -109,22 +110,8 @@ export default function Navigation() {
               </nav>
 
               <div className="flex items-center space-x-4">
-                {/* Language Switcher */}
-                <div className="flex items-center space-x-1 bg-gray-100 rounded-full p-1">
-                  {(['fr', 'en', 'ar'] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => setCurrentLang(lang)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 ${
-                        currentLang === lang
-                          ? 'bg-white text-blue-600 shadow'
-                          : 'text-gray-500 hover:text-gray-900'
-                      }`}
-                    >
-                      {lang.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
+                {/* Language Selector (desktop) */}
+                <LanguageSelector />
 
                 <div className="h-6 w-px bg-gray-200"></div>
 
@@ -221,21 +208,10 @@ export default function Navigation() {
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                   <div className="flex justify-center space-x-2">
-                      {(['fr', 'en', 'ar'] as const).map((lang) => (
-                        <button
-                          key={lang}
-                          onClick={() => setCurrentLang(lang)}
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors w-full ${
-                            currentLang === lang
-                              ? 'bg-blue-50 text-blue-600'
-                              : 'text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          {lang.toUpperCase()}
-                        </button>
-                      ))}
-                   </div>
+                  <div className="flex justify-center">
+                    {/* Language Selector (mobile) */}
+                    <LanguageSelector />
+                  </div>
                 </div>
               </div>
             </div>

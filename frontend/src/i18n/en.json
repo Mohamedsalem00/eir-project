@@ -213,5 +213,8 @@
   "confirmation_deconnexion": "Logout Confirmation",
   "annuler": "Cancel",
   "confirmer": "Confirm",
-  "se_deconnecter": "Logout"
+  "se_deconnecter": "Logout",
+  "limite_recherches_atteinte_description": "You have reached your search limit. Please register for more searches.",
+  "limite_recherches_atteinte": "Search limit reached",
+  "limite_recherches_atteinte_titre": "Search limit reached!"
 }
