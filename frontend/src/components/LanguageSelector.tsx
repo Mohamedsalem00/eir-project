@@ -1,6 +1,7 @@
 'use client'
 
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useTranslation } from '@/hooks/useTranslation'
 
 const languageOptions = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -10,10 +11,11 @@ const languageOptions = [
 
 export default function LanguageSelector() {
   const { currentLang, setCurrentLang } = useLanguage()
+  const { t } = useTranslation()
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-600">Langue:</span>
+      <span className="text-sm text-gray-600">{t('language')}:</span>
       <select 
         value={currentLang} 
         onChange={(e) => setCurrentLang(e.target.value as 'fr' | 'en' | 'ar')}

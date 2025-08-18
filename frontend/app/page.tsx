@@ -97,9 +97,9 @@ getSearchLimit={SearchService.getSearchLimit}
 
 />
 
-        <WhatIsImei />
-
         <ImeiSearchForm />
+
+        <WhatIsImei />
 
         <Statistics 
           stats={stats}
