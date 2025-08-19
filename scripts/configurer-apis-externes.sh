@@ -218,28 +218,28 @@ create_tac_database() {
       "model": "Unknown Model",
       "status": "blacklisted",
       "type": "smartphone",
-      "reason": "Reported stolen"
+      "raison": "Reported stolen"
     },
     "35999999": {
       "brand": "Fake Brand",
       "model": "Counterfeit Device",
       "status": "invalid",
       "type": "smartphone",
-      "reason": "Counterfeit device"
+      "raison": "Counterfeit device"
     },
     "35000000": {
       "brand": "Test Brand",
       "model": "Test Model",
       "status": "test",
       "type": "test_device",
-      "reason": "Test TAC for development"
+      "raison": "Test TAC for development"
     },
     "35888888": {
       "brand": "Legacy Brand",
       "model": "Old Model",
       "status": "deprecated",
       "type": "feature_phone",
-      "reason": "Obsolete model"
+      "raison": "Obsolete model"
     }
   }
 }
@@ -524,7 +524,7 @@ class ExternalIMEIService:
         
         return None
     
-    def create_not_found_response(self, imei: str, reason: str = "Non trouvé") -> Dict:
+    def create_not_found_response(self, imei: str, raison: str = "Non trouvé") -> Dict:
         """Crée une réponse pour un IMEI non trouvé"""
         return {
             "imei": imei,
@@ -532,7 +532,7 @@ class ExternalIMEIService:
             "brand": "Unknown",
             "model": "Unknown",
             "source": "external_apis",
-            "message": reason,
+            "message": raison,
             "timestamp": datetime.now().isoformat()
         }
     

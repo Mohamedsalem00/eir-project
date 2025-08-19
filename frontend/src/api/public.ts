@@ -4,7 +4,7 @@ import { PublicStatsResponse, HealthResponse, ApiResponse } from '../types/api'
 
 // Fixed imports for Vercel build
 export class PublicService {
-  static async getPublicStats(language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<PublicStatsResponse>> {
+  static async getPublicStats(language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<PublicStatsResponse> & { status?: number }> {
     const supportedLangs = ['ar', 'fr', 'en']
     const langHeader = supportedLangs.includes(language) ? language : 'fr'
     try {
@@ -15,13 +15,15 @@ export class PublicService {
       })
       return {
         success: true,
-        data: response.data
+        data: response.data,
+        status: response.status
       }
     } catch (error: any) {
       const apiError = handleApiError(error)
       return {
         success: false,
-        error: apiError.message
+        error: apiError.message,
+        status: apiError.status
       }
     }
   }

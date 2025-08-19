@@ -138,7 +138,7 @@ class AuditService:
         return self.log_action(
             action="Device created",
             user_id=user_id,
-            entity_type="device",
+            entity_type="appareil",
             entity_id=device_id,
             new_values=device_data
         )
@@ -148,7 +148,7 @@ class AuditService:
         return self.log_action(
             action="Device updated",
             user_id=user_id,
-            entity_type="device",
+            entity_type="appareil",
             entity_id=device_id,
             old_values=old_data,
             new_values=new_data
@@ -159,7 +159,7 @@ class AuditService:
         return self.log_action(
             action="Device deleted",
             user_id=user_id,
-            entity_type="device",
+            entity_type="appareil",
             entity_id=device_id,
             old_values=device_data
         )
@@ -169,7 +169,7 @@ class AuditService:
         return self.log_action(
             action=f"Device assigned to user {assigned_to_user_id}",
             user_id=assigned_by_user_id,
-            entity_type="device",
+            entity_type="appareil",
             entity_id=device_id,
             details={
                 "assigned_to": assigned_to_user_id,
@@ -271,7 +271,7 @@ class AuditService:
         )
     
     def log_access_attempt(self, user_id: Optional[str], operation: str, entity_type: str, entity_id: str, 
-                          success: bool, reason: str, ip_address: Optional[str] = None):
+                          success: bool, raison: str, ip_address: Optional[str] = None):
         """Log access attempts for security monitoring"""
         action = f"Access {'granted' if success else 'denied'}: {operation} on {entity_type} {entity_id}"
         
@@ -283,7 +283,7 @@ class AuditService:
             details={
                 "operation": operation,
                 "success": success,
-                "reason": reason,
+                "raison": raison,
                 "ip_address": ip_address
             }
         )

@@ -280,7 +280,7 @@ def filter_query_by_access(query, contexte_acces: Dict[str, Any], entity_type: s
     
     if portee_donnees == PorteeDonnees.OWN:
         # User sees only their own data
-        if entity_type == "device":
+        if entity_type == "appareil":
             query = query.filter_by(utilisateur_id=user.id)
         elif entity_type == "search":
             query = query.filter_by(utilisateur_id=user.id)
@@ -290,7 +290,7 @@ def filter_query_by_access(query, contexte_acces: Dict[str, Any], entity_type: s
     elif portee_donnees == PorteeDonnees.BRANDS:
         # User sees data for specific brands
         allowed_brands = filter_context["marques_autorisees"]
-        if allowed_brands and entity_type == "device":
+        if allowed_brands and entity_type == "appareil":
             query = query.filter(query.modele.marque.in_(allowed_brands))
     
     elif portee_donnees == PorteeDonnees.ORGANIZATION:

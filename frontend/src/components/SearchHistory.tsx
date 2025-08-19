@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTranslation } from '@/hooks/useTranslation'
-import { SearchHistoryService } from '@/api/searchHistoryService'
+import { SearchHistoryService } from '@/api'
 import { SearchHistoryItem } from '@/types/api'
 import { authService } from '@/api/auth'
+import Unauthorized401 from '../../src/components/Unauthorized401'
 
 export function SearchHistory() {
   const { user } = useAuth()
@@ -15,6 +16,7 @@ export function SearchHistory() {
   const [history, setHistory] = useState<SearchHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isUnauthorized, setIsUnauthorized] = useState(false)
 
   const fetchHistory = useCallback(async () => {
     if (!authToken) return;
@@ -26,7 +28,13 @@ export function SearchHistory() {
     if (response.success && response.data) {
       setHistory(response.data.searches)
     } else {
-      setError(response.error || t('erreur_chargement_historique'))
+      // Detect 401 error and show Unauthorized401
+      if (response.status === 401 || (response.error && response.error.toLowerCase().includes('401'))) {
+        setIsUnauthorized(true)
+        setError(null)
+      } else {
+        setError(response.error || t('erreur_inconnue'))
+      }
     }
     setIsLoading(false)
   }, [authToken, currentLang, t])
@@ -34,6 +42,10 @@ export function SearchHistory() {
   useEffect(() => {
     fetchHistory()
   }, [fetchHistory])
+
+  if (isUnauthorized) {
+      return <Unauthorized401 supportEmail="support@eir.com" />
+  }
 
   return (
     <div className="mt-12 bg-white rounded-lg shadow-sm border border-gray-200 p-6">

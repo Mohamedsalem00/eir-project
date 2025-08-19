@@ -170,14 +170,14 @@ class PermissionManager:
         Returns: (can_access: bool, context: dict)
         """
         context = {
-            "reason": "",
-            "portee_donnees": "none",
+            "raison": "",
+            "portee_donnees": "aucune",
             "restrictions": []
         }
         
         if not user:
             context.update({
-                "reason": "acces_public",
+                "raison": "acces_public",
                 "portee_donnees": "basic_info"
             })
             return True, context
@@ -185,8 +185,8 @@ class PermissionManager:
         # Admin has full access
         if user.type_utilisateur == "administrateur":
             context.update({
-                "reason": "admin_access",
-                "portee_donnees": "full"
+                "raison": "admin_access",
+                "portee_donnees": "complete"
             })
             return True, context
         
@@ -196,15 +196,15 @@ class PermissionManager:
             for range_rule in allowed_ranges:
                 if PermissionManager._imei_matches_rule(imei, range_rule):
                     context.update({
-                        "reason": "imei_range_match",
-                        "portee_donnees": "range_limited",
-                        "matched_rule": range_rule
+                        "raison": "plage_imei_correspondance",
+                        "portee_donnees": "plages_limitees",
+                        "regle_correspondante": range_rule
                     })
                     return True, context
             
-            # IMEI doesn't match any allowed range
+            # L’IMEI ne correspond à aucune plage autorisée
             context.update({
-                "reason": "imei_range_mismatch",
+                "raison": "plage_imei_non_correspondante",
                 "restrictions": allowed_ranges
             })
             return False, context
@@ -215,22 +215,22 @@ class PermissionManager:
             if imei_record and imei_record.appareil:
                 if imei_record.appareil.marque in user.marques_autorisees:
                     context.update({
-                        "reason": "brand_access",
-                        "portee_donnees": "brand_limited",
+                        "raison": "acces_marque",
+                        "portee_donnees": "limite_marque",
                         "marque": imei_record.appareil.marque
                     })
                     return True, context
                 else:
                     context.update({
-                        "reason": "brand_restriction",
-                        "device_brand": imei_record.appareil.marque,
+                        "raison": "restriction_marque",
+                        "marque_appareil": imei_record.appareil.marque,
                         "marques_autorisees": user.marques_autorisees
                     })
                     return False, context
         
         # Default access for standard users
         context.update({
-            "reason": "standard_access",
+            "raison": "standard_access",
             "portee_donnees": "standard"
         })
         return True, context
@@ -242,31 +242,31 @@ class PermissionManager:
         Returns: (can_access: bool, context: dict)
         """
         context = {
-            "reason": "",
-            "portee_donnees": "none",
+            "raison": "",
+            "portee_donnees": "aucune",
             "restrictions": []
         }
         
         if not user:
             context.update({
-                "reason": "anonymous_denied",
-                "portee_donnees": "none"
+                "raison": "anonymous_denied",
+                "portee_donnees": "aucune"
             })
             return False, context
         
         # Admin has full access
         if user.type_utilisateur == "administrateur":
             context.update({
-                "reason": "admin_access",
-                "portee_donnees": "full"
+                "raison": "acces_admin",
+                "portee_donnees": "complete"
             })
             return True, context
         
         # Users can access their own devices
         if device.utilisateur_id == user.id:
             context.update({
-                "reason": "owner_access",
-                "portee_donnees": "full"
+                "raison": "acces_proprietaire",
+                "portee_donnees": "complete"
             })
             return True, context
         
@@ -275,15 +275,15 @@ class PermissionManager:
         if allowed_brands:
             if device.marque in allowed_brands:
                 context.update({
-                    "reason": "brand_access",
-                    "portee_donnees": "brand_limited",
+                    "raison": "acces_marque",
+                    "portee_donnees": "limite_marque",
                     "marque": device.marque
                 })
                 return True, context
             else:
                 context.update({
-                    "reason": "brand_restriction",
-                    "device_brand": device.marque,
+                    "raison": "restriction_marque",
+                    "marque_appareil": device.marque,
                     "marques_autorisees": allowed_brands
                 })
                 return False, context
@@ -292,15 +292,15 @@ class PermissionManager:
         if user.portee_donnees == "organisation" and getattr(user, 'organisation', None):
             # This would require organization field on devices - placeholder logic
             context.update({
-                "reason": "organization_access",
+                "raison": "organization_access",
                 "portee_donnees": "organization"
             })
             return True, context
         
         # Default deny for non-matching cases
         context.update({
-            "reason": "access_denied",
-            "portee_donnees": "none"
+            "raison": "acces_refuse",
+            "portee_donnees": "aucune"
         })
         return False, context
     
@@ -310,11 +310,11 @@ class PermissionManager:
         if not user:
             return {
                 "portee_donnees": PorteeDonnees.NONE,
-                "user_id": None,
+                "utilisateur_id": None,
                 "marques_autorisees": [],
-                "allowed_ranges": [],
-                "organization": None,
-                "is_admin": False
+                "plages_imei_autorisees": [],
+                "organisation": None,
+                "est_admin": False
             }
         
         # Handle portee_donnees safely with French database values
@@ -327,17 +327,17 @@ class PermissionManager:
         
         return {
             "portee_donnees": portee_donnees,
-            "user_id": user.id,
+            "utilisateur_id": user.id,
             "marques_autorisees": user.marques_autorisees or [],
-            "allowed_ranges": user.plages_imei_autorisees or [],
-            "organization": getattr(user, 'organisation', None),
-            "is_admin": user.type_utilisateur == "administrateur",
+            "plages_imei_autorisees": user.plages_imei_autorisees or [],
+            "organisation": getattr(user, 'organisation', None),
+            "est_admin": user.type_utilisateur == "administrateur",
             "niveau_acces": AccessLevel.from_french(user.niveau_acces or "basique")
         }
     
     @staticmethod
     def filter_response_data(user: Optional[Utilisateur], data: dict, data_type: str) -> dict:
-        """Filter response data based on user permissions"""
+        """Filtrer les données de réponse en fonction des permissions de l'utilisateur"""
         if not user:
             # Minimal data for anonymous users
             if data_type == "imei":
@@ -347,7 +347,7 @@ class PermissionManager:
                     "statut": data.get("statut"),
                     "message": data.get("message")
                 }
-            elif data_type == "device":
+            elif data_type == "appareil":
                 return {
                     "marque": data.get("marque"),
                     "modele": data.get("modele")
@@ -370,13 +370,13 @@ class PermissionManager:
             
             if user_level in [AccessLevel.LIMITED, AccessLevel.ELEVATED]:
                 base_data.update({
-                    "device": data.get("device", {}),
-                    "search_logged": data.get("search_logged")
+                    "appareil": data.get("appareil", {}),
+                    "recherche_loggee": data.get("recherche_loggee")
                 })
             
             return base_data
         
-        elif data_type == "device":
+        elif data_type == "appareil":
             if user_level == AccessLevel.LIMITED:
                 return {
                     "id": data.get("id"),

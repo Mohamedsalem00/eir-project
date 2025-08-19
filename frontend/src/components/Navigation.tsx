@@ -73,10 +73,32 @@ export default function Navigation() {
     closeMobileMenu()
   }
 
-  const navLinks = [
+  // Determine user type and access level
+  const isPersonalUser = user && user.type_utilisateur === 'utilisateur_authentifie' && user.niveau_acces === 'standard'
+  const isOperator = user && user.type_utilisateur === 'operateur'
+  const isAdmin = user && user.type_utilisateur === 'administrateur'
+
+  // Navigation links based on user type
+  let navLinks = [
     { href: '/', label: t('accueil') },
     { href: '#what-is-imei', label: t('quest_ce_que_imei') },
   ]
+
+  if (user) {
+    if (isPersonalUser) {
+      navLinks = [
+        { href: '/', label: t('accueil') },
+        { href: '/my-devices', label: t('mes_appareils') },
+        { href: '/search-history', label: t('historique_recherches') },
+      ]
+    } else if (isOperator) {
+      navLinks.push({ href: '/dashboard', label: t('tableau_bord') })
+      navLinks.push({ href: '/organisation', label: t('organisation') })
+    } else if (isAdmin) {
+      navLinks.push({ href: '/dashboard', label: t('tableau_bord') })
+      navLinks.push({ href: '/admin', label: t('admin_panel') })
+    }
+  }
 
   return (
     <>
@@ -103,7 +125,7 @@ export default function Navigation() {
             <div className="hidden lg:flex items-center space-x-6">
               <nav className="flex items-center space-x-8 text-sm font-medium">
                 {navLinks.map((link) => (
-                  <Link key={link.href} href={link.href} className="text-gray-600 hover:text-blue-600 transition-colors duration-200">
+                  <Link key={link.href} href={link.href} className="text-gray-600 p-4 hover:text-blue-600 transition-colors duration-200">
                     {link.label}
                   </Link>
                 ))}
@@ -115,22 +137,23 @@ export default function Navigation() {
 
                 <div className="h-6 w-px bg-gray-200"></div>
 
-                {/* Auth Buttons */}
+                {/* Auth Buttons & User Links */}
                 {user ? (
                   <div className="flex items-center space-x-5">
-                     <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 text-sm font-medium">
-                        {t('tableau_bord')}
-                      </Link>
-                    <button onClick={handleLogoutClick} className="text-gray-600 hover:text-blue-600 transition-colors duration-200 text-sm font-medium">
+                    <Link href="/profile" className="text-gray-600 hover:text-blue-600 p-4 transition-colors duration-200 text-sm font-medium">
+                      {t('profil')}
+                    </Link>
+                    <Link href="#" onClick={handleLogoutClick} className="text-gray-600 p-4  hover:text-blue-600 transition-colors duration-200 text-sm font-medium">
                       {t('deconnexion')}
-                    </button>
+                    </Link>
+              
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <Link href="/login" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors duration-200">
+                    <Link href="/login" className="px-4 py-2 text-sm font-medium text-gray-600 p-4 hover:text-blue-600 transition-colors duration-200">
                       {t('connexion')}
                     </Link>
-                    <Link href="/register" className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm hover:shadow-md transition-all duration-200">
+                    <Link href="/register" className="px-4 py-2 text-sm font-medium bg-blue-600 p-4 text-white rounded-lg hover:bg-blue-700 shadow-sm hover:shadow-md transition-all duration-200">
                       {t('inscription')}
                     </Link>
                   </div>
@@ -184,17 +207,17 @@ export default function Navigation() {
               <div className="mt-auto">
                 <div className="pt-6 border-t border-gray-200">
                   {user ? (
-                     <div className="space-y-2">
-                       <Link href="/dashboard" onClick={closeMobileMenu} className="block px-4 py-3 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 font-medium transition-colors">
-                          {t('tableau_bord')}
-                       </Link>
-                       <Link href="/profile" onClick={closeMobileMenu} className="block px-4 py-3 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 font-medium transition-colors">
-                          {t('profil')}
-                       </Link>
-                       <button onClick={handleLogoutClick} className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 font-medium transition-colors">
-                         {t('deconnexion')}
-                       </button>
-                     </div>
+                    <div className="space-y-2">
+                      <Link href="/profile" onClick={closeMobileMenu} className="block px-4 py-3 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 font-medium transition-colors">
+                        {t('profil')}
+                      </Link>
+                      <Link href="#"  onClick={() => { handleLogoutClick(); closeMobileMenu(); }} className="block px-4 py-3 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 font-medium transition-colors">
+                        {t('deconnexion')}
+                      </Link>
+                        
+
+
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       <Link href="/login" onClick={closeMobileMenu} className="block w-full text-center px-4 py-3 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors">

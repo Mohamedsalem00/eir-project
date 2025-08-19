@@ -111,9 +111,9 @@ def build_diameter_response(imei: str, imei_status: str, session_id: str,
     
     # Ajouter des AVPs conditionnels selon le statut
     if imei_status == "blacklisted":
-        response["avps"]["Equipment-Status-Reason"] = "STOLEN_OR_LOST"
+        response["avps"]["Equipment-Status-raison"] = "STOLEN_OR_LOST"
     elif imei_status == "unknown":
-        response["avps"]["Equipment-Status-Reason"] = "UNKNOWN_EQUIPMENT"
+        response["avps"]["Equipment-Status-raison"] = "UNKNOWN_EQUIPMENT"
     
     return response
 

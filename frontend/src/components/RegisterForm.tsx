@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { authService } from '../api/auth'
 
 export function RegisterForm() {
   const { register, isLoading, error } = useAuth()
@@ -63,7 +64,7 @@ export function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -71,7 +72,19 @@ export function RegisterForm() {
     const { confirmer_mot_de_passe, ...registerData } = formData
     const success = await register(registerData)
     if (success) {
-      router.push('/dashboard')
+      // Redirect based on user type
+      const user = authService.getUserData()
+      if (user) {
+        if (user.type_utilisateur === 'administrateur' || user.type_utilisateur === 'operateur') {
+          router.push('/dashboard')
+        } else if (user.type_utilisateur === 'utilisateur_authentifie') {
+          router.push('/my-devices')
+        } else {
+          router.push('/')
+        }
+      } else {
+        router.push('/')
+      }
     }
   }
 

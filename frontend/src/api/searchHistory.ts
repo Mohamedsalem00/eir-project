@@ -7,7 +7,7 @@ interface SearchHistoryResponse {
 }
 
 export class SearchHistoryService {
-  static async getSearchHistory(authToken: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<SearchHistoryResponse>> {
+  static async getSearchHistory(authToken: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<SearchHistoryResponse> & { status?: number }> {
     try {
       if (!authToken) {
         return {
@@ -30,6 +30,7 @@ export class SearchHistoryService {
       return {
         success: true,
         data: response.data,
+        status: response.status,
       }
     } catch (error: any) {
       console.error('❌ Erreur lors de la récupération de l\'historique des recherches:', error)
@@ -42,3 +43,5 @@ export class SearchHistoryService {
     }
   }
 }
+
+export default SearchHistoryService

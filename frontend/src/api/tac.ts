@@ -5,7 +5,7 @@ import { SearchService } from '../api'
 
 // Fixed imports for Vercel build
 class TACService {
-  static async searchTAC(tac: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<TACResponse>> {
+  static async searchTAC(tac: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<TACResponse> & { status?: number }> {
     const supportedLangs = ['ar', 'fr', 'en']
     const langHeader = supportedLangs.includes(language) ? language : 'fr'
     try {
@@ -27,7 +27,8 @@ class TACService {
         if (IMEIService.isSearchLimitReached()) {
           return {
             success: false,
-            error: 'Limite de recherches atteinte. Veuillez patienter avant de réessayer.'
+            error: 'Limite de recherches atteinte. Veuillez patienter avant de réessayer.',
+            status: 429
           }
         }
       }
@@ -46,7 +47,8 @@ class TACService {
 
       return {
         success: true,
-        data: response.data
+        data: response.data,
+        status: response.status 
       }
     } catch (error: any) {
       const apiError = handleApiError(error)

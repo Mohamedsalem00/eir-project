@@ -56,7 +56,7 @@ def process_rest(payload: Dict[str, Any]) -> Dict[str, Any]:
         elif imei_status == "blacklisted":
             response["message"] = "IMEI bloqué - Appareil signalé"
             response["action"] = "block"
-            response["reason"] = "Appareil déclaré volé ou perdu"
+            response["raison"] = "Appareil déclaré volé ou perdu"
         elif imei_status == "unknown":
             response["message"] = "IMEI inconnu - Statut indéterminé"
             response["action"] = "monitor"

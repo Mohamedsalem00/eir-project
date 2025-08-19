@@ -13,6 +13,7 @@ import { TacLookup } from '@/components/TacLookup'
 import { ApiStatus } from '@/components/ApiStatus'
 import SearchLimitPopup from '@/components/SearchLimitPopup'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Hook to prevent hydration issues
 function useHydrationSafeState() {
@@ -22,6 +23,7 @@ function useHydrationSafeState() {
 }
 
 export default function Home() {
+  const { user } = useAuth()
   const { t, currentLang } = useTranslation()
   const isMounted = useHydrationSafeState()
   
@@ -117,8 +119,9 @@ getSearchLimit={SearchService.getSearchLimit}
         />
         }
         {/* Show the popup automatically for visitors when search limit is reached */}
+      {!user && (
         <SearchLimitPopup currentLang={currentLang} t={t} open={searchLimitReached} onClose={() => setSearchLimitReached(false)} />
-
+      )}
         {/* Conditionally render SearchLimitDebug only in development mode */}
       </main>
 

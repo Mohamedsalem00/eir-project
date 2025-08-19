@@ -102,7 +102,7 @@ curl -X POST "http://localhost:8000/admin/import-file" \
 #### Device Management System:
 ```json
 {
-    "device_brand": "marque",
+    "marque_appareil": "marque",
     "device_model": "modele",
     "memory_size": "emmc",
     "first_imei": "imei1", 

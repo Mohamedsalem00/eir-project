@@ -140,7 +140,7 @@ This file contains pre-defined column mappings for common external systems and f
 #### Best Buy Business
 ```json
 {
-    "device_brand": "marque",
+    "marque_appareil": "marque",
     "device_name": "modele",
     "memory_size": "emmc",
     "device_imei": "imei1",

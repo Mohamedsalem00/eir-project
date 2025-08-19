@@ -33,6 +33,12 @@ export interface UserProfile {
   type_utilisateur: string
   date_creation?: string
   derniere_connexion?: string
+  niveau_acces?: string
+  portee_donnees?: string
+  organisation?: string
+  est_actif?: boolean
+  marques_autorisees?: string[]
+  plages_imei_autorisees?: string[]
   statut_compte: string
   permissions: string[]
   statistiques: {

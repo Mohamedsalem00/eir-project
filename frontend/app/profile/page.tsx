@@ -5,6 +5,9 @@ import { useLanguage } from '../../src/contexts/LanguageContext'
 import  Navigation  from '../../src/components/Navigation'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import AccessDenied from '../../src/components/AccessDenied'
+import { authService } from '../../src/api'
+import Unauthorized401 from '../../src/components/Unauthorized401'
 
 interface ProfileData {
   id: string
@@ -25,11 +28,17 @@ interface ProfileData {
 
 export default function ProfilePage() {
   const { user, logout } = useAuth()
+  
   const { t } = useLanguage()
   const router = useRouter()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isUnauthorized, setIsUnauthorized] = useState(false)
 
+
+  const allowedTypes = [process.env.NEXT_PUBLIC_ADMIN_USER_TYPE && 'administrateur', process.env.NEXT_PUBLIC_OPERATOR_USER_TYPE && 'operateur', process.env.NEXT_PUBLIC_REGULAR_USER_TYPE && 'utilisateur_authentifie']
+  const userType = user?.type_utilisateur
+  
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login')
@@ -39,7 +48,7 @@ export default function ProfilePage() {
     // Fetch detailed profile data using authService
     const fetchProfile = async () => {
       try {
-        const data = await import('../../src/api/auth').then(mod => mod.authService.getProfile())
+        const data = await authService.getProfile()
         setProfileData(data)
       } catch (error) {
         console.error('Error fetching profile:', error)
@@ -53,8 +62,18 @@ export default function ProfilePage() {
 
 
 
+  // Not authenticated
   if (!user) {
-    return null
+    return <AccessDenied supportEmail="support@eir.com" />
+  }
+
+  // Not allowed
+  if (!allowedTypes.includes(userType)) {
+    return <AccessDenied supportEmail="support@eir.com" />
+  }
+
+  if (isUnauthorized) {
+      return <Unauthorized401 supportEmail="support@eir.com" />
   }
 
   if (isLoading) {

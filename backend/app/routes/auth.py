@@ -56,12 +56,15 @@ async def register(user_data: CreationUtilisateur, request: Request, db: Session
         
         # Créer un nouveau utilisateur
         hashed_password = get_password_hash(user_data.mot_de_passe)
+        # Si l'utilisateur est admin, il n'est pas actif par défaut
+        est_actif = False if user_data.type_utilisateur == "administrateur" else True
         user = Utilisateur(
             id=uuid.uuid4(),
             nom=user_data.nom,
             email=user_data.email,
             mot_de_passe=hashed_password,
-            type_utilisateur=user_data.type_utilisateur
+            type_utilisateur=user_data.type_utilisateur,
+            est_actif=est_actif
         )
         
         db.add(user)
@@ -216,67 +219,51 @@ async def get_profile_detailed(
     translator = Depends(get_current_translator)
 ):
     """
-    Récupérer le profil utilisateur détaillé
-    
-    Retourne les informations complètes du profil de l'utilisateur actuellement connecté,
-    incluant les statistiques, permissions et informations de sécurité.
-    
-    ### Informations retournées:
-    - **Informations de base**: ID, nom, email, type
-    - **Dates importantes**: Création du compte, dernière connexion
-    - **Statut et sécurité**: Statut du compte, permissions
-    - **Statistiques**: Nombre de connexions, activités récentes
-    - **Support multilingue**: Messages dans la langue préférée
-    
-    Args:
-        current_user: Utilisateur authentifié (injecté automatiquement)
-        db: Session de base de données
-        translator: Service de traduction
-    
-    Returns:
-        ProfilUtilisateurDetaille: Informations complètes du profil utilisateur
-    
-    Raises:
-        HTTPException: Si le token est invalide ou expiré (401)
+    Récupérer le profil utilisateur détaillé pour le frontend
     """
     try:
         logger.info(f"Récupération du profil détaillé pour l'utilisateur: {current_user.email}")
-        
-        # Récupérer les statistiques de l'utilisateur
+
         from ..models.journal_audit import JournalAudit
-        
-        # Dernière connexion (dernière entrée "Connexion utilisateur" dans les logs)
+
+        # Dernière connexion
         derniere_connexion_audit = db.query(JournalAudit).filter(
             JournalAudit.utilisateur_id == current_user.id,
             JournalAudit.action.like('Connexion utilisateur:%')
         ).order_by(JournalAudit.date.desc()).first()
-        
         derniere_connexion = derniere_connexion_audit.date if derniere_connexion_audit else None
-        
+
         # Nombre total de connexions
         nb_connexions = db.query(JournalAudit).filter(
             JournalAudit.utilisateur_id == current_user.id,
             JournalAudit.action.like('Connexion utilisateur:%')
         ).count()
-        
+
         # Activités récentes (7 derniers jours)
         date_limite = datetime.now() - timedelta(days=7)
         activites_recentes = db.query(JournalAudit).filter(
             JournalAudit.utilisateur_id == current_user.id,
             JournalAudit.date >= date_limite
         ).count()
-        
-        # Définir les permissions selon le type d'utilisateur
+
+        # Permissions dynamiques selon type et niveau d'accès
         permissions = []
         if current_user.type_utilisateur == "administrateur":
             permissions = [
                 "gestion_utilisateurs",
-                "gestion_appareils", 
+                "gestion_appareils",
                 "consultation_audits",
                 "gestion_notifications",
                 "configuration_systeme",
                 "export_donnees",
                 "gestion_base_donnees"
+            ]
+        elif current_user.type_utilisateur == "operateur":
+            permissions = [
+                "consultation_appareils",
+                "recherche_imei",
+                "consultation_historique_organisation",
+                "gestion_organisation"
             ]
         elif current_user.type_utilisateur == "utilisateur_authentifie":
             permissions = [
@@ -284,19 +271,21 @@ async def get_profile_detailed(
                 "recherche_imei",
                 "consultation_historique_personnel"
             ]
-        
+        else:
+            permissions = ["consultation_appareils"]
+
         # Statistiques détaillées
         statistiques = {
             "nombre_connexions": nb_connexions,
             "activites_7_derniers_jours": activites_recentes,
-            "compte_cree_depuis_jours": (datetime.now() - current_user.date_creation).days if hasattr(current_user, 'date_creation') and current_user.date_creation else 0,
+            "compte_cree_depuis_jours": (datetime.now() - current_user.date_creation).days if getattr(current_user, 'date_creation', None) else 0,
             "derniere_activite": derniere_connexion.isoformat() if derniere_connexion else None
         }
-        
-        # Déterminer le statut du compte
-        statut_compte = "active"  # Par défaut, pourrait être enrichi avec une logique métier
-        
-        # Enregistrer la consultation du profil dans l'audit
+
+        # Statut du compte
+        statut_compte = "active" if current_user.est_actif else "inactif"
+
+        # Audit log
         audit = JournalAudit(
             id=uuid.uuid4(),
             action=f"Consultation profil: {current_user.email}",
@@ -305,9 +294,10 @@ async def get_profile_detailed(
         )
         db.add(audit)
         db.commit()
-        
+
         logger.info(f"Profil détaillé récupéré avec succès pour: {current_user.email}")
-        
+
+        # Return all relevant fields for frontend
         return ProfilUtilisateurDetaille(
             id=str(current_user.id),
             nom=current_user.nom,
@@ -315,11 +305,16 @@ async def get_profile_detailed(
             type_utilisateur=current_user.type_utilisateur,
             date_creation=getattr(current_user, 'date_creation', None),
             derniere_connexion=derniere_connexion,
+            niveau_acces=getattr(current_user, 'niveau_acces', None),
+            portee_donnees=getattr(current_user, 'portee_donnees', None),
+            organisation=getattr(current_user, 'organisation', None),
             statut_compte=statut_compte,
             permissions=permissions,
-            statistiques=statistiques
+            statistiques=statistiques,
+            marques_autorisees=getattr(current_user, 'marques_autorisees', []),
+            plages_imei_autorisees=getattr(current_user, 'plages_imei_autorisees', [])
         )
-        
+
     except Exception as e:
         logger.error(f"Erreur lors de la récupération du profil détaillé: {str(e)}")
         raise HTTPException(
@@ -348,7 +343,8 @@ def get_profile_simple(current_user: Utilisateur = Depends(get_current_user)):
             id=str(current_user.id),
             nom=current_user.nom,
             email=current_user.email,
-            type_utilisateur=current_user.type_utilisateur
+            type_utilisateur=current_user.type_utilisateur,
+            niveau_acces=current_user.niveau_acces
         )
         
     except Exception as e:

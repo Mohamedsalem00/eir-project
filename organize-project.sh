@@ -104,7 +104,7 @@ if [[ -d "test" ]]; then
         if [[ "$filename" == *"api"* ]]; then
             mv "$file" "testing/api/"
             print_status "$filename → testing/api/"
-        elif [[ "$filename" == *"integration"* ]] || [[ "$filename" == *"full"* ]]; then
+        elif [[ "$filename" == *"integration"* ]] || [[ "$filename" == *"complete"* ]]; then
             mv "$file" "testing/integration/"
             print_status "$filename → testing/integration/"
         else

@@ -1,19 +1,20 @@
 import { apiClient } from '../lib/api-client'
 import { handleApiError } from '../lib/api-error'
-import SearchService from './SearchService'
+import { SearchService } from './index'
 import { IMEIResponse, IMEIDetailsResponse, ApiResponse } from '../types/api'
 
 // Fixed import paths for Vercel deployment - v2
 export class IMEIService {
 
 
-  static async searchIMEI(imei: string, authToken?: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<IMEIResponse>> {
+  static async searchIMEI(imei: string, authToken?: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<IMEIResponse> & { status?: number }> {
     try {
       // Validation côté client
       if (!imei || imei.length < 14) {
         return {
           success: false,
-          error: 'L\'IMEI doit contenir au moins 14 chiffres'
+          error: 'L\'IMEI doit contenir au moins 14 chiffres',
+          status: 400
         }
       }
 
@@ -23,7 +24,8 @@ export class IMEIService {
       if (cleanImei.length > 15) {
         return {
           success: false,
-          error: 'L\'IMEI ne peut pas dépasser 15 chiffres'
+          error: 'L\'IMEI ne peut pas dépasser 15 chiffres',
+          status: 400
         }
       }
 
@@ -65,7 +67,8 @@ export class IMEIService {
       return {
         success: false,
         error: apiError.message,
-        rateLimitInfo: apiError.rateLimitInfo
+        rateLimitInfo: apiError.rateLimitInfo,
+        status: apiError.status
       }
     }
   }
@@ -96,13 +99,14 @@ export class IMEIService {
 
   // ============== FONCTION MODIFIÉE CI-DESSOUS ==============
   // Cette fonction appelle maintenant l'endpoint de base /imei/{imei}
-  static async getIMEIDetails(imei: string, authToken?: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<IMEIResponse>> {
+  static async getIMEIDetails(imei: string, authToken?: string, language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<IMEIResponse> & { status?: number }> {
     try {
       // Validation côté client
       if (!imei || imei.length < 14) {
         return {
           success: false,
-          error: 'L\'IMEI doit contenir au moins 14 chiffres'
+          error: 'L\'IMEI doit contenir au moins 14 chiffres',
+          status: 400
         }
       }
 
@@ -112,7 +116,8 @@ export class IMEIService {
       if (cleanImei.length > 15) {
         return {
           success: false,
-          error: 'L\'IMEI ne peut pas dépasser 15 chiffres'
+          error: 'L\'IMEI ne peut pas dépasser 15 chiffres',
+          status: 400
         }
       }
 
@@ -154,7 +159,8 @@ export class IMEIService {
       return {
         success: false,
         error: apiError.message,
-        rateLimitInfo: apiError.rateLimitInfo
+        rateLimitInfo: apiError.rateLimitInfo,
+        status: apiError.status
       }
     }
   }
@@ -171,21 +177,24 @@ export class IMEIService {
     if (cleanImei.length === 0) {
       return {
         isValid: false,
-        error: 'Veuillez saisir un numéro IMEI'
+        error: 'Veuillez saisir un numéro IMEI',
+        cleanImei: ''
       }
     }
 
     if (cleanImei.length < 14) {
       return {
         isValid: false,
-        error: `IMEI trop court (${cleanImei.length}/15 chiffres)`
+        error: `IMEI trop court (${cleanImei.length}/15 chiffres)`,
+        cleanImei: ''
       }
     }
 
     if (cleanImei.length > 15) {
       return {
         isValid: false,
-        error: `IMEI trop long (${cleanImei.length}/15 chiffres)`
+        error: `IMEI trop long (${cleanImei.length}/15 chiffres)`,
+        cleanImei: ''
       }
     }
 

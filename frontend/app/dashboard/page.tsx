@@ -3,21 +3,22 @@
 import { useAuth } from '../../src/contexts/AuthContext'
 import { useLanguage } from '../../src/contexts/LanguageContext'
 import  Navigation  from '../../src/components/Navigation'
-import { SearchHistory } from '../../src/components/SearchHistory' // 👈 Import the new component
+import { SearchHistory } from '../../src/components/SearchHistory'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useAuthGuard } from '../../src/hooks/useAuthGuard'
+import AccessDenied from '../../src/components/AccessDenied'
 
 export default function DashboardPage() {
   const { user, isLoading } = useAuth() 
   const { t } = useLanguage()
   const router = useRouter()
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login')
-    }
-  }, [user, isLoading, router])
+  // Only allow admin and operator
+  const allowedTypes = [process.env.NEXT_PUBLIC_ADMIN_USER_TYPE && 'administrateur', process.env.NEXT_PUBLIC_OPERATOR_USER_TYPE && 'operateur']
+  const userType = user?.type_utilisateur
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex items-center justify-center">
@@ -29,8 +30,14 @@ export default function DashboardPage() {
     )
   }
 
+  // Not authenticated
   if (!user) {
-    return null
+    return <AccessDenied supportEmail="support@eir.com" />
+  }
+
+  // Not allowed
+  if (!allowedTypes.includes(userType)) {
+    return <AccessDenied supportEmail="support@eir.com" />
   }
 
   return (

@@ -20,6 +20,7 @@ class ReponseUtilisateur(BaseModel):
     nom: str
     email: str
     type_utilisateur: str
+    niveau_acces: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -30,6 +31,12 @@ class ProfilUtilisateurDetaille(BaseModel):
     nom: str = Field(..., description="Nom complet de l'utilisateur")
     email: str = Field(..., description="Adresse email de l'utilisateur")
     type_utilisateur: str = Field(..., description="Type d'utilisateur (administrateur, utilisateur_authentifie)")
+    niveau_acces: Optional[str] = Field(None, description="Niveau d'accès de l'utilisateur")
+    portee_donnees: Optional[str] = Field(None, description="Portée des données accessibles par l'utilisateur")
+    organisation: Optional[str] = Field(None, description="Organisation à laquelle l'utilisateur est affilié")
+    est_actif: Optional[bool] = Field(True, description="Statut actif du compte utilisateur")
+    marques_autorisees: Optional[list[str]] = Field(default_factory=list, description="Liste des marques d'appareils accessibles par l'utilisateur")
+    plages_imei_autorisees: Optional[list[str]] = Field(default_factory=list, description="Plages ou préfixes IMEI autorisés pour l'utilisateur")
     date_creation: Optional[datetime] = Field(None, description="Date de création du compte")
     derniere_connexion: Optional[datetime] = Field(None, description="Date et heure de la dernière connexion")
     statut_compte: str = Field(default="active", description="Statut du compte (active, suspendu, etc.)")

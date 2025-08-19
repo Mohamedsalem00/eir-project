@@ -618,13 +618,13 @@ async def verifier_imei(
             entity_type="imei",
             entity_id=imei,
             success=False,
-            reason=access_details["reason"],
+            raison=access_details["raison"],
             ip_address=request.client.host if request.client else None
         )
         
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access denied: {access_details['reason']}"
+            detail=f"Access denied: {access_details['raison']}"
         )
     
     # Search for IMEI
@@ -647,7 +647,7 @@ async def verifier_imei(
         entity_type="imei", 
         entity_id=imei,
         success=True,
-        reason=access_details["reason"],
+        raison=access_details["raison"],
         ip_address=request.client.host if request.client else None
     )
     
@@ -676,7 +676,7 @@ async def verifier_imei(
             "id_recherche": str(recherche.id),
             "contexte_acces": {
                 "niveau_acces": niveau_acces_utilisateur,
-                "motif_acces": access_details["reason"],
+                "motif_acces": access_details["raison"],
                 "portee_donnees": access_details["portee_donnees"]
             }
         }
@@ -743,7 +743,7 @@ async def verifier_imei(
         "id_recherche": str(recherche.id),
         "contexte_acces": {
             "niveau_acces": niveau_acces_utilisateur,
-            "motif_acces": access_details["reason"]
+            "motif_acces": access_details["raison"]
         }
     }
 
@@ -1049,7 +1049,7 @@ def list_devices(
                         "modele": getattr(device, 'modele', 'N/A') or "N/A",
                         "numero_serie": getattr(device, 'numero_serie', None),
                         "can_modify": PermissionManager.has_permission(user, Operation.UPDATE_DEVICE) and can_access,
-                        "motif_acces": access_details.get("reason", "Accès autorisé") if access_details else "Accès autorisé"
+                        "motif_acces": access_details.get("raison", "Accès autorisé") if access_details else "Accès autorisé"
                     }
                     device_list.append(device_info)
                     
