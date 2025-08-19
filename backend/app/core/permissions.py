@@ -70,6 +70,15 @@ class Operation(Enum):
     MANAGE_PERMISSIONS = "manage_permissions"
     SYSTEM_CONFIG = "system_config"
 
+    # Operation TAC
+    READ_TAC = "read_tac"        # Read TAC information
+    UPDATE_TAC = "update_tac"    # Update TAC information
+    DELETE_TAC = "delete_tac"    # Delete TAC information
+    IMPORT_TAC = "import_tac"    # Import TAC information
+    EXPORT_TAC = "export_tac"    # Export TAC information
+    SEARCH_TAC = "search_tac"      # Search TAC information
+
+
 class PorteeDonnees(Enum):
     """Data access portee_donnees definitions"""
     NONE = "aucun"             # No data access
@@ -86,20 +95,32 @@ class PermissionManager:
     ACCESS_PERMISSIONS = {
         AccessLevel.VISITOR: [
             Operation.READ_IMEI,
+            Operation.READ_TAC,
+            Operation.SEARCH_IMEI,
+            Operation.SEARCH_TAC,
         ],
         AccessLevel.BASIC: [
             Operation.READ_IMEI,
             Operation.SEARCH_IMEI,
+            Operation.READ_TAC,
+            Operation.SEARCH_TAC,
         ],
         AccessLevel.LIMITED: [
             Operation.READ_IMEI,
             Operation.SEARCH_IMEI,
+            Operation.READ_TAC,
+            Operation.SEARCH_TAC,
             Operation.READ_DEVICE,
             Operation.READ_ANALYTICS,  # Limited analytics for concerned parties
         ],
         AccessLevel.STANDARD: [
             Operation.READ_IMEI,
             Operation.SEARCH_IMEI,
+            Operation.READ_TAC,
+            Operation.SEARCH_TAC,
+            Operation.UPDATE_TAC,
+            Operation.IMPORT_TAC,
+            Operation.EXPORT_TAC,
             Operation.READ_DEVICE,
             Operation.CREATE_DEVICE,
             Operation.UPDATE_DEVICE,
@@ -112,6 +133,12 @@ class PermissionManager:
         AccessLevel.ELEVATED: [
             Operation.READ_IMEI,
             Operation.SEARCH_IMEI,
+            Operation.READ_TAC,
+            Operation.SEARCH_TAC,
+            Operation.UPDATE_TAC,
+            Operation.IMPORT_TAC,
+            Operation.EXPORT_TAC,
+            Operation.DELETE_TAC,
             Operation.UPDATE_IMEI_STATUS,
             Operation.READ_DEVICE,
             Operation.CREATE_DEVICE,

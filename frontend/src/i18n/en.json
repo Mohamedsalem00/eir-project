@@ -240,5 +240,14 @@
   "session_expiree_titre": "Session expired",
   "session_expiree_description": "Your session seems to have expired. Please log in again.",
   "reconnecter": "Reconnect",
-  "besoin_aide": "Need help? Contact us for support."
+  "besoin_aide": "Need help? Contact us for support.",
+  "erreur_token_requis": "Authentication token is required.",
+  "erreur_token_requis_description": "Please log in to obtain an authentication token.",
+  "consultation_historique_personnel": "Personal history consultation",
+  "consultation_appareils": "Device consultation",
+  "aucune_recherche_historique": "No search history yet.",
+  "aucune_resultat_trouve": "No Results Found",
+  "rechercher_par_imei": "Search by IMEI",
+  "rechercher_par_tac": "Search by TAC"
+
 }

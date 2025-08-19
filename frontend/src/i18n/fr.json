@@ -239,5 +239,13 @@
   "session_expiree_titre": "Session expirée",
   "session_expiree_description": "Votre session semble avoir expiré. Veuillez vous reconnecter.",
   "reconnecter": "Reconnecter",
-  "besoin_aide": "Besoin d'aide ? Contactez-nous pour assistance."
+  "besoin_aide": "Besoin d'aide ? Contactez-nous pour assistance.",
+  "erreur_token_requis": "Le jeton d'authentification est requis.",
+  "erreur_token_requis_description": "Veuillez vous connecter pour obtenir un jeton d'authentification.",
+  "consultation_historique_personnel": "Consultation de l'historique personnel",
+  "consultation_appareils": "Consultation des appareils",
+  "aucune_recherche_historique": "Aucune recherche dans l'historique pour le moment.",
+  "aucune_resultat_trouve": "Aucun résultat trouvé.",
+  "rechercher_par_imei": "Recherche par IMEI",
+  "rechercher_par_tac": "Recherche par TAC"
 }

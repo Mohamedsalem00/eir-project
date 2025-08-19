@@ -909,40 +909,48 @@ async def enregistrer_appareil(
         "message": "Appareil créé avec extraction automatique du numéro de série depuis l'IMEI"
     }
 
+# main.py (or wherever your endpoint is)
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import List, Optional # Make sure to import Optional
+
+# ... other imports
+
+# Add 'q: Optional[str] = None' to accept a search query
 @app.get("/recherches", tags=["Historique de Recherche"])
 def list_searches(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 10,
+    q: Optional[str] = None, # <-- ADD THIS to accept a search term
     db: Session = Depends(get_db),
     user: Utilisateur = Depends(get_current_user)
 ):
     """
-    Lister les recherches avec contrôle d'accès amélioré
-    
-    ### Niveaux d'Accès:
-    - Les utilisateurs standard voient seulement leurs propres recherches
-    - Les utilisateurs élevés voient les recherches organisationnelles
-    - Les admins voient toutes les recherches
-    - Les utilisateurs limités voient les recherches dans leur périmètre de données
+    Lister les recherches avec contrôle d'accès et filtrage par IMEI.
     """
-    # Vérifier si l'utilisateur a la permission de lire l'historique des recherches
     if not PermissionManager.has_permission(user, Operation.READ_SEARCH_HISTORY):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission refusée: Impossible de lire l'historique des recherches"
         )
-    
+
     query = db.query(Recherche)
-    
-    # Appliquer un filtrage basé sur l'accès en utilisant des permissions simples
+
+    # Apply permission-based filtering
     if user.type_utilisateur != "administrateur" and user.niveau_acces != "admin":
-        if user.portee_donnees == "own":
+        if user.portee_donnees == "own" or user.niveau_acces == "limited":
             query = query.filter(Recherche.utilisateur_id == user.id)
-        elif user.niveau_acces == "limited":
-            # Les utilisateurs limités voient seulement leurs propres recherches
-            query = query.filter(Recherche.utilisateur_id == user.id)
+
+    # <-- ADD THIS BLOCK to filter by the search term if it exists
+    if q:
+        # Use 'like' to find any IMEI containing the search query
+        query = query.filter(Recherche.imei_recherche.like(f"%{q}%"))
     
-    searches = query.offset(skip).limit(limit).all()
+    # Get the total count before pagination for accurate UI
+    total_count = query.count()
+
+    searches = query.order_by(Recherche.date_recherche.desc()).offset(skip).limit(limit).all()
     
     return {
         "searches": [
@@ -954,11 +962,7 @@ def list_searches(
             }
             for search in searches
         ],
-        "contexte_acces": {
-            "niveau_acces": user.niveau_acces or "basique",
-            "portee_donnees": user.portee_donnees or "own",
-            "total_accessible": len(searches)
-        }
+        "total_count": total_count # <-- ADD THIS for frontend pagination
     }
 
 # Enhanced device listing with granular filtering

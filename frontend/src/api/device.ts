@@ -1,6 +1,7 @@
 import { apiClient } from '../lib/api-client'
 import { handleApiError } from '../lib/api-error'
 import { ApiResponse } from '../types/api'
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface DeviceItem {
   id: string;
@@ -21,7 +22,7 @@ export class DeviceService {
       if (!authToken) {
         return {
           success: false,
-          error: 'Authentication token is required.',
+          error:  'erreur_token_requis',
           status: 401,
         }
       }

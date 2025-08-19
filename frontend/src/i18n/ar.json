@@ -240,5 +240,16 @@
   "session_expiree_titre": "انتهت صلاحية الجلسة",
   "session_expiree_description": "يبدو أن جلستك قد انتهت. يرجى تسجيل الدخول مرة أخرى.",
   "reconnecter": "إعادة الاتصال",
-  "besoin_aide": "هل تحتاج إلى مساعدة؟ اتصل بنا للحصول على الدعم."
+  "besoin_aide": "هل تحتاج إلى مساعدة؟ اتصل بنا للحصول على الدعم.",
+  "erreur_token_requis": "مطلوب رمز المصادقة.",
+  "erreur_token_requis_description": "يرجى تسجيل الدخول للحصول على رمز المصادقة.",
+  "consultation_historique_personnel": "استشارة السجل الشخصي",
+  "consultation_appareils": "استشارة الأجهزة",
+  "aucune_recherche_historique": "لا توجد عمليات بحث في السجل حتى الآن.",
+  "aucune_appareil_enregistre": "لا توجد أجهزة مسجلة حتى الآن.",
+  "aucune_recherche_tac": "لا توجد عمليات بحث TAC حتى الآن.",
+  "aucune_resultat_trouve": "لم يتم العثور على نتائج",
+  "rechercher_par_imei": "بحث حسب IMEI",
+  "rechercher_par_tac": "بحث حسب TAC"
+  
 }

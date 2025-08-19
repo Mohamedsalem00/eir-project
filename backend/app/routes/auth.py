@@ -262,6 +262,7 @@ async def get_profile_detailed(
             permissions = [
                 "consultation_appareils",
                 "recherche_imei",
+                "recherche_tac",
                 "consultation_historique_organisation",
                 "gestion_organisation"
             ]
@@ -269,6 +270,7 @@ async def get_profile_detailed(
             permissions = [
                 "consultation_appareils",
                 "recherche_imei",
+                "recherche_tac",
                 "consultation_historique_personnel"
             ]
         else:

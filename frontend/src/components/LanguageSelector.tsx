@@ -6,7 +6,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 const languageOptions = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'ar', name: 'العربية', flag: '🇸🇦' }
+  { code: 'ar', name: 'العربية', flag: '🇲🇷' }
 ]
 
 export default function LanguageSelector() {

@@ -28,7 +28,7 @@ export class PublicService {
     }
   }
 
-  static async checkHealth(language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<HealthResponse>> {
+  static async checkHealth(language: 'fr' | 'en' | 'ar' = 'fr'): Promise<ApiResponse<HealthResponse> & { status?: number }> {
     const supportedLangs = ['ar', 'fr', 'en']
     const langHeader = supportedLangs.includes(language) ? language : 'fr'
     try {
@@ -46,7 +46,8 @@ export class PublicService {
       const apiError = handleApiError(error)
       return {
         success: false,
-        error: apiError.message
+        error: apiError.message,
+        status: apiError.status
       }
     }
   }
