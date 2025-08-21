@@ -25,34 +25,39 @@ class EmailService:
     Gestion des erreurs, retry automatique et configuration flexible
     """
     
-    def __init__(self, config_file: str = "config/notifications.yml"):
+    def __init__(self, config_file: str = None):
         """
         Initialise le service d'email avec la configuration
-        
         Args:
             config_file: Chemin vers le fichier de configuration YAML
         """
+        if config_file is None:
+            config_file = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "config",
+                "notifications.yml"
+            )
         self.config = self._load_config(config_file)
         self.email_config = self.config.get('notifications', {}).get('email', {})
         self.enabled = self.email_config.get('enabled', False)
         self.provider = self.email_config.get('provider', 'smtp')
-        
+
         # Configuration du provider sélectionné
         if self.provider == 'gmail':
             self.smtp_config = self.email_config.get('gmail', {})
         else:
             self.smtp_config = self.email_config.get('smtp', {})
-        
+
         # Configuration des retry
         self.retry_config = self.email_config.get('retry', {})
         self.max_attempts = self.retry_config.get('max_attempts', 3)
         self.retry_delay = self.retry_config.get('retry_delay_seconds', 300)
         self.exponential_backoff = self.retry_config.get('exponential_backoff', True)
-        
+
         # Templates
         self.templates = self.email_config.get('templates', {})
-        
-        logger.info(f"EmailService initialisé - Provider: {self.provider}, Enabled: {self.enabled}")
+
+        logger.info(f"EmailService initialisé - Provider: {self.provider}, Enabled: {self.enabled}, Config path: {config_file}")
     
     def _load_config(self, config_file: str) -> Dict:
         """
