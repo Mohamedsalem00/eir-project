@@ -31,13 +31,35 @@ class EmailService:
         Args:
             config_file: Chemin vers le fichier de configuration YAML
         """
-        if config_file is None:
-            config_file = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                "config",
-                "notifications.yml"
-            )
-        self.config = self._load_config(config_file)
+        # Try multiple possible config paths for robustness
+        possible_paths = []
+        if config_file:
+            possible_paths.append(config_file)
+        # /app/config/notifications.yml (Render, Docker)
+        possible_paths.append(os.path.join("/app", "config", "notifications.yml"))
+        # /app/app/config/notifications.yml (some Docker setups)
+        possible_paths.append(os.path.join("/app", "app", "config", "notifications.yml"))
+        # Relative to this file (local dev)
+        possible_paths.append(os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "config",
+            "notifications.yml"
+        ))
+        # Relative to current working directory
+        possible_paths.append(os.path.join(os.getcwd(), "config", "notifications.yml"))
+
+        config_path_found = None
+        for path in possible_paths:
+            if Path(path).exists():
+                config_path_found = path
+                break
+
+        if not config_path_found:
+            logger.warning(f"Fichier de configuration non trouvé dans les chemins: {possible_paths}")
+            self.config = self._get_default_config()
+        else:
+            self.config = self._load_config(config_path_found)
+
         self.email_config = self.config.get('notifications', {}).get('email', {})
         self.enabled = self.email_config.get('enabled', False)
         self.provider = self.email_config.get('provider', 'smtp')
