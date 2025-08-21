@@ -14,8 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY schema_postgres.sql /app/
 COPY test_data.sql /app/
 
+
 # Copy application code
 COPY ./app ./app
+
+# Copy config directory from project root (outside backend) to /app/config
+COPY ../config ./config
 
 # Expose port
 EXPOSE 8000
