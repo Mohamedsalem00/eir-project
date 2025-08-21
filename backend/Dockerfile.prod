@@ -25,6 +25,9 @@ COPY backend/init-db.sh /app/
 # Copy application code
 COPY backend/app ./app
 
+#copy config directory from project root (outside backend) to /app/config
+COPY ../config ./config
+
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R app:app /app
 
