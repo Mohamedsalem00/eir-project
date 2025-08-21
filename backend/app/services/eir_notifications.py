@@ -65,71 +65,79 @@ class EIRNotificationService:
             return {"success": False, "error": str(e)}
     
     @staticmethod
-    async def notifier_verification_imei(user_id: str, imei: str, statut: str, marque: str = "", modele: str = "", raison: str = "") -> Dict[str, Any]:
+    async def notifier_verification_email(user_id: str, verification_url: str) -> Dict[str, Any]:
         """
-        Notifie le résultat d'une vérification IMEI
+        Envoie l'email contenant le lien de vérification.
         
         Args:
             user_id: ID de l'utilisateur
-            imei: IMEI vérifié
-            statut: Statut de la vérification (valide, invalide, blackliste)
-            marque: Marque de l'appareil
-            modele: Modèle de l'appareil
-            raison: Raison en cas d'invalidité
+            verification_url: L'URL de vérification à inclure dans l'email
             
         Returns:
-            Résultat de l'envoi
+            Résultat de l'envoi de la notification
         """
         db = next(get_db_session())
-        
         try:
             user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
             if not user:
                 return {"success": False, "error": "Utilisateur introuvable"}
-            
-            # Déterminer le template selon le statut
-            template_key = f"verification_imei_{statut}"
-            
-            # Variables pour le template
-            variables = {
-                "nom_utilisateur": user.nom,
-                "imei": imei,
-                "marque": marque or "Inconnue",
-                "modele": modele or "Inconnu",
-                "date_verification": datetime.now().strftime('%d/%m/%Y à %H:%M'),
-                "raison": raison or "Non spécifiée"
-            }
-            
-            # Rendu du template email
-            template_result = render_notification(template_key, "email", **variables)
+
+            template_result = render_notification(
+                "email_verification_link",
+                "email", 
+                nom_utilisateur=user.nom,
+                verification_url=verification_url
+            )
             
             if not template_result:
-                return {"success": False, "error": f"Template {template_key} introuvable"}
-            
-            # Envoyer l'email
-            email_result = await send_notification_now(
+                return {"success": False, "error": "Template de vérification d'email introuvable"}
+
+            return await send_notification_now(
                 user_id=user_id,
                 notification_type="email",
                 destinataire=user.email,
                 sujet=template_result["subject"],
                 contenu=template_result["content"]
             )
-            
-            # Envoyer aussi un SMS si le template existe
-            sms_template = render_notification(template_key, "sms", **variables)
-            if sms_template and hasattr(user, 'telephone') and user.telephone:
-                await send_notification_now(
-                    user_id=user_id,
-                    notification_type="sms",
-                    destinataire=user.telephone,
-                    sujet=None,
-                    contenu=sms_template["content"]
-                )
-            
-            return email_result
-            
         except Exception as e:
-            logger.error(f"Erreur notification vérification IMEI: {e}")
+            logger.error(f"Erreur notification de vérification d'email: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    async def notifier_email_verifie(user_id: str) -> Dict[str, Any]:
+        """
+        Notifie l'utilisateur que son email a été vérifié avec succès.
+        
+        Args:
+            user_id: ID de l'utilisateur
+            
+        Returns:
+            Résultat de l'envoi
+        """
+        db = next(get_db_session())
+        try:
+            user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
+            if not user:
+                return {"success": False, "error": "Utilisateur introuvable"}
+
+            template_result = render_notification(
+                "email_verification_succes", 
+                "email", 
+                nom_utilisateur=user.nom
+            )
+            
+            if not template_result:
+                return {"success": False, "error": "Template de succès de vérification introuvable"}
+
+            return await send_notification_now(
+                user_id=user_id,
+                notification_type="email",
+                destinataire=user.email,
+                sujet=template_result["subject"],
+                contenu=template_result["content"]
+            )
+        except Exception as e:
+            logger.error(f"Erreur notification de succès de vérification: {e}")
             return {"success": False, "error": str(e)}
     
     @staticmethod
@@ -447,6 +455,12 @@ async def notifier_rapport_mensuel(user_id: str, rapport: Dict[str, Any]) -> Dic
     Envoie le rapport mensuel d'activité
     """
     return await EIRNotificationService.notifier_rapport_mensuel(user_id, rapport)
+
+async def notifier_verification_email(user_id: str, verification_url: str) -> Dict[str, Any]:
+    return await EIRNotificationService.notifier_verification_email(user_id, verification_url)
+
+async def notifier_email_verifie(user_id: str) -> Dict[str, Any]:
+    return await EIRNotificationService.notifier_email_verifie(user_id)
 
 
 # 📚 Exemples d'utilisation dans les routes API

@@ -135,7 +135,6 @@
   "email_requis": "البريد الإلكتروني مطلوب",
   "email_invalide": "البريد الإلكتروني غير صالح",
   "mot_de_passe_requis": "كلمة المرور مطلوبة",
-
   "nom_complet": "الاسم الكامل",
   "entrer_nom": "أدخل اسمك الكامل",
   "confirmer_mot_de_passe": "تأكيد كلمة المرور",
@@ -250,6 +249,18 @@
   "aucune_recherche_tac": "لا توجد عمليات بحث TAC حتى الآن.",
   "aucune_resultat_trouve": "لم يتم العثور على نتائج",
   "rechercher_par_imei": "بحث حسب IMEI",
-  "rechercher_par_tac": "بحث حسب TAC"
-  
+  "rechercher_par_tac": "بحث حسب TAC",
+  "verifier_email_titre": "التحقق من البريد الإلكتروني",
+  "verifier_email_description": "يرجى التحقق من بريدك الإلكتروني لتأكيد حسابك.",
+  "email_verifie": "البريد الإلكتروني تم التحقق منه",
+  "email_non_verifie": "البريد الإلكتروني غير مؤكد",
+  "verification_reussie": "تم التحقق بنجاح",
+  "token_manquant": "رمز التحقق مفقود",
+  "erreur_verification_email": "خطأ في التحقق من البريد الإلكتروني",
+  "aller_a_connexion": "العودة إلى صفحة تسجيل الدخول",
+  "renvoyer_email": "إعادة إرسال بريد التحقق",
+  "aucun_appareil_trouve": "لم يتم العثور على أي جهاز",
+  "aucun_appareil_description": "لا توجد أجهزة مسجلة في قاعدة البيانات. يرجى تسجيل جهاز جديد.",
+  "entrer_numero_telephone": "أدخل رقم هاتفك",
+  "resultats_non_trouves": "لم يتم العثور على نتائج"
 }

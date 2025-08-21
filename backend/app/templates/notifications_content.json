@@ -65,7 +65,20 @@
       "sms": {
         "content": "📱 EIR Project: Nouvel appareil {marque} {modele} ajouté à votre compte. Consultez votre email pour plus de détails."
       }
+    },
+    "email_verification_link": {
+      "email": {
+        "subject": "🔗 Vérification de votre adresse email",
+        "content": "Bonjour {nom_utilisateur},\n\n🔗 **Veuillez vérifier votre adresse email pour activer votre compte EIR Project**\n\nPour finaliser votre inscription, cliquez sur le lien ci-dessous :\n{verification_url}\n\n⏰ **Ce lien est valide pendant 24 heures.**\n\nSi vous n'avez pas créé de compte, ignorez cet email.\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      }
+    },
+    "email_verification_succes": {
+      "email": {
+        "subject": "✅ Votre adresse email a été vérifiée",
+        "content": "Bonjour {nom_utilisateur},\n\n✅ **Votre adresse email a été vérifiée avec succès !**\n\nVous pouvez maintenant profiter pleinement de toutes les fonctionnalités d'EIR Project.\n\nMerci de nous avoir choisis pour gérer vos équipements mobiles.\n\nL'équipe EIR Project\n\n---\n🔒 EIR Project - Système de gestion des équipements mobiles\n📧 Email automatique généré par le système"
+      }
     }
+
   },
   
   "variables_globales": {

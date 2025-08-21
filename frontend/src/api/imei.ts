@@ -3,7 +3,7 @@ import { handleApiError } from '../lib/api-error'
 import { SearchService } from './index'
 import { IMEIResponse, IMEIDetailsResponse, ApiResponse } from '../types/api'
 
-// Fixed import paths for Vercel deployment - v2
+
 export class IMEIService {
 
 

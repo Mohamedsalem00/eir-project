@@ -12,18 +12,18 @@ export default function AccessDenied({ supportEmail }: AccessDeniedProps) {
   const { t } = useTranslation()
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 via-red-50/30 to-red-100/20 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
-        <div className="mx-auto h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
-          <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 via-red-50/30 to-red-100/20 dark:from-gray-900 dark:via-red-900/20 dark:to-red-900/10 px-4">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+        <div className="mx-auto h-16 w-16 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center mb-6">
+          <svg className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-12.728 12.728M5.636 5.636l12.728 12.728" />
           </svg>
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('acces_refuse')}</h2>
-        <p className="text-gray-700 mb-6">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t('acces_refuse')}</h2>
+        <p className="text-gray-700 dark:text-gray-300 mb-6">
           {t('acces_refuse_description')}
         </p>
-        <p className="text-sm text-gray-500 mb-8">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
           {t('contact_support', { email: supportEmail })}
         </p>
         <div className="flex justify-center">

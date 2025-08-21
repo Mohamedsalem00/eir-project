@@ -4,32 +4,31 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useTranslation } from '@/hooks/useTranslation'
-import { IMEIService, IMEIResponse, RateLimitInfo, authService } from '../api' // Import authService
+import { IMEIService, IMEIResponse, RateLimitInfo, authService } from '../api'
 import { ImeiSearchResults } from './ImeiSearchResults'
 
-// A simple skeleton loader component for the results card
 function ResultSkeleton() {
   return (
     <div className="max-w-4xl mx-auto mb-16">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6 sm:p-8 animate-pulse">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 pb-6 border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8 animate-pulse">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
                 <div>
-                    <div className="h-7 bg-gray-200 rounded w-48 mb-2"></div>
-                    <div className="h-6 bg-gray-300 rounded w-36"></div>
+                    <div className="h-7 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-2"></div>
+                    <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-36"></div>
                 </div>
             </div>
-            <div className="mt-4 sm:mt-0 h-8 bg-gray-200 rounded-full w-24"></div>
+            <div className="mt-4 sm:mt-0 h-8 bg-gray-200 dark:bg-gray-700 rounded-full w-24"></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                <div className="h-6 bg-gray-300 rounded w-3/4"></div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-2">
+                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+                <div className="h-6 bg-gray-300 dark:bg-gray-500 rounded w-3/4"></div>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                <div className="h-6 bg-gray-300 rounded w-3/4"></div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-2">
+                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
+                <div className="h-6 bg-gray-300 dark:bg-gray-500 rounded w-3/4"></div>
             </div>
           </div>
         </div>
@@ -37,8 +36,6 @@ function ResultSkeleton() {
   )
 }
 
-
-// Define a type for the validation result to ensure consistency
 type ValidationState = {
   isValid: boolean;
   cleanImei?: string | null;
@@ -46,7 +43,7 @@ type ValidationState = {
 }
 
 export function ImeiSearchForm() {
-  const { user } = useAuth() // Get user from the context
+  const { user } = useAuth()
   const { currentLang } = useLanguage()
   const { t } = useTranslation()
   
@@ -65,7 +62,6 @@ export function ImeiSearchForm() {
     setValidation(validationResult)
   }, [imei])
 
-  // This effect now only runs for visitors
   useEffect(() => {
     if (!user) {
       setSearchLimitReached(IMEIService.isSearchLimitReached())
@@ -74,7 +70,6 @@ export function ImeiSearchForm() {
       }, 60000)
       return () => clearInterval(interval)
     } else {
-      // If a user is logged in, ensure the limit is turned off
       setSearchLimitReached(false)
     }
   }, [user])
@@ -87,7 +82,6 @@ export function ImeiSearchForm() {
   }
 
   const searchIMEI = async () => {
-    // For visitors, check the search limit. For users, this condition is always false.
     if (!user && searchLimitReached) {
       setError(t('limite_recherches_atteinte'))
       return
@@ -99,13 +93,9 @@ export function ImeiSearchForm() {
     setResult(null)
     setRateLimitInfo(null)
 
-    // Get token from the authService if the user exists
     const authToken = user ? authService.getAuthToken() : undefined;
-
-    // Pass the token to the service. It will be undefined for visitors.
     const response = await IMEIService.getIMEIDetails(validation.cleanImei, authToken, currentLang)
 
-    // Only update search limit for visitors
     if (!user) {
       setSearchLimitReached(IMEIService.isSearchLimitReached())
     }
@@ -130,22 +120,21 @@ export function ImeiSearchForm() {
     setRateLimitInfo(null)
   }
 
-  // The search button is disabled for visitors if the limit is reached
   const canSearch = validation.isValid && !isLoading && (!searchLimitReached || !!user)
 
   return (
     <>
       <section className="max-w-4xl mx-auto mb-12 sm:mb-16">
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 sm:p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6 sm:p-8">
           <div className="text-center mb-6">
-            <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium mb-4">
+            <div className="inline-flex items-center px-3 py-1 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium mb-4">
               <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
               </svg>
               {t('recherche_imei')}
             </div>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-3">{t('verification_imei')}</h2>
-            <p className="text-base text-gray-600 max-w-2xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-3">{t('verification_imei')}</h2>
+            <p className="text-base text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               {t('invite_imei')}
             </p>
           </div>
@@ -153,7 +142,7 @@ export function ImeiSearchForm() {
           <div className="max-w-2xl mx-auto">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   {t('libelle_imei')} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -164,10 +153,10 @@ export function ImeiSearchForm() {
                     placeholder={t('entrer_imei')}
                     className={`w-full px-4 py-3 border rounded-lg text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                       validation.error && imei.length > 0
-                        ? 'border-red-300 bg-red-50 text-red-900' 
+                        ? 'border-red-300 bg-red-50 text-red-900 dark:bg-red-900/20 dark:text-red-300' 
                         : validation.isValid 
-                          ? 'border-green-300 bg-green-50 text-green-900' 
-                          : 'border-gray-300 bg-white hover:border-gray-400'
+                          ? 'border-green-300 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-300' 
+                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:border-gray-400 dark:hover:border-gray-500'
                     }`}
                     maxLength={15}
                     disabled={isLoading}
@@ -192,8 +181,8 @@ export function ImeiSearchForm() {
                   )}
                 </div>
                 <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="text-gray-500">{t('format_imei')}</span>
-                  <span className={`font-medium ${imei.length === 15 ? 'text-green-600' : 'text-gray-400'}`}>
+                  <span className="text-gray-500 dark:text-gray-400">{t('format_imei')}</span>
+                  <span className={`font-medium ${imei.length === 15 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
                     {imei.length}/15
                   </span>
                 </div>
@@ -205,7 +194,7 @@ export function ImeiSearchForm() {
                 className={`w-full py-3 px-6 rounded-lg font-semibold text-base transition-colors ${
                   canSearch 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 }`}
               >
                 {isLoading ? (
@@ -231,7 +220,7 @@ export function ImeiSearchForm() {
               <div className="mt-6 text-center">
                 <button 
                   onClick={resetSearch} 
-                  className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+                  className="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg font-medium transition-colors"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

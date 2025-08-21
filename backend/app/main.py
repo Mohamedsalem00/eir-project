@@ -909,15 +909,15 @@ async def enregistrer_appareil(
         "message": "Appareil créé avec extraction automatique du numéro de série depuis l'IMEI"
     }
 
-# main.py (or wherever your endpoint is)
+
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional # Make sure to import Optional
 
-# ... other imports
 
-# Add 'q: Optional[str] = None' to accept a search query
+
+
 @app.get("/recherches", tags=["Historique de Recherche"])
 def list_searches(
     skip: int = 0,
@@ -935,23 +935,75 @@ def list_searches(
             detail="Permission refusée: Impossible de lire l'historique des recherches"
         )
 
+    filter_context = PermissionManager.get_data_filter_context(user)
+    portee = filter_context.get("portee_donnees")
+    # Handle both enum and string values for portee_donnees
+    if hasattr(portee, 'value'):
+        portee_value = portee.value
+    else:
+        portee_value = str(portee)
+    marques_autorisees = filter_context.get("marques_autorisees", [])
+    plages_imei_autorisees = filter_context.get("plages_imei_autorisees", [])
+    organisation = filter_context.get("organisation")
+    est_admin = filter_context.get("est_admin", False)
+
     query = db.query(Recherche)
 
-    # Apply permission-based filtering
-    if user.type_utilisateur != "administrateur" and user.niveau_acces != "admin":
-        if user.portee_donnees == "own" or user.niveau_acces == "limited":
-            query = query.filter(Recherche.utilisateur_id == user.id)
+    # Apply data scope filtering
+    if portee_value == "aucun":
+        # No access
+        return {"searches": [], "total_count": 0}
+    elif est_admin or portee_value == "tout":
+        # Admins see all
+        pass
+    elif portee_value == "personnel":
+        query = query.filter(Recherche.utilisateur_id == user.id)
+    elif portee_value == "organisation" and organisation:
+        # Filter by users in the same organization (requires organisation field on Utilisateur)
+        from .models.utilisateur import Utilisateur as UserModel
+        org_user_ids = [u.id for u in db.query(UserModel).filter(UserModel.organisation == organisation).all()]
+        query = query.filter(Recherche.utilisateur_id.in_(org_user_ids))
+    elif portee == "marques" and marques_autorisees:
+        # Filter by IMEIs belonging to allowed brands (requires IMEI->Appareil->marque join)
+        from .models.imei import IMEI as IMEIModel
+        from .models.appareil import Appareil as DeviceModel
+        imei_subq = db.query(IMEIModel.numero_imei).join(DeviceModel, IMEIModel.appareil_id == DeviceModel.id).filter(DeviceModel.marque.in_(marques_autorisees)).subquery()
+        query = query.filter(Recherche.imei_recherche.in_(imei_subq))
+    elif portee == "plages" and plages_imei_autorisees:
+        # Filter by IMEIs matching allowed ranges
+        # This requires custom logic, so we fetch all and filter in Python
+        all_searches = query.order_by(Recherche.date_recherche.desc()).all()
+        def imei_in_ranges(imei):
+            for rule in plages_imei_autorisees:
+                from .core.permissions import PermissionManager
+                if PermissionManager._imei_matches_rule(imei, rule):
+                    return True
+            return False
+        filtered_searches = [s for s in all_searches if imei_in_ranges(s.imei_recherche)]
+        total_count = len(filtered_searches)
+        searches = filtered_searches[skip:skip+limit]
+        return {
+            "searches": [
+                {
+                    "id": str(search.id),
+                    "date_recherche": format_datetime(search.date_recherche),
+                    "imei_recherche": search.imei_recherche,
+                    "utilisateur_id": str(search.utilisateur_id) if search.utilisateur_id else None
+                }
+                for search in searches
+            ],
+            "total_count": total_count
+        }
 
-    # <-- ADD THIS BLOCK to filter by the search term if it exists
+    # Filter by search term if provided
     if q:
-        # Use 'like' to find any IMEI containing the search query
         query = query.filter(Recherche.imei_recherche.like(f"%{q}%"))
-    
+
     # Get the total count before pagination for accurate UI
     total_count = query.count()
 
     searches = query.order_by(Recherche.date_recherche.desc()).offset(skip).limit(limit).all()
-    
+
     return {
         "searches": [
             {
@@ -962,7 +1014,7 @@ def list_searches(
             }
             for search in searches
         ],
-        "total_count": total_count # <-- ADD THIS for frontend pagination
+        "total_count": total_count
     }
 
 # Enhanced device listing with granular filtering

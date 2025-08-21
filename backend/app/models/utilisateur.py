@@ -13,8 +13,10 @@ class Utilisateur(Base):
     nom = Column(String(100))
     email = Column(String(100), unique=True, index=True)
     mot_de_passe = Column(Text)
-    type_utilisateur = Column(String(50))
+    type_utilisateur = Column(String(50)) # Administrateur, Utilisateur_authentifie ou operateur
     date_creation = Column(DateTime, default=datetime.now, nullable=False)
+    email_valide = Column(Boolean, default=False)  # Email must be verified
+    numero_telephone = Column(String(30), nullable=True)  # Phone number, can be null
     
     # Champs essentiels de contrôle d'accès (noms français correspondant au schéma DB)
     niveau_acces = Column(String(50), default="basique")  # basique, limite, standard, eleve, admin
@@ -32,3 +34,4 @@ class Utilisateur(Base):
     audit_logs = relationship("JournalAudit", back_populates="utilisateur")
     import_exports = relationship("ImportExport", back_populates="utilisateur")
     password_resets = relationship("PasswordReset", back_populates="utilisateur")
+    email_verifications = relationship("EmailVerification", back_populates="utilisateur")

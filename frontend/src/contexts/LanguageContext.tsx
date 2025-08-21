@@ -1,3 +1,5 @@
+// src/contexts/LanguageContext.tsx
+
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
@@ -26,7 +28,8 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 const SUPPORTED_LANGUAGES: Language[] = ['fr', 'en', 'ar']
 const DEFAULT_LANGUAGE: Language = 'fr'
-const STORAGE_KEY = 'preferred-language'
+// 👇 THE FIX: Ensure this key matches the one in layout.tsx
+const STORAGE_KEY = 'eir-language' 
 
 interface LanguageProviderProps {
   children: ReactNode
@@ -38,7 +41,6 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   const [isLangLoaded, setIsLangLoaded] = useState(false)
 
   useEffect(() => {
-    // Charger la langue depuis le localStorage
     if (typeof window !== 'undefined') {
       const savedLang = localStorage.getItem(STORAGE_KEY) as Language
       if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang)) {
@@ -55,7 +57,6 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
         localStorage.setItem(STORAGE_KEY, lang)
       }
       
-      // Mettre à jour la direction du texte pour l'arabe
       if (typeof document !== 'undefined') {
         document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
         document.documentElement.lang = lang
@@ -64,7 +65,6 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   }
 
   useEffect(() => {
-    // Définir la direction initiale
     if (typeof document !== 'undefined') {
       document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr'
       document.documentElement.lang = currentLang
@@ -75,7 +75,6 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     const translation = translations[currentLang]
     let text = translation[key as keyof typeof translation] || key
 
-    // Remplacer les paramètres dans le texte (ex: {imei})
     if (params && typeof text === 'string') {
       Object.entries(params).forEach(([paramKey, paramValue]) => {
         text = text.replace(`{${paramKey}}`, String(paramValue))
@@ -93,7 +92,6 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   }
 
   if (!isLangLoaded) {
-    // Optionally, show a loader or nothing until language is loaded
     return null
   }
   return (

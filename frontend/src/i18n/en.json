@@ -248,6 +248,18 @@
   "aucune_recherche_historique": "No search history yet.",
   "aucune_resultat_trouve": "No Results Found",
   "rechercher_par_imei": "Search by IMEI",
-  "rechercher_par_tac": "Search by TAC"
-
+  "rechercher_par_tac": "Search by TAC",
+  "verifier_email_titre": "Email Verification",
+  "verifier_email_description": "Please check your email to confirm your account.",
+  "email_verifie": "Email verified",
+  "email_non_verifie": "Email not verified",
+  "token_manquant": "Verification token is missing",
+  "erreur_verification_email": "Error verifying email",
+  "aller_a_connexion": "Go to login page",
+  "renvoyer_email": "Resend verification email",
+  "aucun_appareil_trouve": "No devices found",
+  "aucun_appareil_description": "No devices registered in the database. Please register a new device.",
+  "entrer_numero_telephone": "Enter your phone number",
+  "verification_reussie": "Verification successful",
+  "resultats_non_trouves": "No results found"
 }

@@ -17,6 +17,7 @@ export interface RegisterRequest {
   email: string
   mot_de_passe: string
   type_utilisateur: string
+  numero_telephone?: string
 }
 
 export interface RegisterResponse {
@@ -24,6 +25,7 @@ export interface RegisterResponse {
   nom: string
   email: string
   type_utilisateur: string
+
 }
 
 export interface UserProfile {
@@ -31,6 +33,7 @@ export interface UserProfile {
   nom: string
   email: string
   type_utilisateur: string
+  numero_telephone?: string
   date_creation?: string
   derniere_connexion?: string
   niveau_acces?: string
@@ -51,7 +54,7 @@ export interface UserProfile {
 
 export interface PasswordResetRequest {
   email: string
-  methode_verification: 'EMAIL' | 'SMS'
+  methode_verification: 'email' | 'sms'
   telephone?: string
 }
 
@@ -112,7 +115,8 @@ export class AuthService {
         `${this.baseUrl}/inscription`,
         userData
       )
-      return response.data
+      return response.data 
+
     } catch (error: any) {
       throw handleApiError(error)
     }

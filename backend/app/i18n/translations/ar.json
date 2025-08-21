@@ -317,5 +317,17 @@
   "_validation_imei": "رسائل التحقق من IMEI",
   "numero_imei_requis": "رقم IMEI مطلوب",
   "format_imei_invalide": "تنسيق IMEI غير صالح (مطلوب 14 أو 15 رقم)",
-  "imei_deja_existe": "هذا IMEI موجود بالفعل"
+  "imei_deja_existe": "هذا IMEI موجود بالفعل",
+  "email_ou_mot_de_passe_incorrect": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+    "email_deja_enregistre": "هذا البريد الإلكتروني مسجل بالفعل في النظام",
+  "inscription_admin_interdite": "التسجيل كمسؤول غير مصرح به.",
+  "inscription_reussie_verifier_email": "تم التسجيل بنجاح. يرجى التحقق من بريدك الإلكتر الإلكتروني لتفعيل حسابك.",
+  "erreur_interne_serveur": "خطأ داخلي في الخادم",
+  "token_verification_invalide": "رمز التحقق غير صالح",
+  "lien_verification_utilise": "لقد تم بالفعل استخدام رابط التحقق هذا",
+  "lien_verification_expire": "لقد انتهت صلاحية رابط التحقق هذا",
+  "email_verifie_succes_connexion": "تم التحقق من البريد الإلكتروني بنجاح. يمكنك الآن تسجيل الدخول.",
+  "email_requis": "البريد الإلكتروني مطلوب",
+  "email_deja_verifie": "تم التحقق من هذا البريد الإلكتروني بالفعل",
+  "nouvel_email_verification_envoye": "تم إرسال بريد إلكتروني جديد للتحقق."
 }

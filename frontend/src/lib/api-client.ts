@@ -1,18 +1,20 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios'
+import { useLanguage } from '../contexts/LanguageContext'
 
 class ApiClient {
   private client: AxiosInstance
 
   constructor() {
     const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-    console.log('🔧 API Client initialized with baseURL:', baseURL)
-    
+    const timeout = process.env.NEXT_PUBLIC_API_TIMEOUT ? parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT, 10) : 30000
+    console.log('🔧 API Client initialized with baseURL:', baseURL, 'timeout:', timeout)
+
     this.client = axios.create({
       baseURL,
-      timeout: 10000,
+      timeout,
       headers: {
-        'Content-Type': 'application/json',
-        'Accept-Language': 'fr'
+        'Content-Type': 'application/json'
+        // Accept-Language will be set dynamically per request
       }
     })
 
@@ -29,8 +31,14 @@ class ApiClient {
           config.headers.Authorization = `Bearer ${token}`
         }
 
+        // Set Accept-Language header from localStorage (set by LanguageContext)
+        if (typeof window !== 'undefined') {
+          const lang = localStorage.getItem('eir-language') || 'fr'
+          config.headers['Accept-Language'] = lang
+        }
+
         if (process.env.NODE_ENV === 'development') {
-          console.log('🚀 API Request:', config.method?.toUpperCase(), config.url)
+          console.log('🚀 API Request:', config.method?.toUpperCase(), config.url, 'Accept-Language:', config.headers['Accept-Language'])
         }
         
         return config

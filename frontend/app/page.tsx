@@ -32,15 +32,13 @@ export default function Home() {
   const [timeRemaining, setTimeRemaining] = useState<string>('')
   const [searchLimitReached, setSearchLimitReached] = useState(false)
   
-  // State for API data, which is now the single source of truth
+  // State for API data
   const [stats, setStats] = useState<PublicStatsResponse | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsError, setStatsError] = useState<string | null>(null)
   
-  // The API connection status is derived from the stats fetch
   const isApiConnected = stats !== null && statsError === null;
     
-  // Function to fetch stats, wrapped in useCallback for stability
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     setStatsError(null);
@@ -59,7 +57,6 @@ export default function Home() {
     setStatsLoading(false);
   }, [currentLang, t]);
 
-  // Fetch stats on initial load or when language changes
   useEffect(() => {
     loadStats();
   }, [loadStats]);
@@ -77,27 +74,19 @@ export default function Home() {
   }, [])
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 ${currentLang === 'ar' ? 'rtl' : 'ltr'}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-900 dark:via-blue-900/20 dark:to-indigo-900/10 ${currentLang === 'ar' ? 'rtl' : 'ltr'}`}>
       <Navigation />
 
       <main className="container mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <HeroSection
-
-t={t}
-
-currentLang={currentLang}
-
-isMounted={isMounted}
-
-searchLimitReached={searchLimitReached}
-
-searchCount={searchCount}
-
-timeRemaining={timeRemaining}
-
-getSearchLimit={SearchService.getSearchLimit}
-
-/>
+          t={t}
+          currentLang={currentLang}
+          isMounted={isMounted}
+          searchLimitReached={searchLimitReached}
+          searchCount={searchCount}
+          timeRemaining={timeRemaining}
+          getSearchLimit={SearchService.getSearchLimit}
+        />
 
         <ImeiSearchForm />
 
@@ -118,23 +107,16 @@ getSearchLimit={SearchService.getSearchLimit}
           onRetry={loadStats}
         />
         }
-        {/* Show the popup automatically for visitors when search limit is reached */}
       {!user && (
         <SearchLimitPopup currentLang={currentLang} t={t} open={searchLimitReached} onClose={() => setSearchLimitReached(false)} />
       )}
-        {/* Conditionally render SearchLimitDebug only in development mode */}
       </main>
 
       <Footer
-
-title={t('titre')}
-
-copyright={`© 2025 Projet EIR. ${t('tous_droits_reserves')}`}
-
-builtWith={t('construit_avec')}
-
-/>
-
+        title={t('titre')}
+        copyright={`© 2025 Projet EIR. ${t('tous_droits_reserves')}`}
+        builtWith={t('construit_avec')}
+      />
       
       {process.env.NODE_ENV === 'development' && <SearchLimitDebug />}
     </div>

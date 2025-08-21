@@ -247,5 +247,17 @@
   "aucune_recherche_historique": "Aucune recherche dans l'historique pour le moment.",
   "aucune_resultat_trouve": "Aucun résultat trouvé.",
   "rechercher_par_imei": "Recherche par IMEI",
-  "rechercher_par_tac": "Recherche par TAC"
+  "rechercher_par_tac": "Recherche par TAC",
+  "verifier_email_titre": "Vérification de l'e-mail",
+  "verifier_email_description": "Veuillez vérifier votre e-mail pour confirmer votre compte.",
+  "email_verifie": "E-mail vérifié",
+  "token_manquant": "Le jeton de vérification est manquant.",
+  "erreur_verification_email": "Erreur lors de la vérification de l'e-mail.",
+  "aller_a_connexion": "Retour à la page de connexion",
+  "renvoyer_email": "Renvoyer l'e-mail de vérification",
+ "aucun_appareil_trouve": "Aucun appareil trouvé",
+  "aucun_appareil_description": "Aucun appareil enregistré dans la base de données. Veuillez enregistrer un nouvel appareil.",
+  "entrer_numero_telephone": "Entrez votre numéro de téléphone",
+  "verification_reussie": "Vérification réussie",
+  "resultats_non_trouves": "Aucun résultat trouvé."
 }

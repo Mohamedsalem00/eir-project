@@ -21,28 +21,31 @@ export function handleApiError(error: AxiosError<ErrorResponse>): ApiError {
 
     switch (status) {
       case 401:
-        return new ApiError('Authentification requise', status)
-      
+        return new ApiError(data?.detail || 'Authentification requise', status)
+
       case 403:
-        return new ApiError('Accès refusé', status)
-      
+        if (data?.detail === 'EMAIL_NON_VERIFIE') {
+          return new ApiError('EMAIL_NON_VERIFIE', status)
+        }
+        return new ApiError(data?.detail || 'Accès refusé', status)
+
       case 404:
-        return new ApiError('Ressource non trouvée', status)
-      
+        return new ApiError(data?.detail || 'Ressource non trouvée', status)
+
       case 422:
-        return new ApiError('Données invalides', status)
-      
+        return new ApiError(data?.detail || 'Données invalides', status)
+
       case 429:
         const rateLimitInfo: RateLimitInfo = {
-          message: 'Limite de taux atteinte',
+          message: data?.detail || 'Limite de taux atteinte',
           retryAfter: data?.retry_after || '15 minutes',
           limit: data?.limit || 'Non spécifié'
         }
-        return new ApiError('Limite de recherche atteinte', status, rateLimitInfo)
-      
+        return new ApiError(data?.detail || 'Limite de recherche atteinte', status, rateLimitInfo)
+
       case 500:
-        return new ApiError('Erreur interne du serveur', status)
-      
+        return new ApiError(data?.detail || 'Erreur interne du serveur', status)
+
       default:
         return new ApiError(data?.detail || 'Erreur inconnue', status)
     }

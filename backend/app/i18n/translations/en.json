@@ -317,5 +317,19 @@
   "_validation_imei": "IMEI validation messages",
   "numero_imei_requis": "IMEI number required",
   "format_imei_invalide": "Invalid IMEI format (14 or 15 digits required)",
-  "imei_deja_existe": "This IMEI already exists"
+  "imei_deja_existe": "This IMEI already exists",
+  "email_ou_mot_de_passe_incorrect": "Incorrect email or password",
+
+    "email_deja_enregistre": "This email is already registered in the system",
+  "inscription_admin_interdite": "Registration as an administrator is not authorized.",
+  "inscription_reussie_verifier_email": "Registration successful. Please check your email to activate your account.",
+  "erreur_interne_serveur": "Internal server error",
+  "token_verification_invalide": "Invalid verification token",
+  "lien_verification_utilise": "This verification link has already been used",
+  "lien_verification_expire": "The verification link has expired",
+  "email_verifie_succes_connexion": "Email verified successfully. You can now log in.",
+  "email_requis": "Email is required",
+  "email_deja_verifie": "This email has already been verified",
+  "nouvel_email_verification_envoye": "A new verification email has been sent."
+
 }

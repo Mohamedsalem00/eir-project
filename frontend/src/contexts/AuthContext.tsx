@@ -24,7 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check if user is already logged in (from localStorage)
     const token = authService.getAuthToken()
     const userData = authService.getUserData()
     
@@ -41,20 +40,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const loginData: LoginRequest = { email, mot_de_passe: password }
       const loginResponse = await authService.login(loginData)
-      
-      // Store token
+
       authService.setAuthToken(loginResponse.access_token)
-      
-      // Fetch user profile
+
       const userProfile = await authService.getProfile()
       setUser(userProfile)
-      
-      // Store user data
       authService.setUserData(userProfile)
-      
+
       return true
     } catch (err: any) {
-      setError(err.message || 'Login failed')
+      // Handle FastAPI HTTPException with status and detail
+      if (err.response && err.response.status === 403 && err.response.data?.detail === 'EMAIL_NON_VERIFIE') {
+        setError('EMAIL_NON_VERIFIE');
+      } else if (err.message === 'EMAIL_NON_VERIFIE') {
+        setError('EMAIL_NON_VERIFIE');
+      } else {
+        // Fallback to the existing error message for all other cases
+        setError(err.message || 'Login failed');
+      }
       return false
     } finally {
       setIsLoading(false)
@@ -66,10 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     
     try {
+      // The register API call now just registers the user.
+      // It does NOT log them in.
       await authService.register(userData)
-      
-      // Registration successful, now login
-      return await login(userData.email, userData.mot_de_passe)
+      // Return true to signal the form to show the verification notice.
+      return true 
     } catch (err: any) {
       setError(err.message || 'Registration failed')
       return false
@@ -80,12 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      // Call logout API if user is authenticated
       if (authService.isAuthenticated()) {
         await authService.logout()
       }
     } catch (error) {
-      // Continue with logout even if API call fails
       console.warn('Logout API call failed:', error)
     } finally {
       setUser(null)

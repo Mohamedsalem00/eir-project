@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime, timezone
 import uuid
+import os
 import logging
 import secrets
 import random
@@ -16,62 +17,51 @@ from ..schemas.password_reset import (
 from ..models.utilisateur import Utilisateur
 from ..models.password_reset import PasswordReset
 from ..models.journal_audit import JournalAudit
-from ..services.eir_notifications import EIRNotificationService, envoyer_notification_bienvenue
+from ..models.email_verification import EmailVerification
+from ..services.eir_notifications import EIRNotificationService
 from ..services.sms_service import sms_service
 from ..core.i18n_deps import get_current_translator
 
-# Configuration du logger
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/authentification", tags=["Authentification"])
 
-@router.post("/inscription", response_model=ReponseUtilisateur)
-async def register(user_data: CreationUtilisateur, request: Request, db: Session = Depends(get_db)):
-    """
-    Inscription d'un nouvel utilisateur
-    
-    Crée un nouveau compte utilisateur avec les informations fournies.
-    L'email doit être unique dans le système.
-    
-    Args:
-        user_data: Données d'inscription de l'utilisateur
-        request: Objet de requête FastAPI
-        db: Session de base de données
-    
-    Returns:
-        ReponseUtilisateur: Informations de l'utilisateur créé
-    
-    Raises:
-        HTTPException: Si l'email est déjà utilisé (400)
-    """
+@router.post("/inscription")
+async def register(user_data: CreationUtilisateur, request: Request, db: Session = Depends(get_db), translator = Depends(get_current_translator)):
     try:
-        # Vérifier si l'utilisateur existe déjà
         existing_user = db.query(Utilisateur).filter(Utilisateur.email == user_data.email).first()
         if existing_user:
-            logger.warning(f"Tentative d'inscription avec email existant: {user_data.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cet email est déjà enregistré dans le système"
+                detail=translator.translate("email_deja_enregistre")
+            )
+
+        if user_data.type_utilisateur == "administrateur":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=translator.translate("inscription_admin_interdite")
             )
         
-        # Créer un nouveau utilisateur
+        default_access_level = "standard"
+        if user_data.type_utilisateur == "operateur":
+            default_access_level = "eleve"
+        
         hashed_password = get_password_hash(user_data.mot_de_passe)
-        # Si l'utilisateur est admin, il n'est pas actif par défaut
-        est_actif = False if user_data.type_utilisateur == "administrateur" else True
         user = Utilisateur(
             id=uuid.uuid4(),
             nom=user_data.nom,
             email=user_data.email,
             mot_de_passe=hashed_password,
             type_utilisateur=user_data.type_utilisateur,
-            est_actif=est_actif
+            niveau_acces=default_access_level,
+            est_actif=True,
+            email_valide=False,
+            numero_telephone=getattr(user_data, 'numero_telephone', None)
         )
-        
         db.add(user)
         db.commit()
         db.refresh(user)
-        
-        # Enregistrer l'inscription dans le journal d'audit
+
         audit = JournalAudit(
             id=uuid.uuid4(),
             action=f"Inscription utilisateur: {user.email}",
@@ -80,136 +70,177 @@ async def register(user_data: CreationUtilisateur, request: Request, db: Session
         )
         db.add(audit)
         db.commit()
-        
-        # 📧 Send welcome email notification
+
         try:
-            await envoyer_notification_bienvenue(str(user.id))
-            logger.info(f"Welcome email sent to: {user.email}")
+            token = secrets.token_urlsafe(32)
+            verification = EmailVerification(
+                utilisateur_id=user.id,
+                token=token,
+                date_expiration=datetime.now(timezone.utc) + timedelta(hours=24)
+            )
+            db.add(verification)
+            db.commit()
+
+            origin = request.headers.get("origin")
+            allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+            
+            base_url = allowed_origins[0] if allowed_origins and allowed_origins[0] else "https://votre-site.com"
+            if origin and origin in allowed_origins:
+                base_url = origin
+
+            verification_url = f"{base_url}/verify-email?token={token}"
+
+            await EIRNotificationService.notifier_verification_email(
+                user_id=str(user.id),
+                verification_url=verification_url
+            )
+            logger.info(f"Email de vérification envoyé à : {user.email}")
         except Exception as e:
-            logger.warning(f"Failed to send welcome email to {user.email}: {str(e)}")
-        
-        logger.info(f"Nouvel utilisateur inscrit: {user.email}")
-        
-        return ReponseUtilisateur(
-            id=str(user.id),
-            nom=user.nom,
-            email=user.email,
-            type_utilisateur=user.type_utilisateur
-        )
+            logger.warning(f"Échec de l'envoi de l'email de vérification à {user.email}: {str(e)}")
+
+        logger.info(f"Nouvel utilisateur inscrit (non validé) : {user.email}")
+
+        return {
+            "message": translator.translate("inscription_reussie_verifier_email"),
+            "email": user.email
+        }
         
     except HTTPException:
-        # Re-lancer les exceptions HTTP
         raise
     except Exception as e:
         logger.error(f"Erreur lors de l'inscription: {str(e)}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne du serveur lors de l'inscription"
+            detail=translator.translate("erreur_interne_serveur")
         )
+
+@router.get("/verify-email")
+async def verify_email(token: str, db: Session = Depends(get_db), translator = Depends(get_current_translator)):
+    verification = db.query(EmailVerification).filter(EmailVerification.token == token).first()
+    if not verification:
+        raise HTTPException(status_code=400, detail=translator.translate("token_verification_invalide"))
+    if verification.used:
+        raise HTTPException(status_code=400, detail=translator.translate("lien_verification_utilise"))
+    
+    date_exp = verification.date_expiration
+    if date_exp.tzinfo is None:
+        date_exp = date_exp.replace(tzinfo=timezone.utc)
+    if date_exp < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail=translator.translate("lien_verification_expire"))
+
+    user = db.query(Utilisateur).filter(Utilisateur.id == verification.utilisateur_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=translator.translate("utilisateur_non_trouve"))
+    
+    user.email_valide = True
+    verification.used = True
+    db.commit()
+    
+    try:
+        await EIRNotificationService.notifier_email_verifie(str(user.id))
+    except Exception as e:
+        logger.warning(f"Erreur lors de l'envoi de la notification de succès de vérification: {str(e)}")
+        
+    return {"message": translator.translate("email_verifie_succes_connexion")}
+
+@router.post("/resend-verification-email")
+async def resend_verification_email(data: dict, request: Request, db: Session = Depends(get_db), translator = Depends(get_current_translator)):
+    email = data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail=translator.translate("email_requis"))
+    
+    user = db.query(Utilisateur).filter(Utilisateur.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=translator.translate("utilisateur_non_trouve"))
+    if user.email_valide:
+        raise HTTPException(status_code=400, detail=translator.translate("email_deja_verifie"))
+
+    db.query(EmailVerification).filter(
+        EmailVerification.utilisateur_id == user.id,
+        EmailVerification.used == False
+    ).update({"used": True})
+    
+    token = secrets.token_urlsafe(32)
+    verification = EmailVerification(
+        utilisateur_id=user.id,
+        token=token,
+        date_expiration=datetime.now(timezone.utc) + timedelta(hours=24)
+    )
+    db.add(verification)
+    db.commit()
+
+    origin = request.headers.get("origin")
+    allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    base_url = allowed_origins[0] if allowed_origins and allowed_origins[0] else "https://eir-project.vercel.app"
+    if origin and origin in allowed_origins:
+        base_url = origin
+    verification_url = f"{base_url}/verify-email?token={token}"
+
+    try:
+        await EIRNotificationService.notifier_verification_email(str(user.id), verification_url=verification_url)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=translator.translate("erreur_envoi_email"))
+        
+    return {"message": translator.translate("nouvel_email_verification_envoye")}
+
 
 
 @router.post("/connexion", response_model=Jeton)
-async def login(user_credentials: ConnexionUtilisateur, request: Request, db: Session = Depends(get_db)):
+async def login(user_credentials: ConnexionUtilisateur, request: Request, db: Session = Depends(get_db), translator = Depends(get_current_translator)):
     """
     Connexion utilisateur
-    
-    Authentifie un utilisateur avec son email et mot de passe.
-    Retourne un token JWT valide pour l'accès aux ressources protégées.
-    
-    Args:
-        user_credentials: Informations de connexion (email et mot de passe)
-        request: Objet de requête FastAPI
-        db: Session de base de données
-    
-    Returns:
-        Jeton: Token d'accès JWT et type de token
-    
-    Raises:
-        HTTPException: Si les identifiants sont incorrects (401)
     """
     try:
         logger.info(f"Tentative de connexion pour l'email: {user_credentials.email}")
-        
+
         user = db.query(Utilisateur).filter(Utilisateur.email == user_credentials.email).first()
-        
+
         if not user:
             logger.warning(f"Tentative de connexion avec email inexistant: {user_credentials.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email ou mot de passe incorrect",
+                detail=translator.translate("email_ou_mot_de_passe_incorrect"),
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
-        logger.debug(f"Utilisateur trouvé: {user.email}")
-        
-        # Vérifier le mot de passe contre le hash stocké en base
+
+        # Vérifier si l'email a été validé
+        if not user.email_valide:
+            logger.warning(f"Tentative de connexion avec email non vérifié: {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="EMAIL_NON_VERIFIE"
+
+            )
+
         password_valid = verify_password(user_credentials.mot_de_passe, user.mot_de_passe)
-        
+
         if not password_valid:
             logger.warning(f"Échec de la vérification du mot de passe pour: {user.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email ou mot de passe incorrect",
+                detail=translator.translate("email_ou_mot_de_passe_incorrect"),
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
-        # Créer le token d'accès
+
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={
-                "sub": str(user.id),
-                "email": user.email,
-                "user_type": user.type_utilisateur
-            },
+            data={"sub": str(user.id), "email": user.email, "user_type": user.type_utilisateur},
             expires_delta=access_token_expires
         )
-        
-        # Enregistrer la connexion dans le journal d'audit
-        audit = JournalAudit(
-            id=uuid.uuid4(),
-            action=f"Connexion utilisateur: {user.email}",
-            date=datetime.now(),
-            utilisateur_id=user.id
-        )
-        db.add(audit)
-        db.commit()
-        
-        # 📧 Send security alert for suspicious activity (example: new IP)
-        try:
-            # You can add logic here to detect suspicious login patterns
-            ip_address = request.client.host if request.client else "unknown"
-            # For now, just log the successful login
-            logger.info(f"Login from IP: {ip_address} for user: {user.email}")
-            
-            # Uncomment to send security alerts for new IPs:
-            await EIRNotificationService.notifier_activite_suspecte(
-                user_id=str(user.id),
-                activite="Connexion depuis nouvelle IP",
-                details={
-                    "ip_address": ip_address,
-                    "user_agent": request.headers.get("user-agent", "unknown"),
-                    "description": f"Connexion réussie depuis {ip_address}"
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Failed to process login security check: {str(e)}")
-        
+
         logger.info(f"Connexion réussie pour l'utilisateur: {user.email}")
-        
-        return {
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
-        
-    except HTTPException:
-        # Re-lancer les exceptions HTTP
-        raise
+
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except HTTPException as http_exc:
+        # Propager l'exception HTTP pour que FastAPI gère le code et le message
+        raise http_exc
     except Exception as e:
         logger.error(f"Erreur lors de la connexion: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne du serveur lors de la connexion"
+            detail=translator.translate("erreur_interne_serveur")
         )
 
 @router.get("/profile", response_model=ProfilUtilisateurDetaille)

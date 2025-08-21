@@ -101,6 +101,7 @@ DROP TABLE IF EXISTS recherche;
 DROP TABLE IF EXISTS sim;
 DROP TABLE IF EXISTS imei;
 DROP TABLE IF EXISTS appareil;
+DROP TABLE IF EXISTS email_verification;
 DROP TABLE IF EXISTS utilisateur;
 
 -- Drop indexes explicitly (if they exist independently)
@@ -124,6 +125,9 @@ DROP INDEX IF EXISTS idx_tac_type_appareil;
 DROP INDEX IF EXISTS idx_tac_sync_log_date;
 DROP INDEX IF EXISTS idx_tac_sync_log_source;
 DROP INDEX IF EXISTS idx_tac_sync_log_status;
+DROP INDEX IF EXISTS idx_email_verification_utilisateur_id;
+DROP INDEX IF EXISTS idx_email_verification_token;
+DROP INDEX IF EXISTS idx_email_verification_expiration;
 
 -- =============================================
 -- CREATE TABLES
@@ -136,6 +140,8 @@ CREATE TABLE public.utilisateur (
     email VARCHAR(100) UNIQUE,
     mot_de_passe TEXT,
     type_utilisateur VARCHAR(50),
+    email_valide BOOLEAN DEFAULT FALSE,
+    numero_telephone VARCHAR(30) NULL,
     -- Champs essentiels de contrôle d'accès
     niveau_acces VARCHAR(50) DEFAULT 'basique',
     portee_donnees VARCHAR(50) DEFAULT 'personnel',
@@ -145,6 +151,25 @@ CREATE TABLE public.utilisateur (
     marques_autorisees JSONB DEFAULT '[]',
     plages_imei_autorisees JSONB DEFAULT '[]'
 );
+
+-- Table: email_verification (pour la vérification des emails)
+CREATE TABLE public.email_verification (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id UUID REFERENCES public.utilisateur(id),
+    token VARCHAR(128) UNIQUE NOT NULL,
+    date_creation TIMESTAMP DEFAULT NOW(),
+    date_expiration TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX idx_email_verification_token ON email_verification(token);
+CREATE INDEX idx_email_verification_utilisateur_id ON email_verification(utilisateur_id);
+CREATE INDEX idx_email_verification_expiration ON email_verification(date_expiration);
+
+COMMENT ON TABLE email_verification IS 'Table pour gérer les tokens de vérification d''email';
+COMMENT ON COLUMN email_verification.token IS 'Token unique pour la vérification d''email';
+COMMENT ON COLUMN email_verification.used IS 'Indique si le token a été utilisé';
+COMMENT ON COLUMN email_verification.date_expiration IS 'Date d''expiration du token';
 
 
 -- Ajouter un index pour optimiser les requêtes sur la date de création

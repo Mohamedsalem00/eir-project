@@ -15,7 +15,7 @@ DELETE FROM utilisateur;
 -- DELETE FROM tac_database;
 
 -- Create admin user
-INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, est_actif)
+INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, est_actif, email_valide, numero_telephone)
 VALUES (
     gen_random_uuid(),
     'System Administrator',
@@ -24,11 +24,13 @@ VALUES (
     'administrateur',
     'admin',
     'tout',
-    true
+    true,
+    true,
+    '+212600000001'
 );
 
 -- Create sample regular user
-INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, est_actif)
+INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, est_actif, email_valide, numero_telephone)
 VALUES (
     gen_random_uuid(),
     'Regular User',
@@ -37,11 +39,13 @@ VALUES (
     'utilisateur_authentifie',
     'standard',
     'personnel',
-    true
+    true,
+    false,
+    '+212600000002'
 );
 
 -- Create sample operator users
-INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, organisation, est_actif)
+INSERT INTO utilisateur (id, nom, email, mot_de_passe, type_utilisateur, niveau_acces, portee_donnees, organisation, est_actif, email_valide, numero_telephone)
 VALUES 
 (
     gen_random_uuid(),
@@ -52,7 +56,9 @@ VALUES
     'standard',
     'organisation',
     'Orange Maroc',
-    true
+    true,
+    false,
+    '+212600000003'
 ),
 (
     gen_random_uuid(),
@@ -63,7 +69,9 @@ VALUES
     'standard',
     'organisation',
     'Inwi',
-    true
+    true,
+    false,
+    '+212600000004'
 );
 
 -- Insert basic TAC data for testing
