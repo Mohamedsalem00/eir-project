@@ -19,7 +19,7 @@ COPY test_data.sql /app/
 COPY ./app ./app
 
 # Copy config directory from project root (outside backend) to /app/config
-COPY ../config ./config
+# COPY ../config ./config
 
 # Expose port
 EXPOSE 8000

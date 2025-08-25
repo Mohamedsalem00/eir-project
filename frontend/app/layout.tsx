@@ -19,6 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
+      <meta name="theme-color" content="#3182ce" />
       <body className={`${inter.className} bg-white dark:bg-gray-900`}>
         {/* Script to prevent theme flash */}
         <script

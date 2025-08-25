@@ -51,3 +51,11 @@ APScheduler>=3.10.0
 
 # Additional utilities for notifications
 pytz>=2023.3  # Timezone support for scheduler
+
+
+starlette-admin
+
+# Admin dashboard for FastAPI
+sqladmin>=0.13.0
+# Session support for SQLAdmin (required)
+itsdangerous>=2.1.2

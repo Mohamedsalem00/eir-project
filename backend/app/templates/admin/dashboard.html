@@ -1,0 +1,44 @@
+{% extends "admin/layout.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none">
+    <h2 class="page-title">Dashboard</h2>
+  </div>
+  <div class="page-body">
+    <div class="row row-deck row-cards">
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body">
+            <div class="subheader">Total Users</div>
+            <div class="h1 mb-3">{{ stats.total_users }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body">
+            <div class="subheader">Total Devices</div>
+            <div class="h1 mb-3">{{ stats.total_appareils }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body">
+            <div class="subheader">Total SIMs</div>
+            <div class="h1 mb-3">{{ stats.total_sims }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card">
+          <div class="card-body">
+            <div class="subheader">Total Searches</div>
+            <div class="h1 mb-3">{{ stats.total_recherches }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

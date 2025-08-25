@@ -239,37 +239,51 @@ erDiagram
     Utilisateur ||--o{ Appareil : "possède"
     Utilisateur ||--o{ SIM : "possède"
     Utilisateur ||--o{ IMEI : "recherche"
-    Appareil ||--o{ IMEI : "contient"
     Utilisateur ||--o{ Recherche : "effectue"
     Utilisateur ||--o{ Notification : "reçoit"
     Utilisateur ||--o{ JournalAudit : "génère"
     Utilisateur ||--o{ PasswordReset : "demande"
+    Utilisateur ||--o{ ImportExport : "réalise"
+    Utilisateur ||--o{ EmailVerification : "valide"
+    Appareil ||--o{ IMEI : "contient"
     IMEI }o--|| TAC_Database : "valide_avec"
     TAC_Database ||--o{ TAC_Sync_Log : "synchronise"
-    
+
     Utilisateur {
         UUID id
         string nom
         string email
-        string mot_de_passe
+        text mot_de_passe
         string type_utilisateur
+        boolean email_valide
+        string numero_telephone
         string niveau_acces
         string portee_donnees
         string organisation
+        boolean est_actif
         jsonb marques_autorisees
         jsonb plages_imei_autorisees
-        boolean est_actif
         timestamp date_creation
     }
-    
+
+    EmailVerification {
+        UUID id
+        UUID utilisateur_id
+        string token
+        timestamp date_creation
+        timestamp date_expiration
+        boolean used
+    }
+
     Appareil {
         UUID id
         string marque
         string modele
         string emmc
+        string numero_serie
         UUID utilisateur_id
     }
-    
+
     IMEI {
         UUID id
         string numero_imei
@@ -277,39 +291,21 @@ erDiagram
         string statut
         UUID appareil_id
     }
-    
-    TAC_Database {
-        string tac
-        string marque
-        string modele
-        integer annee_sortie
-        string type_appareil
-        string statut
-        string raison
-        timestamp date_creation
-        timestamp date_modification
-    }
-    
-    TAC_Sync_Log {
-        UUID id
-        string source_name
-        string source_url
-        string sync_type
-        string format_type
-        string status
-        integer records_imported
-        integer records_updated
-        integer records_errors
-        timestamp sync_date
-    }
-    
+
     SIM {
         UUID id
         string iccid
         string operateur
         UUID utilisateur_id
     }
-    
+
+    Recherche {
+        UUID id
+        timestamp date_recherche
+        string imei_recherche
+        UUID utilisateur_id
+    }
+
     Notification {
         UUID id
         string type
@@ -319,11 +315,27 @@ erDiagram
         string source
         string statut
         integer tentative
+        text erreur
         timestamp date_creation
         timestamp date_envoi
         UUID utilisateur_id
     }
-    
+
+    JournalAudit {
+        UUID id
+        text action
+        timestamp date
+        UUID utilisateur_id
+    }
+
+    ImportExport {
+        UUID id
+        string type_operation
+        text fichier
+        timestamp date
+        UUID utilisateur_id
+    }
+
     PasswordReset {
         UUID id
         UUID utilisateur_id
@@ -335,21 +347,37 @@ erDiagram
         boolean utilise
         timestamp date_creation
         timestamp date_expiration
+        timestamp date_utilisation
+        string adresse_ip
     }
-    
-    JournalAudit {
-        UUID id
-        text action
-        timestamp date
-        UUID utilisateur_id
+
+    TAC_Database {
+        string tac
+        string marque
+        string modele
+        integer annee_sortie
+        string type_appareil
+        string statut
+        string raison
+        timestamp date_creation
+        timestamp date_modification
     }
-    
-    ImportExport {
+
+    TAC_Sync_Log {
         UUID id
-        string type_operation
-        text fichier
-        timestamp date
-        UUID utilisateur_id
+        string source_name
+        string source_url
+        string sync_type
+        string format_type
+        string status
+        integer records_imported
+        integer records_updated
+        integer records_errors
+        integer sync_duration_ms
+        text error_message
+        timestamp sync_date
+        integer file_size_bytes
+        string checksum
     }
 ```
 
