@@ -163,18 +163,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware # Assuming you use FastAPI
 # from starlette.middleware.cors import CORSMiddleware # Or this for pure Starlette
 
-# --- Your helper functions for CORS ---
-# Make sure get_cors_origins(), get_cors_methods(), get_cors_headers() are defined
-# Example:
-def get_cors_origins():
-    return ["http://localhost:3000", "http://localhost:8000"]
-
-def get_cors_methods():
-    return ["*"]
-
-def get_cors_headers():
-    return ["*"]
-# -----------------------------------------
 
 
 # Configuration CORS pour permettre les requêtes depuis le frontend
@@ -185,192 +173,192 @@ app.add_middleware(
     allow_methods=get_cors_methods(),
     allow_headers=get_cors_headers(),
 )
-app.add_middleware(
-    SessionMiddleware,
-    secret_key="replace-with-your-secret-key" # IMPORTANT: Use a secure, secret key
-)
+# app.add_middleware(
+#     SessionMiddleware,
+#     secret_key="replace-with-your-secret-key" # IMPORTANT: Use a secure, secret key
+# )
 
-# --- Starlette Admin Panel Setup ---
-from typing import Optional, Any
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette_admin.auth import AuthProvider
-from starlette_admin.contrib.sqla import Admin as BaseAdmin, ModelView
-from starlette_admin.exceptions import LoginFailed
-from .core.database import engine
+# # --- Starlette Admin Panel Setup ---
+# from typing import Optional, Any
+# from starlette.requests import Request
+# from starlette.responses import Response
+# from starlette_admin.auth import AuthProvider
+# from starlette_admin.contrib.sqla import Admin as BaseAdmin, ModelView
+# from starlette_admin.exceptions import LoginFailed
+# from .core.database import engine
 
-# --- Import all your models here ---
-from .models.utilisateur import Utilisateur
-from .models.appareil import Appareil
-from .models.sim import SIM
-from .models.imei import IMEI
-from .models.recherche import Recherche
-from .models.notification import Notification
-from .models.journal_audit import JournalAudit
-from .models.import_export import ImportExport
-from .models.password_reset import PasswordReset
-from .models.email_verification import EmailVerification
-# ------------------------------------
+# # --- Import all your models here ---
+# from .models.utilisateur import Utilisateur
+# from .models.appareil import Appareil
+# from .models.sim import SIM
+# from .models.imei import IMEI
+# from .models.recherche import Recherche
+# from .models.notification import Notification
+# from .models.journal_audit import JournalAudit
+# from .models.import_export import ImportExport
+# from .models.password_reset import PasswordReset
+# from .models.email_verification import EmailVerification
+# # ------------------------------------
 
-from .core.auth import verify_password
+# from .core.auth import verify_password
 
-class BasicAuthProvider(AuthProvider):
-    async def is_authenticated(self, request: Request) -> bool:
-        return "user_id" in request.session
+# class BasicAuthProvider(AuthProvider):
+#     async def is_authenticated(self, request: Request) -> bool:
+#         return "user_id" in request.session
 
-    async def login(
-        self, username: str, password: str, remember_me: bool, request: Request, response: Response
-    ) -> Response:
-        session = SessionLocal()
-        try:
-            user = session.query(Utilisateur).filter(
-                Utilisateur.email == username,
-                Utilisateur.type_utilisateur == "administrateur",
-                Utilisateur.est_actif == True
-            ).first()
+#     async def login(
+#         self, username: str, password: str, remember_me: bool, request: Request, response: Response
+#     ) -> Response:
+#         session = SessionLocal()
+#         try:
+#             user = session.query(Utilisateur).filter(
+#                 Utilisateur.email == username,
+#                 Utilisateur.type_utilisateur == "administrateur",
+#                 Utilisateur.est_actif == True
+#             ).first()
 
-            if user and verify_password(password, user.mot_de_passe):
-                request.session["user_id"] = str(user.id)
-                return response
+#             if user and verify_password(password, user.mot_de_passe):
+#                 request.session["user_id"] = str(user.id)
+#                 return response
             
-            raise LoginFailed("Invalid username or password")
-        finally:
-            session.close()
+#             raise LoginFailed("Invalid username or password")
+#         finally:
+#             session.close()
 
-    async def logout(self, request: Request, response: Response) -> Response:
-        request.session.clear()
-        return response
+#     async def logout(self, request: Request, response: Response) -> Response:
+#         request.session.clear()
+#         return response
 
-    def get_admin_user(self, request: Request) -> Optional[Any]:
-        return request.session.get("user_id")
+#     def get_admin_user(self, request: Request) -> Optional[Any]:
+#         return request.session.get("user_id")
     
 
-from starlette_admin.views import CustomView
-from starlette.responses import Response, HTMLResponse
+# from starlette_admin.views import CustomView
+# from starlette.responses import Response, HTMLResponse
 
 
 
 
-from starlette_admin.contrib.sqla import Admin
+# from starlette_admin.contrib.sqla import Admin
 
-admin = Admin(engine,
-    title="EIR Admin",
-    auth_provider=BasicAuthProvider()
-)
-
-
-
-
-
-class DashboardView(CustomView):
-    label = "Dashboard"
-    icon = "fa fa-home"
-    name = "dashboard"
-
-    async def index(self, request: Request) -> HTMLResponse:
-        session = SessionLocal()
-        try:
-            stats = {
-                "total_users": session.query(Utilisateur).count(),
-                "total_appareils": session.query(Appareil).count(),
-                "total_sims": session.query(SIM).count(),
-                "total_recherches": session.query(Recherche).count(),
-            }
-        finally:
-            session.close()
-
-        return self.templates.TemplateResponse(
-            "admin/dashboard.html", 
-            {"request": request, "stats": stats}
-        )
+# admin = Admin(engine,
+#     title="EIR Admin",
+#     auth_provider=BasicAuthProvider()
+# )
 
 
 
 
-class UtilisateurAdmin(ModelView):
-    label="Utilisateurs"
-    icon="fa fa-users"
-    fields = ["id", "nom", "email", "type_utilisateur", "est_actif","email_valide","numero_telephone","sims","niveau_acces","portee_donnees","recherches", "date_creation"]
-    exclude_fields_from_create = ["id", "date_creation"]
-    exclude_fields_from_edit = ["id", "date_creation", "email","email_valide"]
-    searchable_fields = ["nom", "email"] 
-    # Allow sorting by name, email, and creation date
-    sortable_fields = ["nom", "email", "date_creation"]
 
-# 3. Define all your ModelViews
+# class DashboardView(CustomView):
+#     label = "Dashboard"
+#     icon = "fa fa-home"
+#     name = "dashboard"
 
+#     async def index(self, request: Request) -> HTMLResponse:
+#         session = SessionLocal()
+#         try:
+#             stats = {
+#                 "total_users": session.query(Utilisateur).count(),
+#                 "total_appareils": session.query(Appareil).count(),
+#                 "total_sims": session.query(SIM).count(),
+#                 "total_recherches": session.query(Recherche).count(),
+#             }
+#         finally:
+#             session.close()
 
-
-class AppareilAdmin(ModelView):
-    label="Appareils"
-    icon="fa fa-chart-bar"
-    fields = ["id", "marque", "modele", "emmc", "numero_serie", "utilisateur"]
-
-class SimAdmin(ModelView):
-    label="SIMs"
-    icon="fa fa-sim-card"
-    fields = ["id", "iccid", "operateur", "utilisateur"]
-
-class NotificationAdmin(ModelView):
-    label="Notifications"
-    icon="fa fa-bell"
-    fields = ["id", "type", "contenu", "statut", "utilisateur", "date_creation"]
-
-class RechercheAdmin(ModelView):
-    label="Recherches"
-    icon="fa fa-search"
-    fields = ["id", "imei_recherche", "utilisateur", "date_recherche"]
-
-class ImportExportAdmin(ModelView):
-    label="Imports/Exports"
-    icon="fa fa-file-import"
-    fields = ["id", "type_operation", "fichier", "date", "utilisateur"]
-
-class PasswordResetAdmin(ModelView):
-    label="Réinitialisation du mot de passe"
-    icon="fa fa-lock"
-    fields = ["id", "utilisateur", "token","methode_verification","email","telephone","date_creation", "date_expiration", "utilise","date_utilisation","adresse_ip"]
-
-class EmailVerificationAdmin(ModelView):
-    label="Vérification de l'email"
-    icon="fa fa-envelope"
-    fields = ["id", "utilisateur", "token", "used", "date_creation","date_expiration"]
-
-class JournalAuditAdmin(ModelView):
-    label="Journal d'audit"
-    icon="fa fa-book"
-    fields = ["id", "action", "utilisateur", "date"]
-
-class IMEIAdmin(ModelView):
-    label="IMEIs"
-    icon="fa fa-mobile"
-    fields = ["id", "numero_imei","numero_slot", "statut", "appareil"]
+#         return self.templates.TemplateResponse(
+#             "admin/dashboard.html", 
+#             {"request": request, "stats": stats}
+#         )
 
 
 
 
-# Add views to admin
+# class UtilisateurAdmin(ModelView):
+#     label="Utilisateurs"
+#     icon="fa fa-users"
+#     fields = ["id", "nom", "email", "type_utilisateur", "est_actif","email_valide","numero_telephone","sims","niveau_acces","portee_donnees","recherches", "date_creation"]
+#     exclude_fields_from_create = ["id", "date_creation"]
+#     exclude_fields_from_edit = ["id", "date_creation", "email","email_valide"]
+#     searchable_fields = ["nom", "email"] 
+#     # Allow sorting by name, email, and creation date
+#     sortable_fields = ["nom", "email", "date_creation"]
 
-# Register custom dashboard view
-admin.add_view(DashboardView(label="Dashboard", icon="fa fa-chart-bar", name="dashboard"))
-
-admin.index_view = "dashboard"  # Set the custom dashboard as the index view
-
-# Add all models
-admin.add_view(UtilisateurAdmin(Utilisateur, label="Utilisateurs", icon="fa fa-users"))
-admin.add_view(AppareilAdmin(Appareil , label="Appareils", icon="fa fa-mobile"))
-admin.add_view(SimAdmin(SIM, label="SIMs", icon="fa fa-sim-card"))
-admin.add_view(IMEIAdmin(IMEI, label="IMEIs", icon="fa fa-mobile"))
-admin.add_view(RechercheAdmin(Recherche, label="Recherches", icon="fa fa-search"))
-admin.add_view(NotificationAdmin(Notification, label="Notifications", icon="fa fa-bell"))
-admin.add_view(ImportExportAdmin(ImportExport, label="Imports/Exports", icon="fa fa-file-import"))
-admin.add_view(PasswordResetAdmin(PasswordReset, label="Réinitialisation du mot de passe", icon="fa fa-lock"))
-admin.add_view(EmailVerificationAdmin(EmailVerification, label="Vérification de l'email", icon="fa fa-envelope"))
-admin.add_view(JournalAuditAdmin(JournalAudit, label="Journal d'audit", icon="fa fa-book"))
+# # 3. Define all your ModelViews
 
 
-# 5. Mount admin to your app ONCE, at the end
-admin.mount_to(app)
+
+# class AppareilAdmin(ModelView):
+#     label="Appareils"
+#     icon="fa fa-chart-bar"
+#     fields = ["id", "marque", "modele", "emmc", "numero_serie", "utilisateur"]
+
+# class SimAdmin(ModelView):
+#     label="SIMs"
+#     icon="fa fa-sim-card"
+#     fields = ["id", "iccid", "operateur", "utilisateur"]
+
+# class NotificationAdmin(ModelView):
+#     label="Notifications"
+#     icon="fa fa-bell"
+#     fields = ["id", "type", "contenu", "statut", "utilisateur", "date_creation"]
+
+# class RechercheAdmin(ModelView):
+#     label="Recherches"
+#     icon="fa fa-search"
+#     fields = ["id", "imei_recherche", "utilisateur", "date_recherche"]
+
+# class ImportExportAdmin(ModelView):
+#     label="Imports/Exports"
+#     icon="fa fa-file-import"
+#     fields = ["id", "type_operation", "fichier", "date", "utilisateur"]
+
+# class PasswordResetAdmin(ModelView):
+#     label="Réinitialisation du mot de passe"
+#     icon="fa fa-lock"
+#     fields = ["id", "utilisateur", "token","methode_verification","email","telephone","date_creation", "date_expiration", "utilise","date_utilisation","adresse_ip"]
+
+# class EmailVerificationAdmin(ModelView):
+#     label="Vérification de l'email"
+#     icon="fa fa-envelope"
+#     fields = ["id", "utilisateur", "token", "used", "date_creation","date_expiration"]
+
+# class JournalAuditAdmin(ModelView):
+#     label="Journal d'audit"
+#     icon="fa fa-book"
+#     fields = ["id", "action", "utilisateur", "date"]
+
+# class IMEIAdmin(ModelView):
+#     label="IMEIs"
+#     icon="fa fa-mobile"
+#     fields = ["id", "numero_imei","numero_slot", "statut", "appareil"]
+
+
+
+
+# # Add views to admin
+
+# # Register custom dashboard view
+# admin.add_view(DashboardView(label="Dashboard", icon="fa fa-chart-bar", name="dashboard"))
+
+# admin.index_view = "dashboard"  # Set the custom dashboard as the index view
+
+# # Add all models
+# admin.add_view(UtilisateurAdmin(Utilisateur, label="Utilisateurs", icon="fa fa-users"))
+# admin.add_view(AppareilAdmin(Appareil , label="Appareils", icon="fa fa-mobile"))
+# admin.add_view(SimAdmin(SIM, label="SIMs", icon="fa fa-sim-card"))
+# admin.add_view(IMEIAdmin(IMEI, label="IMEIs", icon="fa fa-mobile"))
+# admin.add_view(RechercheAdmin(Recherche, label="Recherches", icon="fa fa-search"))
+# admin.add_view(NotificationAdmin(Notification, label="Notifications", icon="fa fa-bell"))
+# admin.add_view(ImportExportAdmin(ImportExport, label="Imports/Exports", icon="fa fa-file-import"))
+# admin.add_view(PasswordResetAdmin(PasswordReset, label="Réinitialisation du mot de passe", icon="fa fa-lock"))
+# admin.add_view(EmailVerificationAdmin(EmailVerification, label="Vérification de l'email", icon="fa fa-envelope"))
+# admin.add_view(JournalAuditAdmin(JournalAudit, label="Journal d'audit", icon="fa fa-book"))
+
+
+# # 5. Mount admin to your app ONCE, at the end
+# admin.mount_to(app)
 
 
 

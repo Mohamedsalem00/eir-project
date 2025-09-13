@@ -231,6 +231,16 @@ async def login(user_credentials: ConnexionUtilisateur, request: Request, db: Se
 
         logger.info(f"Connexion réussie pour l'utilisateur: {user.email}")
 
+        # 🔹 Ajouter un log dans le journal des audits
+        audit = JournalAudit(
+            id=uuid.uuid4(),
+            action=f"Connexion utilisateur: {user.email}",
+            date=datetime.now(),
+            utilisateur_id=user.id
+        )
+        db.add(audit)
+        db.commit()
+
         return {"access_token": access_token, "token_type": "bearer"}
 
     except HTTPException as http_exc:
@@ -257,10 +267,10 @@ async def get_profile_detailed(
 
         from ..models.journal_audit import JournalAudit
 
-        # Dernière connexion
+        # Dernière connexion (assouplir le filtre LIKE)
         derniere_connexion_audit = db.query(JournalAudit).filter(
             JournalAudit.utilisateur_id == current_user.id,
-            JournalAudit.action.like('Connexion utilisateur:%')
+            JournalAudit.action.ilike('Connexion utilisateur:%')   # plus flexible
         ).order_by(JournalAudit.date.desc()).first()
         derniere_connexion = derniere_connexion_audit.date if derniere_connexion_audit else None
 

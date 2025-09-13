@@ -1,2 +1,2 @@
 # Railway Deployment Configuration
-web: docker-compose up --build web
+web: docker compose up --build web

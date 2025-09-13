@@ -12,6 +12,12 @@ const nextConfig = {
       },
     ]
   },
+  experimental: {
+    allowedDevOrigins: [
+      'http://localhost:3000',
+      'http://192.168.2.145:3000', // your LAN/dev IP
+    ],
+  },
 }
 
 module.exports = nextConfig
