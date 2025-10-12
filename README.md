@@ -1,5 +1,8 @@
 "# 🇫🇷 Projet EIR Francisé - Système de Gestion des IMEI
 
+<img width="220" height="220" alt="10_27_03_check_imei" src="https://github.com/user-attachments/assets/b83a0cb6-66e5-4e46-88dc-50b762b91280" />
+
+
 > **Version francisée complète** avec API entièrement traduite en français, système de permissi### 📧 Notifications et Audit
 -### 📧 Notifications et Communicat### 🌍 Système et Validation
 - `GET /verification-etat` - État de santé complet du système avec métriques
